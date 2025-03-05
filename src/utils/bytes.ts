@@ -1,12 +1,3 @@
-/*
-Copyright (c) Meta Platforms, Inc. and affiliates.
-
-This source code is licensed under the MIT license found in the
-LICENSE file in the root directory of this source tree.
-*/
-
-import { MOQ_MAX_PARAMS, MOQ_PARAMETER_AUTHORIZATION_INFO, MOQ_PARAMETER_ROLE } from "../constants";
-
 const MAX_U6 = Math.pow(2, 6) - 1;
 const MAX_U14 = Math.pow(2, 14) - 1;
 const MAX_U30 = Math.pow(2, 30) - 1;
@@ -47,25 +38,25 @@ export const numberToVarInt = (v) => {
   }
 };
 
-export const varIntToNumber = async (readableStream) => {
-  let ret;
+export const varIntToNumber = async (readableStream): Promise<number> => {
+  let ret: number;
   const reader = readableStream.getReader({ mode: 'byob' });
   try {
     let buff = new ArrayBuffer(8);
 
     buff = await buffReadFrombyobReader(reader, buff, 0, 1);
-    const size = (new DataView(buff, 0, 1).getUint8() & 0xc0) >> 6;
+    const size = (new DataView(buff, 0, 1).getUint8(0) & 0xc0) >> 6;
     if (size === 0) {
-      ret = new DataView(buff, 0, 1).getUint8() & 0x3f;
+      ret = new DataView(buff, 0, 1).getUint8(0) & 0x3f;
     } else if (size === 1) {
       buff = await buffReadFrombyobReader(reader, buff, 1, 1);
-      ret = new DataView(buff, 0, 2).getUint16() & 0x3fff;
+      ret = new DataView(buff, 0, 2).getUint16(0) & 0x3fff;
     } else if (size === 2) {
       buff = await buffReadFrombyobReader(reader, buff, 1, 3);
-      ret = new DataView(buff, 0, 4).getUint32() & 0x3fffffff;
+      ret = new DataView(buff, 0, 4).getUint32(0) & 0x3fffffff;
     } else if (size === 3) {
       buff = await buffReadFrombyobReader(reader, buff, 1, 7);
-      ret = Number(new DataView(buff, 0, 8).getBigUint64() & BigInt('0x3fffffffffffffff'));
+      ret = Number(new DataView(buff, 0, 8).getBigUint64(0) & BigInt('0x3fffffffffffffff'));
     } else {
       throw new Error('impossible');
     }
@@ -75,31 +66,45 @@ export const varIntToNumber = async (readableStream) => {
   return ret;
 };
 
-const setUint8 = (v) => {
+export const setUint8 = (v: number) => {
   const ret = new Uint8Array(1);
   ret[0] = v;
   return ret;
 };
 
-const setUint16 = (v) => {
+const setUint16 = (v: number) => {
   const ret = new Uint8Array(2);
   const view = new DataView(ret.buffer);
   view.setUint16(0, v);
   return ret;
 };
 
-const setUint32 = (v) => {
+const setUint32 = (v: number) => {
   const ret = new Uint8Array(4);
   const view = new DataView(ret.buffer);
   view.setUint32(0, v);
   return ret;
 };
 
-const setUint64 = (v) => {
+const setUint64 = (v: bigint) => {
   const ret = new Uint8Array(8);
   const view = new DataView(ret.buffer);
   view.setBigUint64(0, v);
   return ret;
+};
+
+export const getUint8 = async (readableStream: ReadableStream): Promise<number> => {
+  const reader = readableStream.getReader({ mode: 'byob' });
+  try {
+    const buffer = new ArrayBuffer(1);
+    const { value, done } = await reader.read(new Uint8Array(buffer));
+    if (done) {
+      throw new Error('short buffer');
+    }
+    return new DataView(buffer).getUint8(0);
+  } finally {
+    reader.releaseLock();
+  }
 };
 
 export const concatBuffer = (arr) => {
@@ -169,26 +174,6 @@ export const readUntilEof = async (readableStream, blockSize) => {
   return payload;
 };
 
-export const serializeMetadata = (metadata): Uint8Array => {
-  let ret: Uint8Array;
-  if (isMetadataValid(metadata)) {
-    const newData = {};
-    // Copy all enumerable own properties
-    newData.decoderConfig = Object.assign({}, metadata.decoderConfig);
-    // Description is buffer
-    if ('description' in metadata.decoderConfig) {
-      newData.decoderConfig.descriptionInBase64 = arrayBufferToBase64(metadata.decoderConfig.description);
-      delete newData.description;
-    }
-    // Encode
-    const encoder = new TextEncoder();
-    ret = encoder.encode(JSON.stringify(newData));
-  }
-  return ret;
-};
-
-export const isMetadataValid = (metadata) => metadata !== undefined && 'decoderConfig' in metadata;
-
 function arrayBufferToBase64(buffer) {
   let binary = '';
   const bytes = new Uint8Array(buffer);
@@ -198,18 +183,6 @@ function arrayBufferToBase64(buffer) {
   }
   return btoa(binary);
 }
-
-export const deSerializeMetadata = (metadata) => {
-  const decoder = new TextDecoder();
-  const str = decoder.decode(metadata);
-  const data = JSON.parse(str);
-
-  if (('decoderConfig' in data) && ('descriptionInBase64' in data.decoderConfig)) {
-    data.decoderConfig.description = base64ToArrayBuffer(data.decoderConfig.descriptionInBase64);
-    delete data.decoderConfig.descriptionInBase64;
-  }
-  return data.decoderConfig;
-};
 
 const base64ToArrayBuffer = (base64) => {
   const binaryString = atob(base64);
@@ -221,37 +194,23 @@ const base64ToArrayBuffer = (base64) => {
   return bytes.buffer;
 };
 
-export const stringToBytes = (str: string) => {
+export const stringToVarBytes = (str: string) => {
   const dataStrBytes = new TextEncoder().encode(str);
   const dataStrLengthBytes = numberToVarInt(dataStrBytes.byteLength);
   return concatBuffer([dataStrLengthBytes, dataStrBytes]);
 };
 
-export const toString = async (receiveStream: ReadableStream) => {
+export const stringToFixedBytes = (str: string) => {
+  return new TextEncoder().encode(str)
+}
+
+export const varBytesToString = async (receiveStream: ReadableStream) => {
   const size = await varIntToNumber(receiveStream);
   const buffer = await buffRead(receiveStream, size);
   return new TextDecoder().decode(buffer);
 }
 
-export const readParams = async (controlReader: ReadableStream) => {
-  const ret = { authInfo: '', role: -1 };
-  const numParams = await varIntToNumber(controlReader);
-  if (numParams > MOQ_MAX_PARAMS) {
-    throw new Error(`exceeded the max number of supported params ${MOQ_MAX_PARAMS}, got ${numParams}`);
-  }
-  for (let i = 0; i < numParams; i++) {
-    const paramId = await varIntToNumber(controlReader);
-    if (paramId === MOQ_PARAMETER_AUTHORIZATION_INFO) {
-      ret.authInfo = await toString(controlReader);
-      break;
-    } else if (paramId === MOQ_PARAMETER_ROLE) {
-      await varIntToNumber(controlReader);
-      ret.role = await varIntToNumber(controlReader);
-    } else {
-      const paramLength = await varIntToNumber(controlReader);
-      const skip = await buffRead(controlReader, paramLength);
-      ret[`unknown-${i}-${paramId}-${paramLength}`] = JSON.stringify(skip);
-    }
-  }
-  return ret;
+export const fixedBytesToString = async (receiveStream: ReadableStream, size: number) => {
+  const buffer = await buffRead(receiveStream, size);
+  return new TextDecoder().decode(buffer);
 }
