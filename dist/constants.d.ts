@@ -1,3 +1,4 @@
+export declare const MOQT_DRAFT08_VERSION = 4278190088;
 export declare const MOQT_DRAFT09_VERSION = 4278190089;
 export declare const MOQT_DRAFT10_VERSION = 4278190090;
 export declare const MOQT_SUPPORTED_VERSIONS: number[];
