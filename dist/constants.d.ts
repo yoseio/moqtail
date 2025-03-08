@@ -132,6 +132,7 @@ export declare const OBJECT_STATUS: {
     readonly END_OF_TRACK_AND_GROUP: 4;
     readonly END_OF_TRACK: 5;
 };
+export type OBJECT_STATUS = ObjectValueList<typeof OBJECT_STATUS>;
 export declare const TRACK_STATUS_CODE: {
     readonly IN_PROGRESS: 0;
     readonly NOT_EXIST: 1;

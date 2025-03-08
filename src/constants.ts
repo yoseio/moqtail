@@ -136,6 +136,7 @@ export const OBJECT_STATUS = {
   END_OF_TRACK_AND_GROUP: 0x4,
   END_OF_TRACK: 0x5,
 } as const;
+export type OBJECT_STATUS = ObjectValueList<typeof OBJECT_STATUS>;
 
 export const TRACK_STATUS_CODE = {
   IN_PROGRESS: 0x0,
