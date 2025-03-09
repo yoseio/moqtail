@@ -52,7 +52,7 @@ export const numberToVarInt = (v) => {
   }
 };
 
-export const varIntToNumber = async (readableStream): Promise<number> => {
+export const varIntToNumber = async (readableStream: ReadableStream): Promise<number> => {
   let ret: number;
   const reader = readableStream.getReader({ mode: 'byob' });
   try {

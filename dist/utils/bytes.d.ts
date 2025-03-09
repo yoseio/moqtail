@@ -1,9 +1,10 @@
 export declare const buffReadFrombyobReader: (reader: any, buffer: any, offset: any, size: any) => Promise<any>;
+export declare const getNumberLength: (v: number | bigint) => 2 | 4 | 1 | 8;
 export declare const numberToVarInt: (v: any) => Uint8Array;
 export declare const varIntToNumber: (readableStream: any) => Promise<number>;
 export declare const setUint8: (v: number) => Uint8Array;
 export declare const getUint8: (readableStream: ReadableStream) => Promise<number>;
-export declare const concatBuffer: (arr: any) => Uint8Array;
+export declare const concatBuffer: (arr: Uint8Array[]) => Uint8Array;
 export declare const buffRead: (readableStream: any, size: any) => Promise<any>;
 export declare const readUntilEof: (readableStream: any, blockSize: any) => Promise<Uint8Array>;
 export declare const stringToVarBytes: (str: string) => Uint8Array;

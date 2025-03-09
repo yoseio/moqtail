@@ -4,7 +4,7 @@
     "module": "ESNext",
     "lib": ["ESNext", "DOM", "WebWorker"],
     "target": "ESNext",
-    "isolatedModules": true,
+    "isolatedModules": false,
     "resolveJsonModule": true,
     /**
 			To have warnings/errors of the Svelte compiler at the correct position,

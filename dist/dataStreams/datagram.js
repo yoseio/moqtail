@@ -7,6 +7,6 @@ export const serializeDatagram = (props) => {
     const publisherPriorityBytes = numberToVarInt(props.publisherPriority);
     const extensionHeadersLengthBytes = numberToVarInt(props.extensionHeaders.length);
     const extensionHeaderBytes = props.extensionHeaders.map(serializeExtensionHeader);
-    const datagram = concatBuffer([trackAliasBytes, groupIdBytes, objectIdBytes, publisherPriorityBytes, extensionHeadersLengthBytes, extensionHeaderBytes, props.payload]);
+    const datagram = concatBuffer([trackAliasBytes, groupIdBytes, objectIdBytes, publisherPriorityBytes, extensionHeadersLengthBytes, ...extensionHeaderBytes, props.payload]);
     return datagram;
 };

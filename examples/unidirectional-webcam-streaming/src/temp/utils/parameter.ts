@@ -1,21 +1,19 @@
 import { CONTROL_MESSAGE, PARAMETER } from "../constants";
 import { concatBuffer, getNumberLength, numberToVarInt, stringToVarBytes, varBytesToString, varIntToNumber } from "./bytes"
 
-export interface Parameter {
+export interface ParameterTemp {
   type: number,
   value: string | number
 }
 
-export const serializeParams = (params: Parameter[]) => {
+export const serializeParams = (params: ParameterTemp[]) => {
   const serialized = params.map(param => {
     const type = numberToVarInt(param.type);
     let len: Uint8Array = new Uint8Array(0);
     let value: Uint8Array;
-    console.log(typeof param.value);
     if (typeof param.value === 'string') {
       value = stringToVarBytes(param.value);
     } else {
-      console.log('param.value', param.value, getNumberLength(param.value));
       len = numberToVarInt(getNumberLength(param.value));
       value = numberToVarInt(param.value);
     }
@@ -25,8 +23,18 @@ export const serializeParams = (params: Parameter[]) => {
   return concatBuffer([numParams, ...serialized]);
 }
 
+export interface Parameter {
+  authInfo: string,
+  deliveryTimeout: number,
+  maxCacheDuration: number,
+  setup: {
+    path: string,
+    maxSubscribeId: number,
+  }
+}
+
 export const deserializeParams = async (messageType: number, controlReader: ReadableStream) => {
-  const ret = {
+  const ret: Parameter = {
     authInfo: '',
     deliveryTimeout: -1,
     maxCacheDuration: -1,
@@ -44,6 +52,7 @@ export const deserializeParams = async (messageType: number, controlReader: Read
           ret.setup.path = await varBytesToString(controlReader);
           break;
         case PARAMETER.SETUP.MAX_SUBSCRIBE_ID.KEY:
+          await varIntToNumber(controlReader); // length
           ret.setup.maxSubscribeId = await varIntToNumber(controlReader);
           break
         default:

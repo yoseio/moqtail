@@ -5,6 +5,7 @@
 
   let liveEl: HTMLVideoElement;
   let publisherInit = false;
+  let setupSent = false;
   let publisher: Publisher;
   let stream: MediaStream;
 
@@ -56,8 +57,9 @@
     publisherInit = true;
   };
   const setup = () => {
-    if (!publisherInit) return;
+    if (!publisherInit || setupSent) return;
     publisher.setup();
+    setupSent = true;
   }
   const announce = () => {
     if (!publisherInit) return;
