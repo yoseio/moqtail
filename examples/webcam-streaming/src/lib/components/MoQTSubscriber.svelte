@@ -1,53 +1,41 @@
 <script lang="ts">
+  import { Subscriber } from "$lib/subscriber";
+
   let moqEl: HTMLCanvasElement;
   let moqIsPlaying = false;
-  // let subscriber: Subscriber;
+  let subscriberInit = false;
+  let subscriber: Subscriber;
+  let setupSent = false;
 
   export let moqtServerUrl;
   export let canvasWidth = 480;
   export let canvasHeight = 360;
-  let moqtSubTrackNamespace = ['kota'];
-  let moqtSubVideoTrackName = 'kota-video';
-  let moqtSubAudioTrackName = 'kota-audio';
+  let moqtSubTrackNamespace = ['moqtail', 'webcam-demo'];
+  let moqtSubVideoTrackName = 'video';
+  let moqtSubAudioTrackName = 'audio';
   let moqtSubAuth = 'secret';
   let moqtSubJitterBufferFrameSize = 10;
 
-  let videoQuality: 'low' | 'medium' | 'high' = 'low';
+  // let videoQuality: 'low' | 'medium' | 'high' = 'low';
 
-  const qualityOnChange = async (event) => {
-    // videoQuality = event.target.value;
-    // if (moqIsPlaying) {
-    //   await subscriber.stop();
-    //   subscriber = new Subscriber(moqtServerUrl);
-    //   await subscriber.init({
-    //     namespace: moqtSubTrackNamespace,
-    //     videoTrackName: `${moqtSubVideoTrackName}-${videoQuality}`,
-    //     audioTrackName: moqtSubAudioTrackName,
-    //     authInfo: moqtSubAuth,
-    //     jitterBufferFrameSize: moqtSubJitterBufferFrameSize
-    //   });
-    //   subscriber.setCanvasElement(moqEl);
-    // }
+  const connectToServer = async () => {
+    if (subscriberInit) return;
+    subscriber = new Subscriber({
+      serverUrl: moqtServerUrl,
+      authInfo: moqtSubAuth,
+      jitterBufferFrameSize: moqtSubJitterBufferFrameSize,
+    });
+    subscriberInit = true;
+  }
+  const setup = () => {
+    if (!subscriber || setupSent) return;
+    subscriber.setup();
+    setupSent = true;
+  }
+  const playStream = () => {
+
   };
-  const moqPlayStreamOnClick = async () => {
-    // if (moqIsPlaying) return;
-    // // subscriber = new Subscriber('https://norsk-moq-linode-chicago.englishm.net:4443');
-    // subscriber = new Subscriber(moqtServerUrl);
-    // await subscriber.init({
-    //   namespace: moqtSubTrackNamespace,
-    //   videoTrackName: `${moqtSubVideoTrackName}-${videoQuality}`,
-    //   audioTrackName: moqtSubAudioTrackName,
-    //   authInfo: moqtSubAuth,
-    //   jitterBufferFrameSize: moqtSubJitterBufferFrameSize
-    // });
-    // subscriber.setCanvasElement(moqEl);
-    // moqIsPlaying = true;
-  };
-  const moqStopStreamOnClick = async () => {
-    // if (!moqIsPlaying) return;
-    // moqIsPlaying = false;
-    // await subscriber.stop();
-  };
+  const stopStream = () => {}
   const canvasGoFullscreen = () => {
     moqEl.requestFullscreen();
   };
@@ -70,8 +58,10 @@
       />
     </div>
   </div>
-  <button on:click={moqPlayStreamOnClick}>Subscribe</button>
-  <button on:click={moqStopStreamOnClick}>Unsubscribe</button>
+  <button on:click={connectToServer}>Connect to server</button>
+  <button on:click={setup}>Setup</button>
+  <button on:click={playStream}>Subscribe</button>
+  <button on:click={stopStream}>Unsubscribe</button>
   <!-- <div>
     <fieldset>
       <legend>Video Quality</legend>

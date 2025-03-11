@@ -16,9 +16,7 @@ declare global {
     authInfo: string
   };
   interface SubscriberInitProps {
-    namespace: string[],
-    videoTrackName: string,
-    audioTrackName: string,
+    serverUrl: string,
     authInfo: string,
     jitterBufferFrameSize?: number
   };
