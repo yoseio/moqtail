@@ -72,7 +72,7 @@
   </div>
   <button on:click={moqPlayStreamOnClick}>Subscribe</button>
   <button on:click={moqStopStreamOnClick}>Unsubscribe</button>
-  <div>
+  <!-- <div>
     <fieldset>
       <legend>Video Quality</legend>
       <input type="radio" name="sub-video-quality" on:change={qualityOnChange} value="low" checked />
@@ -82,7 +82,7 @@
       <input type="radio" name="sub-video-quality" on:change={qualityOnChange} value="high" />
       <label for="sub-video-quality">High</label>
     </fieldset>
-  </div>
+  </div> -->
 </div>
 
 <style>

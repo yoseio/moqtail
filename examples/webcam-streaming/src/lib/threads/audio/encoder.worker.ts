@@ -5,8 +5,8 @@ interface StreamMessageData {
 }
 
 // should rename this to capturer and encoder
-class MoQTVideoEncoder {
-  private reader: ReadableStreamDefaultReader<VideoFrame>;
+class MoQTAudioEncoder {
+  private reader: ReadableStreamDefaultReader<AudioData>;
   private track: Track
   private state: 'init' | 'capturing' | 'encoding' | 'stopped' = 'stopped';
   private chunkCount = 0;
@@ -27,36 +27,36 @@ class MoQTVideoEncoder {
     }
   }
 
-  capture(readable: ReadableStream<VideoFrame>) {
+  capture(readable: ReadableStream<AudioData>) {
     this.state = 'capturing';
-    Mogger.info(`Capturing video track: ${this.track.name}`);
+    Mogger.info(`Capturing audio track: ${this.track.name}`);
     this.reader = readable.getReader();
   }
   
   async encode(data: StreamMessageData) {
-    const encoder = new VideoEncoder({
-      output: (chunk: EncodedVideoChunk, metadata: EncodedVideoChunkMetadata) => this.handleChunk(chunk, metadata),
+    const encoder = new AudioEncoder({
+      output: (chunk: EncodedAudioChunk, metadata: EncodedAudioChunkMetadata) => this.handleChunk(chunk, metadata),
       error: (error: DOMException) => Mogger.error('VideoEncoder error', error.message)
     });
     const encoderConfig: MyEncoderConfig = this.track.encoderConfig as MyEncoderConfig;
-    encoder.configure(encoderConfig.encoderConfig as VideoEncoderConfig);
+    encoder.configure(encoderConfig.encoderConfig as AudioEncoderConfig);
     while (this.state === 'encoding') {
       const { done, value } = await this.reader.read();
       if (done) break;
-      encoder.encode(value, { keyFrame: this.chunkCount % encoderConfig.keyFrameDuration === 0 });
+      encoder.encode(value);
       this.chunkCount++;
       value.close();
     }
   }
 
-  async handleChunk(chunk: EncodedVideoChunk, metadata: EncodedVideoChunkMetadata) {
+  async handleChunk(chunk: EncodedAudioChunk, metadata: EncodedAudioChunkMetadata) {
     const chunkData = new Uint8Array(chunk.byteLength);
     chunk.copyTo(chunkData);
     postMessage({ type: 'chunk', data: { chunk: chunkData, metadata } });
   }
 }
 
-const encoder = new MoQTVideoEncoder();
+const encoder = new MoQTAudioEncoder();
 self.addEventListener('message', encoder.onMessage.bind(encoder));
 
 export {};

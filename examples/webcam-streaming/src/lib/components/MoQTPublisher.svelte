@@ -10,7 +10,7 @@
   let stream: MediaStream;
 
   export let moqtServerUrl: string;
-  let namespace = ['kota'];
+  let namespace = ['moqtail', 'webcam-demo'];
   let keyFrameDuration = 60;
   let authInfo = 'secret';
 
@@ -68,6 +68,8 @@
     publisher.announce(namespace);
     const vt = stream.getVideoTracks()[0];
     publisher.startStream({ track: videoTrack, mediaTrack: vt });
+    const at = stream.getAudioTracks()[0];
+    publisher.startStream({ track: audioTrack, mediaTrack: at });
   }
   const stopStreaming = () => {
     if (!publisherInit) return;

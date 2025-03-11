@@ -1,6 +1,7 @@
 import { numberToVarInt, concatBuffer, varIntToNumber, stringToVarBytes, varBytesToString, setUint8, getUint8 } from '../utils/bytes';
 import { CONTROL_MESSAGE, FETCH_TYPE } from '../constants';
 import { deserializeParams, type Parameter, serializeParams } from '../utils/parameter';
+import { deserializeNamespace } from '../utils/namespace';
 
 export const serializeFetch = (props: { subscribeId: number, subscriberPriority: number, groupOrder: number, fetchType: FETCH_TYPE, trackNamespace?: string[], trackName?: string, startGroup?: number, startObject?: number, endGroup?: number, endObject?: number, joiningSubscribeId?: number, precedingGroupOffset?: number, parameters?: Parameter[] }) => {
   const messageTypeBytes = numberToVarInt(CONTROL_MESSAGE.FETCH);
@@ -51,8 +52,7 @@ export const deserializeFetch = async (controlReader: ReadableStream) => {
   let result: any = { subscribeId, subscriberPriority, groupOrder, fetchType };
 
   if (fetchType === FETCH_TYPE.STANDALONE) {
-    const trackNamespaceLength = await varIntToNumber(controlReader);
-    const trackNamespace = await Promise.all(Array.from({ length: trackNamespaceLength }, () => varBytesToString(controlReader)));
+    const trackNamespace = await deserializeNamespace(controlReader);
     const trackName = await varBytesToString(controlReader);
     const startGroup = await varIntToNumber(controlReader);
     const startObject = await varIntToNumber(controlReader);

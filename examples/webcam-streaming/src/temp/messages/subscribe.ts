@@ -1,6 +1,7 @@
 import { CONTROL_MESSAGE, GROUP_ORDER, SUBSCRIBE_FILTER } from "../constants";
 import { deserializeParams, type Parameter, serializeParams } from "../utils/parameter";
 import { concatBuffer, numberToVarInt, stringToVarBytes, varIntToNumber, varBytesToString, setUint8, getUint8 } from "../utils/bytes";
+import { deserializeNamespace } from "../utils/namespace";
 
 export const serializeSubscribe = (props: { subscribeId: number, trackAlias: number, namespace: string[], trackName: string, subscriberPriority: number, groupOrder: GROUP_ORDER, filterType: SUBSCRIBE_FILTER, startGroup?: number, startObject?: number, endGroup?: number, parameters?: Parameter[] }) => {
   const messageType = numberToVarInt(CONTROL_MESSAGE.SUBSCRIBE);
@@ -25,8 +26,7 @@ export const deserializeSubscribe = async (controlReader: ReadableStream) => {
   await varIntToNumber(controlReader); // length
   const subscribeId = await varIntToNumber(controlReader);
   const trackAlias = await varIntToNumber(controlReader);
-  const namespaceLength = await varIntToNumber(controlReader);
-  const namespace = await Promise.all(Array.from({ length: namespaceLength }, () => varBytesToString(controlReader)));
+  const trackNamespace = await deserializeNamespace(controlReader);
   const trackName = await varBytesToString(controlReader);
   const subscriberPriority = await getUint8(controlReader);
   const groupOrder = await getUint8(controlReader) as GROUP_ORDER;
@@ -41,5 +41,5 @@ export const deserializeSubscribe = async (controlReader: ReadableStream) => {
   const startObject = filterType === SUBSCRIBE_FILTER.ABSOLUTE_START || filterType === SUBSCRIBE_FILTER.ABSOLUTE_RANGE ? await varIntToNumber(controlReader) : undefined;
   const endGroup = filterType === SUBSCRIBE_FILTER.ABSOLUTE_RANGE ? await varIntToNumber(controlReader) : undefined;
   const parameters = await deserializeParams(CONTROL_MESSAGE.SUBSCRIBE, controlReader);
-  return { subscribeId, trackAlias, namespace, trackName, subscriberPriority, groupOrder, filterType, startGroup, startObject, endGroup, parameters };
+  return { subscribeId, trackAlias, trackNamespace, trackName, subscriberPriority, groupOrder, filterType, startGroup, startObject, endGroup, parameters };
 }

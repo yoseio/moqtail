@@ -6,6 +6,8 @@ import type { ServerSetup, AnnounceOk } from '../temp';
 import CommunicatorWorker from './threads/communicator.worker?worker';
 // @ts-ignore
 import VideoEncoderWorker from './threads/video/encoder.worker?worker';
+// @ts-ignore
+import AudioEncoderWorker from './threads/audio/encoder.worker?worker';
 import { TrackManager } from './track';
 import { Mogger } from './utils/mogger';
 
@@ -28,8 +30,9 @@ export class Publisher {
         this.videoEncoders[track.name].onmessage = this.videoEncoderMessageHandler.bind(this);
         this.videoEncoders[track.name].postMessage({ type: 'init', data: track });
       } else if (track.type === 'audio') {
-        // this.audioEncoder[track.name] = new AudioEncoderWorker();
-        // this.audioEncoder[track.name].onmessage = this.audioEncoderMessageHandler.bind(this);
+        this.audioEncoder[track.name] = new AudioEncoderWorker();
+        this.audioEncoder[track.name].onmessage = this.audioEncoderMessageHandler.bind(this);
+        this.audioEncoder[track.name].postMessage({ type: 'init', data: track });
       }
     })
   }
@@ -47,7 +50,12 @@ export class Publisher {
       }
       this.videoEncoders[track.name].postMessage({ type: 'capture', data: processor.readable }, [processor.readable]);
     } else if (track.type === 'audio') {
-      // TODO: audio
+      const processor = new MediaStreamTrackProcessor({ track: mediaTrack as MediaStreamAudioTrack });
+      if (!this.audioEncoder[track.name]) {
+        Mogger.error(`Audio encoder for track ${track.name} not found`);
+        return;
+      }
+      this.audioEncoder[track.name].postMessage({ type: 'capture', data: processor.readable }, [processor.readable]);
     }
   }
 
