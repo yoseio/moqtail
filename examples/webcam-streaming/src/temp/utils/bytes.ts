@@ -80,6 +80,17 @@ export const varIntToNumber = async (readableStream: ReadableStream): Promise<nu
   return ret;
 };
 
+export const getUint8 = async (readableStream: ReadableStream): Promise<number> => {
+  const reader = readableStream.getReader({ mode: 'byob' });
+  try {
+    let buffer = new ArrayBuffer(1);
+    buffer = await buffReadFrombyobReader(reader, buffer, 0, 1);
+    return new DataView(buffer, 0, 1).getUint8(0);
+  } finally {
+    reader.releaseLock();
+  }
+};
+
 export const setUint8 = (v: number) => {
   const ret = new Uint8Array(1);
   ret[0] = v;
@@ -107,19 +118,6 @@ const setUint64 = (v: bigint) => {
   return ret;
 };
 
-export const getUint8 = async (readableStream: ReadableStream): Promise<number> => {
-  const reader = readableStream.getReader({ mode: 'byob' });
-  try {
-    const buffer = new ArrayBuffer(1);
-    const { value, done } = await reader.read(new Uint8Array(buffer));
-    if (done) {
-      throw new Error('short buffer');
-    }
-    return new DataView(buffer).getUint8(0);
-  } finally {
-    reader.releaseLock();
-  }
-};
 
 export const concatBuffer = (arr: Uint8Array[]) => {
   let totalLength = 0;

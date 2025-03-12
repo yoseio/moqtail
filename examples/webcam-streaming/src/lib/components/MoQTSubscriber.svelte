@@ -1,5 +1,6 @@
 <script lang="ts">
   import { Subscriber } from "$lib/subscriber";
+  import { GROUP_ORDER, type Subscribe, SUBSCRIBE_FILTER } from "../../temp";
 
   let moqEl: HTMLCanvasElement;
   let moqIsPlaying = false;
@@ -10,10 +11,10 @@
   export let moqtServerUrl;
   export let canvasWidth = 480;
   export let canvasHeight = 360;
-  let moqtSubTrackNamespace = ['moqtail', 'webcam-demo'];
-  let moqtSubVideoTrackName = 'video';
-  let moqtSubAudioTrackName = 'audio';
-  let moqtSubAuth = 'secret';
+  let namespace = ['moqtail', 'webcam-demo'];
+  let videoTrackName = 'video';
+  let audioTrackName = 'audio';
+  let authInfo = 'secret';
   let moqtSubJitterBufferFrameSize = 10;
 
   // let videoQuality: 'low' | 'medium' | 'high' = 'low';
@@ -22,7 +23,7 @@
     if (subscriberInit) return;
     subscriber = new Subscriber({
       serverUrl: moqtServerUrl,
-      authInfo: moqtSubAuth,
+      authInfo,
       jitterBufferFrameSize: moqtSubJitterBufferFrameSize,
     });
     subscriberInit = true;
@@ -33,7 +34,17 @@
     setupSent = true;
   }
   const playStream = () => {
-
+    if (!subscriber || !setupSent) return;
+    const props: Subscribe = {
+      trackNamespace: namespace,
+      trackName: videoTrackName,
+      subscribeId: 0,
+      trackAlias: 0,
+      subscriberPriority: 10,
+      groupOrder: GROUP_ORDER.ASCENDING,
+      filterType: SUBSCRIBE_FILTER.LATEST_OBJECT,
+    }
+    subscriber.subscribe(props);
   };
   const stopStream = () => {}
   const canvasGoFullscreen = () => {
@@ -60,8 +71,8 @@
   </div>
   <button on:click={connectToServer}>Connect to server</button>
   <button on:click={setup}>Setup</button>
-  <button on:click={playStream}>Subscribe</button>
-  <button on:click={stopStream}>Unsubscribe</button>
+  <button on:click={playStream}>Start playback</button>
+  <button on:click={stopStream}>Stop playback</button>
   <!-- <div>
     <fieldset>
       <legend>Video Quality</legend>

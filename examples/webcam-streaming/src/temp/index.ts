@@ -29,3 +29,6 @@ export * from './messages/unsubscribeAnnounces';
 export * from './messages/readControlMessageType';
 
 export * from './dataStreams/extensionHeader';
+export * from './dataStreams/datagram';
+export * from './dataStreams/subgroupHeader';
+export * from './dataStreams/subgroupObject';

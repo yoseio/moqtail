@@ -34,6 +34,7 @@ class MoQTVideoEncoder {
   }
   
   async encode(data: StreamMessageData) {
+    this.state = 'encoding';
     const encoder = new VideoEncoder({
       output: (chunk: EncodedVideoChunk, metadata: EncodedVideoChunkMetadata) => this.handleChunk(chunk, metadata),
       error: (error: DOMException) => Mogger.error('VideoEncoder error', error.message)
@@ -52,7 +53,7 @@ class MoQTVideoEncoder {
   async handleChunk(chunk: EncodedVideoChunk, metadata: EncodedVideoChunkMetadata) {
     const chunkData = new Uint8Array(chunk.byteLength);
     chunk.copyTo(chunkData);
-    postMessage({ type: 'chunk', data: { chunk: chunkData, metadata } });
+    postMessage({ type: 'chunk', data: { trackName: this.track.name, chunk: chunkData, metadata: { ...metadata, frameType: chunk.type } } });
   }
 }
 

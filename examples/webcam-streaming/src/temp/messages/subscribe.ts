@@ -3,12 +3,12 @@ import { deserializeParams, type Parameter, serializeParams } from "../utils/par
 import { concatBuffer, numberToVarInt, stringToVarBytes, varIntToNumber, varBytesToString, setUint8, getUint8 } from "../utils/bytes";
 import { deserializeNamespace } from "../utils/namespace";
 
-export const serializeSubscribe = (props: { subscribeId: number, trackAlias: number, namespace: string[], trackName: string, subscriberPriority: number, groupOrder: GROUP_ORDER, filterType: SUBSCRIBE_FILTER, startGroup?: number, startObject?: number, endGroup?: number, parameters?: Parameter[] }) => {
+export const serializeSubscribe = (props: Subscribe) => {
   const messageType = numberToVarInt(CONTROL_MESSAGE.SUBSCRIBE);
   const subscribeIdBytes = numberToVarInt(props.subscribeId);
   const trackAliasBytes = numberToVarInt(props.trackAlias);
-  const namespaceLength = numberToVarInt(props.namespace.length);
-  const namespaceBytes = props.namespace.map(stringToVarBytes);
+  const namespaceLength = numberToVarInt(props.trackNamespace.length);
+  const namespaceBytes = props.trackNamespace.map(stringToVarBytes);
   const trackNameBytes = stringToVarBytes(props.trackName);
   const subscriberPriorityBytes = setUint8(props.subscriberPriority);
   const groupOrderBytes = setUint8(props.groupOrder);
@@ -22,7 +22,7 @@ export const serializeSubscribe = (props: { subscribeId: number, trackAlias: num
   return concatBuffer([messageType, length, body]);
 }
 
-export const deserializeSubscribe = async (controlReader: ReadableStream) => {
+export const deserializeSubscribe = async (controlReader: ReadableStream): Promise<Subscribe> => {
   await varIntToNumber(controlReader); // length
   const subscribeId = await varIntToNumber(controlReader);
   const trackAlias = await varIntToNumber(controlReader);
@@ -42,4 +42,18 @@ export const deserializeSubscribe = async (controlReader: ReadableStream) => {
   const endGroup = filterType === SUBSCRIBE_FILTER.ABSOLUTE_RANGE ? await varIntToNumber(controlReader) : undefined;
   const parameters = await deserializeParams(CONTROL_MESSAGE.SUBSCRIBE, controlReader);
   return { subscribeId, trackAlias, trackNamespace, trackName, subscriberPriority, groupOrder, filterType, startGroup, startObject, endGroup, parameters };
+}
+
+export interface Subscribe {
+  subscribeId: number,
+  trackAlias: number,
+  trackNamespace: string[],
+  trackName: string,
+  subscriberPriority: number,
+  groupOrder: GROUP_ORDER,
+  filterType: SUBSCRIBE_FILTER,
+  startGroup?: number,
+  startObject?: number,
+  endGroup?: number,
+  parameters?: Parameter[]
 }

@@ -3,7 +3,7 @@ import { CONTROL_MESSAGE } from '../constants';
 import { serializeParams, deserializeParams, type Parameter } from '../utils/parameter';
 import { deserializeNamespace } from '../utils/namespace';
 
-export const serializeAnnounce = (props: { trackNamespace: string[], parameters?: Parameter[] }) => {
+export const serializeAnnounce = (props: Announce) => {
   const messageTypeBytes = numberToVarInt(CONTROL_MESSAGE.ANNOUNCE);
   const trackNamespaceLength = numberToVarInt(props.trackNamespace.length);
   const trackNamespaceBytes = props.trackNamespace.map(stringToVarBytes);
@@ -13,9 +13,14 @@ export const serializeAnnounce = (props: { trackNamespace: string[], parameters?
   return concatBuffer([messageTypeBytes, length, body]);
 }
 
-export const deserializeAnnounce = async (controlReader: ReadableStream) => {
+export const deserializeAnnounce = async (controlReader: ReadableStream): Promise<Announce> => {
   await varIntToNumber(controlReader); // length
   const trackNamespace = await deserializeNamespace(controlReader);
   const parameters = await deserializeParams(CONTROL_MESSAGE.ANNOUNCE, controlReader);
   return { trackNamespace, parameters };
+}
+
+export interface Announce {
+  trackNamespace: string[];
+  parameters?: Parameter[];
 }

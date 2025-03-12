@@ -1,5 +1,5 @@
 import { Mogger } from '$lib/utils/mogger';
-import { CONTROL_MESSAGE, deserializeAnnounceOk, deserializeServerSetup, readControlMessageType } from '../../temp';
+import { CONTROL_MESSAGE, deserializeAnnounceOk, deserializeServerSetup, deserializeSubscribe, deserializeSubscribeOk, readControlMessageType } from '../../temp';
 
 class MoQTCommunicator {
   private wt: WebTransport;
@@ -20,8 +20,11 @@ class MoQTCommunicator {
       case 'sendControlMessage':
         this.sendControlMessage(data.data);
         break;
+      case 'createSubgroupStream':
+        this.createSubgroupStream(data.data.subgroupId, data.data.subgroupHeader);
+        break;
       case 'sendSubgroupObject':
-        this.sendObject(data.data.object, data.data.subgroupId, );
+        this.sendObject(data.data.subgroupObject, data.data.subgroupId);
         break;
       case 'closeStream':
         this.closeSubgroupStream(data.data);
@@ -52,12 +55,20 @@ class MoQTCommunicator {
     Mogger.info('Control message sent');
   }
 
-  async sendObject(data: Uint8Array, subgroupId: string) {
+  async createSubgroupStream(subgroupId: string, subgroupHeader: Uint8Array) {
+    this.streams[subgroupId] = await this.wt.createUnidirectionalStream();
+    const writer = this.streams[subgroupId].getWriter();
+    await writer.write(subgroupHeader);
+    writer.releaseLock();
+    Mogger.info('Stream created');
+  }
+
+  async sendObject(subgroupObject: Uint8Array, subgroupId: string) {
     if (!this.streams[subgroupId]) {
-      this.streams[subgroupId] = await this.wt.createUnidirectionalStream();
+      postMessage({ type: 'error', data: `Stream ${subgroupId} not found` });
     }
     const writer = this.streams[subgroupId].getWriter();
-    await writer.write(data);
+    await writer.write(subgroupObject);
     writer.releaseLock();
     Mogger.info('Object sent');
   }
@@ -93,6 +104,12 @@ class MoQTCommunicator {
           break;
         case CONTROL_MESSAGE.ANNOUNCE_OK:
           message = await deserializeAnnounceOk(this.controlReader);
+          break;
+        case CONTROL_MESSAGE.SUBSCRIBE:
+          message = await deserializeSubscribe(this.controlReader);
+          break;
+        case CONTROL_MESSAGE.SUBSCRIBE_OK:
+          message = await deserializeSubscribeOk(this.controlReader);
           break;
         default:
           error = `Unexpected message type: ${msgType}`;

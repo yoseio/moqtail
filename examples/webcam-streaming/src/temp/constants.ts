@@ -125,6 +125,7 @@ export const FETCH_TYPE = {
 export type FETCH_TYPE = ObjectValueList<typeof FETCH_TYPE>;
 
 export const GROUP_ORDER = {
+  PUBLISHER: 0x0,
   ASCENDING: 0x1,
   DESCENDING: 0x2
 } as const;

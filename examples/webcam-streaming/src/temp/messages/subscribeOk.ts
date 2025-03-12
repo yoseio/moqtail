@@ -2,7 +2,7 @@ import { CONTENT_EXISTS, CONTROL_MESSAGE } from "../constants";
 import { concatBuffer, numberToVarInt, varIntToNumber, setUint8, getUint8 } from "../utils/bytes";
 import { deserializeParams, type Parameter, serializeParams } from "../utils/parameter";
 
-export const serializeSubscribeOk = (props: { subscribeId: number, expires: number, groupOrder: number, contentExists: CONTENT_EXISTS, largestGroupId?: number, largestObjectId?: number, parameters?: Parameter[] }) => {
+export const serializeSubscribeOk = (props: SubscribeOk) => {
   const messageType = numberToVarInt(CONTROL_MESSAGE.SUBSCRIBE_OK);
   const subscribeIdBytes = numberToVarInt(props.subscribeId);
   const expiresBytes = numberToVarInt(props.expires);
@@ -16,7 +16,7 @@ export const serializeSubscribeOk = (props: { subscribeId: number, expires: numb
   return concatBuffer([messageType, length, body]);
 }
 
-export const deserializeSubscribeOk = async (controlReader: ReadableStream) => {
+export const deserializeSubscribeOk = async (controlReader: ReadableStream): Promise<SubscribeOk> => {
   await varIntToNumber(controlReader); // length
   const subscribeId = await varIntToNumber(controlReader);
   const expires = await varIntToNumber(controlReader);
@@ -30,3 +30,13 @@ export const deserializeSubscribeOk = async (controlReader: ReadableStream) => {
   const parameters = await deserializeParams(CONTROL_MESSAGE.SUBSCRIBE_OK, controlReader);
   return { subscribeId, expires, groupOrder, contentExists, largestGroupId, largestObjectId, parameters };
 }
+
+export interface SubscribeOk {
+  subscribeId: number,
+  expires: number,
+  groupOrder: number,
+  contentExists: CONTENT_EXISTS,
+  largestGroupId?: number,
+  largestObjectId?: number,
+  parameters?: Parameter[]
+};

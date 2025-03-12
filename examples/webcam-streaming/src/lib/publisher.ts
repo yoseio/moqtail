@@ -1,14 +1,14 @@
 // main thread for publisher
 // interaction with the component page: video/audio start, stop, pause, resume, 
-import { CONTROL_MESSAGE, MOQT_DRAFT08_VERSION, MOQT_DRAFT09_VERSION, MOQT_DRAFT10_VERSION, PARAMETER, serializeAnnounce, serializeClientSetup, serializeUnannounce } from '../temp';
-import type { ServerSetup, AnnounceOk } from '../temp';
+import { CONTROL_MESSAGE, GROUP_ORDER, MOQT_DRAFT08_VERSION, MOQT_DRAFT09_VERSION, MOQT_DRAFT10_VERSION, PARAMETER, serializeAnnounce, serializeClientSetup, serializeSubgroupHeader, serializeSubscribeError, serializeSubscribeOk, serializeUnannounce, SUBSCRIBE_ERROR_REASON, SUBSCRIBE_FILTER, serializeSubgroupObject } from '../temp';
+import type { ServerSetup, AnnounceOk, Subscribe } from '../temp';
 // @ts-ignore
 import CommunicatorWorker from './threads/communicator.worker?worker';
 // @ts-ignore
 import VideoEncoderWorker from './threads/video/encoder.worker?worker';
 // @ts-ignore
 import AudioEncoderWorker from './threads/audio/encoder.worker?worker';
-import { TrackManager } from './track';
+import { TrackManager } from './trackManager';
 import { Mogger } from './utils/mogger';
 
 export class Publisher {
@@ -78,6 +78,28 @@ export class Publisher {
     this.communicator.postMessage({ type: 'sendControlMessage', data: msg });
   }
 
+  private getPublisherPriority(trackType: 'video' | 'audio', subgroupId: number = 128) {
+    if (trackType === 'audio') {
+      return 0;
+    } else {
+      // video is less prioritized than audio (10 is just random)
+      // publisher priority must be between 0-255
+      return (subgroupId + 10 % 256);
+    }
+  }
+
+  private createSubgroupStream(aliases: number[], subgroupId: number, targetTrack: Track) {
+    for (const alias of aliases) {
+      const subgroupHeader = serializeSubgroupHeader({
+        trackAlias: alias,
+        subgroupId: subgroupId,
+        groupId: targetTrack.largestGroupId,
+        publisherPriority: this.getPublisherPriority(targetTrack.type, subgroupId),
+      });
+      this.communicator.postMessage({ type: 'createSubgroupStream', data: { subgroupId, subgroupHeader } });
+    }
+  }
+
   private communicatorMessageHandler(message: MessageEvent) {
     let msg;
     switch (message.data.type) {
@@ -94,6 +116,33 @@ export class Publisher {
         msg = message.data.data as AnnounceOk;
         Mogger.info(`Announce with namespace ${message.data.data.trackNamespace} successful`);
         break;
+      case `ctrl-${CONTROL_MESSAGE.SUBSCRIBE}`:
+        msg = message.data.data as Subscribe;
+        const targetTrack = this.trackManager.getTrack({ name: msg.trackName });
+        if (!targetTrack) {
+          const sub_err = serializeSubscribeError({
+            subscribeId: msg.subscribeId,
+            errorCode: SUBSCRIBE_ERROR_REASON.TRACK_DOES_NOT_EXIST,
+            reasonPhrase: '',
+            trackAlias: msg.trackAlias
+          });
+          this.communicator.postMessage({ type: 'sendControlMessage', data: sub_err });
+          break;
+        }
+        if (targetTrack.subscribers.length == 0) {
+          const targetEncoder = targetTrack.type === 'video' ? this.videoEncoders[targetTrack.name] : this.audioEncoder[targetTrack.name];
+          targetEncoder.postMessage({ type: 'encode', data: null });
+        }
+        this.trackManager.addSubscriber({
+          name: msg.trackName,
+          subscribeId: msg.subscribeId,
+          trackAlias: msg.trackAlias,
+          filterType: msg.filterType
+        });
+        const sub_ok = serializeSubscribeOk({ subscribeId: msg.subscribeId, expires: 0, groupOrder: msg.groupOrder || targetTrack.groupOrderPublisherPreference, contentExists: 0 });
+        this.communicator.postMessage({ type: 'sendControlMessage', data: sub_ok });
+        Mogger.info(`Subscribe with namespace ${message.data.data.trackNamespace} successful`);
+        break;
       case 'error':
         Mogger.error(`Error from communicator: ${message.data.data}`);
         break;
@@ -102,7 +151,52 @@ export class Publisher {
         break;
     }
   }
-  private videoEncoderMessageHandler(message: MessageEvent) {}
+  private videoEncoderMessageHandler(message: MessageEvent) {
+    const data = message.data as ThreadMessage;
+    switch (data.type) {
+      // handling the latest encoded chunk
+      case 'chunk':
+        const msg = data.data as { chunk: Uint8Array, metadata: EncodedVideoChunkMetadata & { frameType: EncodedVideoChunkType }, trackName: string };
+        const targetTrack = this.trackManager.getTrack({ name: msg.trackName });
+        if (!targetTrack) {
+          Mogger.error(`Track ${msg.trackName} not found`);
+          return;
+        }
+        const subgroupId = msg.metadata.temporalLayerId || 0;
+        // find all track aliases of subscribers that are interested in the latest object
+        const aliases = targetTrack.subscribers.filter(sub => sub.filterType === SUBSCRIBE_FILTER.LATEST_OBJECT).map(sub => sub.trackAlias);
+        if (msg.metadata.frameType === 'key') {
+          // if key frame, create a new group and subgroup
+          targetTrack.largestGroupId++
+          targetTrack.groups.push({ groupId: targetTrack.largestGroupId, publishedSubgroupIds: [subgroupId] });
+          this.createSubgroupStream(aliases, subgroupId, targetTrack);
+        } else {
+          // if not a key frame, find the largest group
+          const group = targetTrack.groups.find(g => g.groupId === targetTrack.largestGroupId);
+          if (!group) {
+            Mogger.error(`groupId ${targetTrack.largestGroupId} not found`);
+            return;
+          }
+          // if this frame is the first object of the subgroup, create a unidirectional stream with SUBGROUP_HEADER
+          if (!group.publishedSubgroupIds.includes(subgroupId)) {
+            this.createSubgroupStream(aliases, subgroupId, targetTrack);
+            group.publishedSubgroupIds.push(subgroupId);
+          }
+        }
+        // finally send object
+        targetTrack.largestObjectId++
+        const subgroupObject = serializeSubgroupObject({
+          objectId: targetTrack.largestObjectId,
+          extensionHeaders: [],
+          payload: msg.chunk
+        });
+        this.communicator.postMessage({ type: 'sendSubgroupObject', data: { subgroupId, subgroupObject } });
+        break;
+      case 'error':
+        Mogger.error(`Error from video encoder: ${message.data.data}`);
+        break;
+    }
+  }
   private audioEncoderMessageHandler(message: MessageEvent) {}
 }
 

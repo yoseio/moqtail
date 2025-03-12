@@ -1,4 +1,4 @@
-import { numberToVarInt, stringToVarBytes, concatBuffer, varIntToNumber, varBytesToString } from '../utils/bytes';
+import { numberToVarInt, stringToVarBytes, concatBuffer, varIntToNumber } from '../utils/bytes';
 import { CONTROL_MESSAGE } from '../constants';
 import { deserializeNamespace } from '../utils/namespace';
 

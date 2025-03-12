@@ -1,49 +1,44 @@
-import type { ExtensionHeader, OBJECT_STATUS } from 'moqtail';
-import type { Track } from './lib/track';
+import type { GROUP_ORDER, SUBSCRIBE_FILTER, ExtensionHeader, OBJECT_STATUS } from './temp';
+import type { Track } from './lib/trackManager';
 
-// See https://kit.svelte.dev/docs/types#app
-// for information about these interfaces
 declare global {
-  namespace App {
-    // interface Error {}
-    // interface Locals {}
-    // interface PageData {}
-    // interface Platform {}
-  }
-  interface PublisherInitProps {
+  type PublisherInitProps = {
     serverUrl: string,
     tracks: Track[],
     authInfo: string
   };
-  interface SubscriberInitProps {
+  type SubscriberInitProps = {
     serverUrl: string,
     authInfo: string,
     jitterBufferFrameSize?: number
   };
-  interface MyEncoderConfig {
+  type MyEncoderConfig = {
     encoderConfig: VideoEncoderConfig | AudioEncoderConfig,
     keyFrameDuration?: number,
   }
-  interface Track {
-    namespace?: string[] = [];
-    name?: string = '';
-    groups?: Group[] = [];
-    objectForwardingPrefereces?: 'Subgroup' | 'Datagram';
-    largestGroupId?: number = 0;
-    largestObjectId?: number = 0;
-    isTrackEnded?: boolean = false;
+  type Track = {
+    namespace: string[];
+    name: string;
+    groups: Group[];
+    groupOrderPublisherPreference: number = GROUP_ORDER.ASCENDING;
+    objectForwardingPrefereces: 'Subgroup' | 'Datagram';
+    largestGroupId: number;
+    largestObjectId: number;
+    isTrackEnded?: boolean;
     encoderConfig?: MyEncoderConfig;
     type: 'video' | 'audio';
+    subscribers: { subscribeId: number, trackAlias: number, filterType: SUBSCRIBE_FILTER }[];
   }
-  interface ThreadMessage {
+  type ThreadMessage = {
     type: string,
     data: any,
   }
-  interface Group {
+  type Group = {
     groupId: number,
-    objects: Object[],
+    publishedSubgroupIds: number[],
+    objects?: Object[],
   }
-  interface Object {
+  type Object = {
     objectId: number,
     groupId: number,
     publisherPriority: number,

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { AUDIO_ENCODER_DEFAULT_CONFIG, VIDEO_ENCODER_DEFAULT_CONFIG } from '$lib/config';
   import { Publisher } from '$lib/publisher';
+  import { GROUP_ORDER } from '../../temp';
   import { onMount } from 'svelte';
 
   let liveEl: HTMLVideoElement;
@@ -19,14 +20,24 @@
     name: 'video',
     type: 'video',
     objectForwardingPrefereces: 'Subgroup',
-    encoderConfig: { encoderConfig: VIDEO_ENCODER_DEFAULT_CONFIG, keyFrameDuration }
+    encoderConfig: { encoderConfig: VIDEO_ENCODER_DEFAULT_CONFIG, keyFrameDuration },
+    groupOrderPublisherPreference: GROUP_ORDER.ASCENDING,
+    subscribers: [],
+    groups: [],
+    largestGroupId: 0,
+    largestObjectId: 0,
   };
   const audioTrack: Track = {
     namespace,
     name: 'audio',
     type: 'audio',
     objectForwardingPrefereces: 'Datagram',
-    encoderConfig: { encoderConfig: AUDIO_ENCODER_DEFAULT_CONFIG, keyFrameDuration }
+    encoderConfig: { encoderConfig: AUDIO_ENCODER_DEFAULT_CONFIG, keyFrameDuration },
+    groupOrderPublisherPreference: GROUP_ORDER.ASCENDING,
+    subscribers: [],
+    groups: [],
+    largestGroupId: 0,
+    largestObjectId: 0,
   };
 
 
