@@ -15,7 +15,7 @@ export const serializeSubgroupObject = (props: SubgroupObject) => {
   return concatBuffer([objectIdBytes, extensionHeadersLengthBytes, ...extensionHeaderBytes, payloadLengthBytes, objectStatusBytes, props.payload]);
 };
 
-export const deserializeSubgroupObject = async (readableStream: ReadableStream): Promise<SubgroupObject> => {
+export const deserializeSubgroupObjectHeader = async (readableStream: ReadableStream): Promise<SubgroupObject> => {
   const ret: SubgroupObject = {} as SubgroupObject;
   ret.objectId = await varIntToNumber(readableStream);
   const extensionHeadersLength = await varIntToNumber(readableStream);
@@ -27,7 +27,6 @@ export const deserializeSubgroupObject = async (readableStream: ReadableStream):
   if (payloadLength === 0) {
     ret.objectStatus = await varIntToNumber(readableStream) as OBJECT_STATUS;
   }
-  ret.payload = new Uint8Array(await new Response(readableStream).arrayBuffer());
   return ret;
 };
 

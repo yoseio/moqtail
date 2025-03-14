@@ -39,12 +39,12 @@
       trackNamespace: namespace,
       trackName: videoTrackName,
       subscribeId: 0,
-      trackAlias: 0,
+      trackAlias: 243,
       subscriberPriority: 10,
       groupOrder: GROUP_ORDER.ASCENDING,
       filterType: SUBSCRIBE_FILTER.LATEST_OBJECT,
     }
-    subscriber.subscribe(props);
+    subscriber.subscribe(props, 'video');
   };
   const stopStream = () => {}
   const canvasGoFullscreen = () => {

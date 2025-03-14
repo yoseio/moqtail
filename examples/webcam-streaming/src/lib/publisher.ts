@@ -1,6 +1,6 @@
 // main thread for publisher
 // interaction with the component page: video/audio start, stop, pause, resume, 
-import { CONTROL_MESSAGE, GROUP_ORDER, MOQT_DRAFT08_VERSION, MOQT_DRAFT09_VERSION, MOQT_DRAFT10_VERSION, PARAMETER, serializeAnnounce, serializeClientSetup, serializeSubgroupHeader, serializeSubscribeError, serializeSubscribeOk, serializeUnannounce, SUBSCRIBE_ERROR_REASON, SUBSCRIBE_FILTER, serializeSubgroupObject } from '../temp';
+import { CONTROL_MESSAGE, GROUP_ORDER, MOQT_DRAFT08_VERSION, MOQT_DRAFT09_VERSION, MOQT_DRAFT10_VERSION, PARAMETER, serializeAnnounce, serializeClientSetup, serializeSubgroupHeader, serializeSubscribeError, serializeSubscribeOk, serializeUnannounce, SUBSCRIBE_ERROR_REASON, SUBSCRIBE_FILTER, serializeSubgroupObject, serializeEncodedChunk } from '../temp';
 import type { ServerSetup, AnnounceOk, Subscribe } from '../temp';
 // @ts-ignore
 import CommunicatorWorker from './threads/communicator.worker?worker';
@@ -88,7 +88,10 @@ export class Publisher {
     }
   }
 
-  private createSubgroupStream(aliases: number[], subgroupId: number, targetTrack: Track) {
+  private createSubgroupStream(subgroupId: number, targetTrack: Track) {
+    // find all track aliases of subscribers that are interested in the latest object
+    const aliases = targetTrack.subscribers.filter(sub => sub.filterType === SUBSCRIBE_FILTER.LATEST_OBJECT).map(sub => sub.trackAlias);
+    Mogger.debug(`Creating subgroup stream for subgroupId ${subgroupId} with aliases ${aliases}`);
     for (const alias of aliases) {
       const subgroupHeader = serializeSubgroupHeader({
         trackAlias: alias,
@@ -144,7 +147,7 @@ export class Publisher {
         Mogger.info(`Subscribe with namespace ${message.data.data.trackNamespace} successful`);
         break;
       case 'error':
-        Mogger.error(`Error from communicator: ${message.data.data}`);
+        Mogger.error(`Publisher communicator: ${message.data.data}`);
         break;
       default:
         Mogger.error(`Unexpected message type ${message.data.type}`);
@@ -154,22 +157,20 @@ export class Publisher {
   private videoEncoderMessageHandler(message: MessageEvent) {
     const data = message.data as ThreadMessage;
     switch (data.type) {
-      // handling the latest encoded chunk
+      // handling the latest encoded video chunk
       case 'chunk':
-        const msg = data.data as { chunk: Uint8Array, metadata: EncodedVideoChunkMetadata & { frameType: EncodedVideoChunkType }, trackName: string };
+        const msg = data.data as { chunk: EncodedVideoChunk, metadata: EncodedVideoChunkMetadata & { frameType: EncodedVideoChunkType }, trackName: string };
         const targetTrack = this.trackManager.getTrack({ name: msg.trackName });
         if (!targetTrack) {
           Mogger.error(`Track ${msg.trackName} not found`);
           return;
         }
         const subgroupId = msg.metadata.temporalLayerId || 0;
-        // find all track aliases of subscribers that are interested in the latest object
-        const aliases = targetTrack.subscribers.filter(sub => sub.filterType === SUBSCRIBE_FILTER.LATEST_OBJECT).map(sub => sub.trackAlias);
         if (msg.metadata.frameType === 'key') {
           // if key frame, create a new group and subgroup
-          targetTrack.largestGroupId++
+          targetTrack.largestGroupId !== undefined ? targetTrack.largestGroupId++ : targetTrack.largestGroupId = 0;
           targetTrack.groups.push({ groupId: targetTrack.largestGroupId, publishedSubgroupIds: [subgroupId] });
-          this.createSubgroupStream(aliases, subgroupId, targetTrack);
+          this.createSubgroupStream(subgroupId, targetTrack);
         } else {
           // if not a key frame, find the largest group
           const group = targetTrack.groups.find(g => g.groupId === targetTrack.largestGroupId);
@@ -179,17 +180,19 @@ export class Publisher {
           }
           // if this frame is the first object of the subgroup, create a unidirectional stream with SUBGROUP_HEADER
           if (!group.publishedSubgroupIds.includes(subgroupId)) {
-            this.createSubgroupStream(aliases, subgroupId, targetTrack);
+            this.createSubgroupStream(subgroupId, targetTrack);
             group.publishedSubgroupIds.push(subgroupId);
           }
         }
+        const locBytes = serializeEncodedChunk(msg.chunk);
         // finally send object
-        targetTrack.largestObjectId++
+        targetTrack.largestObjectId !== undefined ? targetTrack.largestObjectId++ : targetTrack.largestObjectId = 0;
         const subgroupObject = serializeSubgroupObject({
           objectId: targetTrack.largestObjectId,
           extensionHeaders: [],
-          payload: msg.chunk
+          payload: locBytes
         });
+        Mogger.debug(msg.metadata.frameType);
         this.communicator.postMessage({ type: 'sendSubgroupObject', data: { subgroupId, subgroupObject } });
         break;
       case 'error':

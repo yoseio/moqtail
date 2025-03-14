@@ -1,9 +1,5 @@
 import { Mogger } from "$lib/utils/mogger";
 
-interface StreamMessageData {
-  mediaStreamTrack: MediaStreamTrack
-}
-
 // should rename this to capturer and encoder
 class MoQTVideoEncoder {
   private reader: ReadableStreamDefaultReader<VideoFrame>;
@@ -13,7 +9,7 @@ class MoQTVideoEncoder {
 
   onMessage(event: MessageEvent) {
     const data = event.data as ThreadMessage;
-    switch (data.type) {
+    switch(data.type) {
       case 'init':
         this.track = data.data;
         this.state = 'init';
@@ -22,7 +18,7 @@ class MoQTVideoEncoder {
         this.capture(data.data);
         break;
       case 'encode':
-        this.encode(data.data);
+        this.encode();
         break;
     }
   }
@@ -33,7 +29,7 @@ class MoQTVideoEncoder {
     this.reader = readable.getReader();
   }
   
-  async encode(data: StreamMessageData) {
+  async encode() {
     this.state = 'encoding';
     const encoder = new VideoEncoder({
       output: (chunk: EncodedVideoChunk, metadata: EncodedVideoChunkMetadata) => this.handleChunk(chunk, metadata),
@@ -51,9 +47,9 @@ class MoQTVideoEncoder {
   }
 
   async handleChunk(chunk: EncodedVideoChunk, metadata: EncodedVideoChunkMetadata) {
-    const chunkData = new Uint8Array(chunk.byteLength);
-    chunk.copyTo(chunkData);
-    postMessage({ type: 'chunk', data: { trackName: this.track.name, chunk: chunkData, metadata: { ...metadata, frameType: chunk.type } } });
+    // const chunkData = new Uint8Array(chunk.byteLength);
+    // chunk.copyTo(chunkData);
+    postMessage({ type: 'chunk', data: { trackName: this.track.name, chunk, metadata: { ...metadata, frameType: chunk.type } } });
   }
 }
 

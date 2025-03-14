@@ -22,8 +22,8 @@ declare global {
     groups: Group[];
     groupOrderPublisherPreference: number = GROUP_ORDER.ASCENDING;
     objectForwardingPrefereces: 'Subgroup' | 'Datagram';
-    largestGroupId: number;
-    largestObjectId: number;
+    largestGroupId?: number;
+    largestObjectId?: number;
     isTrackEnded?: boolean;
     encoderConfig?: MyEncoderConfig;
     type: 'video' | 'audio';

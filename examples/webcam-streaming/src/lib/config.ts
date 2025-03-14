@@ -45,7 +45,7 @@ export const AUDIO_ENCODER_DEFAULT_CONFIG: AudioEncoderConfig = {
 };
 
 export const VIDEO_DECODER_DEFAULT_CONFIG: VideoDecoderConfig = {
-  codec: 'avc1.420028',
+  codec: 'vp8',
   codedWidth: 1280,
   codedHeight: 720,
   colorSpace: { 'fullRange': false, 'matrix': 'smpte170m', 'primaries': 'bt709', 'transfer': 'bt709' },

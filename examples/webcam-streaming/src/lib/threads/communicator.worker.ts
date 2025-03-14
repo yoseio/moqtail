@@ -1,5 +1,5 @@
 import { Mogger } from '$lib/utils/mogger';
-import { CONTROL_MESSAGE, deserializeAnnounceOk, deserializeServerSetup, deserializeSubscribe, deserializeSubscribeOk, readControlMessageType } from '../../temp';
+import { CONTROL_MESSAGE, deserializeAnnounceOk, deserializeEncodedChunk, deserializeServerSetup, deserializeSubgroupHeader, deserializeSubgroupObjectHeader, deserializeSubscribe, deserializeSubscribeDone, deserializeSubscribeOk, readControlMessageType, STREAM } from '../../temp';
 
 class MoQTCommunicator {
   private wt: WebTransport;
@@ -13,29 +13,22 @@ class MoQTCommunicator {
 
   onMessage(message: MessageEvent) {
     const data = message.data as ThreadMessage;
-    switch (data.type) {
-      case 'startConnection':
-        this.startConnection(data.data);
-        break;
-      case 'sendControlMessage':
-        this.sendControlMessage(data.data);
-        break;
-      case 'createSubgroupStream':
-        this.createSubgroupStream(data.data.subgroupId, data.data.subgroupHeader);
-        break;
-      case 'sendSubgroupObject':
-        this.sendObject(data.data.subgroupObject, data.data.subgroupId);
-        break;
-      case 'closeStream':
-        this.closeSubgroupStream(data.data);
-        break;
-      case 'closeSession':
-        this.closeSession();
-        break;
-      case 'startReadLoop':
-        this.startReadLoop();
-        break;
+    const handlers: { [key: string]: (data: any) => void } = {
+      startConnection: this.startConnection.bind(this),
+      sendControlMessage: this.sendControlMessage.bind(this),
+      createSubgroupStream: this.createSubgroupStream.bind(this),
+      sendSubgroupObject: this.sendObject.bind(this),
+      closeStream: this.closeSubgroupStream.bind(this),
+      closeSession: this.closeSession.bind(this),
+      startReadLoop: this.startReadLoop.bind(this),
+      startStreamReadLoop: this.startStreamReadLoop.bind(this)
+    };
+    const handler = handlers[data.type];
+    if (!handler) {
+      postMessage({ type: 'error', data: `Unknown message type: ${data.type}` });
+      return;
     }
+    handler(data.data);
   }
 
   async startConnection(url: string) {
@@ -55,7 +48,7 @@ class MoQTCommunicator {
     Mogger.info('Control message sent');
   }
 
-  async createSubgroupStream(subgroupId: string, subgroupHeader: Uint8Array) {
+  async createSubgroupStream({ subgroupId, subgroupHeader}: { subgroupId: number, subgroupHeader: Uint8Array }) {
     this.streams[subgroupId] = await this.wt.createUnidirectionalStream();
     const writer = this.streams[subgroupId].getWriter();
     await writer.write(subgroupHeader);
@@ -63,9 +56,10 @@ class MoQTCommunicator {
     Mogger.info('Stream created');
   }
 
-  async sendObject(subgroupObject: Uint8Array, subgroupId: string) {
+  async sendObject({ subgroupObject, subgroupId }: { subgroupObject: Uint8Array, subgroupId: number }) {
     if (!this.streams[subgroupId]) {
       postMessage({ type: 'error', data: `Stream ${subgroupId} not found` });
+      return;
     }
     const writer = this.streams[subgroupId].getWriter();
     await writer.write(subgroupObject);
@@ -111,10 +105,31 @@ class MoQTCommunicator {
         case CONTROL_MESSAGE.SUBSCRIBE_OK:
           message = await deserializeSubscribeOk(this.controlReader);
           break;
+        case CONTROL_MESSAGE.SUBSCRIBE_DONE:
+          message = await deserializeSubscribeDone(this.controlReader);
         default:
           error = `Unexpected message type: ${msgType}`;
       };
       !error ? postMessage({ type: `ctrl-${msgType}`, data: message }): postMessage({ type: 'error', data: error });
+    }
+  }
+
+  async startStreamReadLoop() {
+    while (this.state === 'running') {
+      const reader = this.wt.incomingUnidirectionalStreams.getReader();
+      const { value: readableStream, done } = await reader.read();
+      if (done || !readableStream) {
+        Mogger.error('Stream reader closed');
+        break
+      }
+      Mogger.info('Stream received');
+      const streamType = await readControlMessageType(readableStream);
+      switch (streamType) {
+        case STREAM.SUBGROUP_HEADER:
+          const subgroupHeader = await deserializeSubgroupHeader(readableStream);
+          postMessage({ type: `stream-${streamType}`, data: { subgroupHeader, readableStream } }, [readableStream]);
+      }
+      reader.releaseLock();
     }
   }
 }

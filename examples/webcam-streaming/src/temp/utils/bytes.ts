@@ -4,7 +4,7 @@ const MAX_U30 = Math.pow(2, 30) - 1;
 const MAX_U53 = Number.MAX_SAFE_INTEGER;
 // const MAX_U62 = 2n ** 62n - 1n
 
-export const buffReadFrombyobReader = async (reader, buffer, offset, size) => {
+export const buffReadFrombyobReader = async (reader: ReadableStreamBYOBReader, buffer: any, offset: number, size: number) => {
   const ret = null;
   if (size <= 0) {
     return ret;
@@ -81,14 +81,8 @@ export const varIntToNumber = async (readableStream: ReadableStream): Promise<nu
 };
 
 export const getUint8 = async (readableStream: ReadableStream): Promise<number> => {
-  const reader = readableStream.getReader({ mode: 'byob' });
-  try {
-    let buffer = new ArrayBuffer(1);
-    buffer = await buffReadFrombyobReader(reader, buffer, 0, 1);
-    return new DataView(buffer, 0, 1).getUint8(0);
-  } finally {
-    reader.releaseLock();
-  }
+  const buf = await buffRead(readableStream, 1);
+  return new DataView(buf).getUint8(0);
 };
 
 export const setUint8 = (v: number) => {
@@ -137,7 +131,7 @@ export const concatBuffer = (arr: Uint8Array[]) => {
   return retBuffer;
 };
 
-export const buffRead = async (readableStream, size) => {
+export const buffRead = async (readableStream: ReadableStream, size: number) => {
   const ret = null;
   if (size <= 0) {
     return ret;

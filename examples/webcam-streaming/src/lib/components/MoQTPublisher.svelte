@@ -24,8 +24,6 @@
     groupOrderPublisherPreference: GROUP_ORDER.ASCENDING,
     subscribers: [],
     groups: [],
-    largestGroupId: 0,
-    largestObjectId: 0,
   };
   const audioTrack: Track = {
     namespace,
@@ -36,8 +34,6 @@
     groupOrderPublisherPreference: GROUP_ORDER.ASCENDING,
     subscribers: [],
     groups: [],
-    largestGroupId: 0,
-    largestObjectId: 0,
   };
 
 
