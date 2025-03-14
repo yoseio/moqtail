@@ -6,16 +6,14 @@ export interface Parameter {
   value: string | number
 }
 
-export const serializeParams = (params: Parameter[]) => {
+export const serializeParams = (params: Parameter[]): Uint8Array => {
   const serialized = params.map(param => {
     const type = numberToVarInt(param.type);
     let len: Uint8Array = new Uint8Array(0);
     let value: Uint8Array;
-    console.log(typeof param.value);
     if (typeof param.value === 'string') {
       value = stringToVarBytes(param.value);
     } else {
-      console.log('param.value', param.value, getNumberLength(param.value));
       len = numberToVarInt(getNumberLength(param.value));
       value = numberToVarInt(param.value);
     }
@@ -25,26 +23,19 @@ export const serializeParams = (params: Parameter[]) => {
   return concatBuffer([numParams, ...serialized]);
 }
 
-export const deserializeParams = async (messageType: number, controlReader: ReadableStream) => {
-  const ret = {
-    authInfo: '',
-    deliveryTimeout: -1,
-    maxCacheDuration: -1,
-    setup: {
-      path: '',
-      maxSubscribeId: -1,
-    }
-  }
+export const deserializeParams = async (messageType: number, controlReader: ReadableStream): Promise<Parameter[]> => {
+  const ret: Parameter[] = [];
   const numParams = await varIntToNumber(controlReader);
   for (let i = 0; i < numParams; i++) {
     const paramId = await varIntToNumber(controlReader);
     if (messageType === CONTROL_MESSAGE.CLIENT_SETUP || messageType === CONTROL_MESSAGE.SERVER_SETUP) {
       switch (paramId) {
         case PARAMETER.SETUP.PATH.KEY:
-          ret.setup.path = await varBytesToString(controlReader);
+          ret.push({ type: PARAMETER.SETUP.PATH.KEY, value: await varBytesToString(controlReader) });
           break;
         case PARAMETER.SETUP.MAX_SUBSCRIBE_ID.KEY:
-          ret.setup.maxSubscribeId = await varIntToNumber(controlReader);
+          await varIntToNumber(controlReader); // length
+          ret.push({ type: PARAMETER.SETUP.MAX_SUBSCRIBE_ID.KEY, value: await varIntToNumber(controlReader) });
           break
         default:
           throw new Error(`unexpected setup parameter ${paramId}`); // TODO: ProtocolViolation
@@ -52,13 +43,15 @@ export const deserializeParams = async (messageType: number, controlReader: Read
     } else {
       switch (paramId) {
         case PARAMETER.AUTHORIZATION_INFO.KEY:
-          ret.authInfo = await varBytesToString(controlReader);
+          ret.push({ type: PARAMETER.AUTHORIZATION_INFO.KEY, value: await varBytesToString(controlReader) });
           break;
         case PARAMETER.DELIVERY_TIMOUT.KEY:
-          ret.deliveryTimeout = await varIntToNumber(controlReader);
+          await varIntToNumber(controlReader); // length
+          ret.push({ type: PARAMETER.DELIVERY_TIMOUT.KEY, value: await varIntToNumber(controlReader) });
           break;
         case PARAMETER.MAX_CACHE_DURATION.KEY:
-          ret.maxCacheDuration = await varIntToNumber(controlReader);
+          await varIntToNumber(controlReader); // length
+          ret.push({ type: PARAMETER.MAX_CACHE_DURATION.KEY, value: await varIntToNumber(controlReader) });
           break;
         default:
           throw new Error(`unexpected parameter ${paramId}`); // TODO: ProtocolViolation

@@ -34,21 +34,6 @@ declare global {
     type: string,
     data: any,
   }
-  type Group = {
-    groupId: number,
-    publishedSubgroupIds: number[],
-    objects?: Object[],
-  }
-  type Object = {
-    objectId: number,
-    groupId: number,
-    publisherPriority: number,
-    forwardingPreference: "Subgroup" | "Datagram",
-    subgroupId?: number,
-    obejctStatus?: OBJECT_STATUS,
-    extensionHeaders?: ExtensionHeader[],
-    payload?: Uint8Array,
-  }
 }
 
 export {}

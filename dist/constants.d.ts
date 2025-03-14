@@ -2,7 +2,6 @@ export declare const MOQT_DRAFT08_VERSION = 4278190088;
 export declare const MOQT_DRAFT09_VERSION = 4278190089;
 export declare const MOQT_DRAFT10_VERSION = 4278190090;
 export declare const MOQT_SUPPORTED_VERSIONS: number[];
-type ObjectValueList<T extends Record<any, any>> = T[keyof T];
 export declare const PARAMETER: {
     readonly AUTHORIZATION_INFO: {
         readonly KEY: 2;
@@ -122,6 +121,7 @@ export declare const FETCH_TYPE: {
 };
 export type FETCH_TYPE = ObjectValueList<typeof FETCH_TYPE>;
 export declare const GROUP_ORDER: {
+    readonly PUBLISHER: 0;
     readonly ASCENDING: 1;
     readonly DESCENDING: 2;
 };
@@ -154,4 +154,3 @@ export declare const CONTENT_EXISTS: {
     readonly YES: 1;
 };
 export type CONTENT_EXISTS = ObjectValueList<typeof CONTENT_EXISTS>;
-export {};

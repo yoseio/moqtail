@@ -5,7 +5,7 @@ export declare const serializeTrackStatus: (props: {
     statusCode: TRACK_STATUS_CODE;
     lastGroupId: number;
     lastObjectId: number;
-}) => Uint8Array;
+}) => Uint8Array<ArrayBuffer>;
 export declare const deserializeTrackStatus: (controlReader: ReadableStream) => Promise<{
     trackNamespace: string[];
     trackName: string;

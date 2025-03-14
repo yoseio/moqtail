@@ -1,7 +1,7 @@
 import { numberToVarInt, stringToVarBytes, concatBuffer, varIntToNumber, varBytesToString } from '../utils/bytes';
 import { CONTROL_MESSAGE, SUBSCRIBE_ERROR_REASON } from '../constants';
 
-export const serializeSubscribeError = (props: { subscribeId: number, errorCode: SUBSCRIBE_ERROR_REASON, reasonPhrase: string, trackAlias: number }) => {
+export const serializeSubscribeError = (props: SubscribeError) => {
   const messageTypeBytes = numberToVarInt(CONTROL_MESSAGE.SUBSCRIBE_ERROR);
   const subscribeIdBytes = numberToVarInt(props.subscribeId);
   const errorCodeBytes = numberToVarInt(props.errorCode);
@@ -12,7 +12,7 @@ export const serializeSubscribeError = (props: { subscribeId: number, errorCode:
   return concatBuffer([messageTypeBytes, length, subscribeIdBytes, errorCodeBytes, reasonPhraseBytes, trackAliasBytes]);
 }
 
-export const deserializeSubscribeError = async (controlReader: ReadableStream) => {
+export const deserializeSubscribeError = async (controlReader: ReadableStream): Promise<SubscribeError> => {
   await varIntToNumber(controlReader); // length
   const subscribeId = await varIntToNumber(controlReader);
   const errorCode = await varIntToNumber(controlReader) as SUBSCRIBE_ERROR_REASON;
@@ -23,3 +23,5 @@ export const deserializeSubscribeError = async (controlReader: ReadableStream) =
   const trackAlias = await varIntToNumber(controlReader);
   return { subscribeId, errorCode, reasonPhrase, trackAlias };
 }
+
+export interface SubscribeError { subscribeId: number, errorCode: SUBSCRIBE_ERROR_REASON, reasonPhrase: string, trackAlias: number };

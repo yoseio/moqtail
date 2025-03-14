@@ -3,8 +3,6 @@ export const MOQT_DRAFT09_VERSION = 0xff000009;
 export const MOQT_DRAFT10_VERSION = 0xff00000A;
 export const MOQT_SUPPORTED_VERSIONS = [MOQT_DRAFT09_VERSION, MOQT_DRAFT10_VERSION];
 
-type ObjectValueList<T extends Record<any, any>> = T[keyof T];
-
 export const PARAMETER = {
   AUTHORIZATION_INFO: { KEY: 0x02 },
   DELIVERY_TIMOUT: { KEY: 0x03 },
@@ -125,6 +123,7 @@ export const FETCH_TYPE = {
 export type FETCH_TYPE = ObjectValueList<typeof FETCH_TYPE>;
 
 export const GROUP_ORDER = {
+  PUBLISHER: 0x0,
   ASCENDING: 0x1,
   DESCENDING: 0x2
 } as const;

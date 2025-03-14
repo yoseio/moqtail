@@ -1,5 +1,6 @@
 import { numberToVarInt, stringToVarBytes, concatBuffer, varIntToNumber, varBytesToString } from '../utils/bytes';
 import { CONTROL_MESSAGE, SUBSCRIBE_ANNOUNCES_ERROR_REASON } from '../constants';
+import { deserializeNamespace } from '../utils/namespace';
 export const serializeSubscribeAnnouncesError = (props) => {
     const messageTypeBytes = numberToVarInt(CONTROL_MESSAGE.SUBSCRIBE_ANNOUNCES_ERROR);
     const trackNamespacePrefixLength = numberToVarInt(props.trackNamespacePrefix.length);
@@ -12,8 +13,7 @@ export const serializeSubscribeAnnouncesError = (props) => {
 };
 export const deserializeSubscribeAnnouncesError = async (controlReader) => {
     await varIntToNumber(controlReader); // length
-    const trackNamespacePrefixLength = await varIntToNumber(controlReader);
-    const trackNamespacePrefix = await Promise.all(Array.from({ length: trackNamespacePrefixLength }, () => varBytesToString(controlReader)));
+    const trackNamespacePrefix = await deserializeNamespace(controlReader);
     const errorCode = await varIntToNumber(controlReader);
     if (!Object.values(SUBSCRIBE_ANNOUNCES_ERROR_REASON).includes(errorCode)) {
         throw new Error(`Invalid Subscribe Announces Error Code: ${errorCode}`);

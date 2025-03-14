@@ -1,5 +1,6 @@
 import { numberToVarInt, stringToVarBytes, concatBuffer, varIntToNumber, varBytesToString } from '../utils/bytes';
 import { CONTROL_MESSAGE } from '../constants';
+import { deserializeNamespace } from '../utils/namespace';
 
 export const serializeTrackStatusRequest = (props: { trackNamespace: string[], trackName: string }) => {
   const messageTypeBytes = numberToVarInt(CONTROL_MESSAGE.TRACK_STATUS_REQUEST);
@@ -13,8 +14,7 @@ export const serializeTrackStatusRequest = (props: { trackNamespace: string[], t
 
 export const deserializeTrackStatusRequest = async (controlReader: ReadableStream) => {
   await varIntToNumber(controlReader); // length
-  const trackNamespaceLength = await varIntToNumber(controlReader);
-  const trackNamespace = await Promise.all(Array.from({ length: trackNamespaceLength }, () => varBytesToString(controlReader)));
+  const trackNamespace = await deserializeNamespace(controlReader);
   const trackName = await varBytesToString(controlReader);
   return { trackNamespace, trackName };
 }

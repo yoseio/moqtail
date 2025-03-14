@@ -1,17 +1,7 @@
-import { Parameter } from '../utils/parameter';
-export declare const serializeAnnounce: (props: {
+import { type Parameter } from '../utils/parameter';
+export declare const serializeAnnounce: (props: Announce) => Uint8Array<ArrayBuffer>;
+export declare const deserializeAnnounce: (controlReader: ReadableStream) => Promise<Announce>;
+export interface Announce {
     trackNamespace: string[];
     parameters?: Parameter[];
-}) => Uint8Array;
-export declare const deserializeAnnounce: (controlReader: ReadableStream) => Promise<{
-    trackNamespace: string[];
-    parameters: {
-        authInfo: string;
-        deliveryTimeout: number;
-        maxCacheDuration: number;
-        setup: {
-            path: string;
-            maxSubscribeId: number;
-        };
-    };
-}>;
+}

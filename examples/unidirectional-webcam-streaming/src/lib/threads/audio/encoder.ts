@@ -1,1 +1,0 @@
-// audio encoder thread

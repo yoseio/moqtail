@@ -1,5 +1,6 @@
 import { numberToVarInt, stringToVarBytes, concatBuffer, varIntToNumber, varBytesToString } from '../utils/bytes';
 import { CONTROL_MESSAGE, ANNOUNCE_ERROR_REASON } from '../constants';
+import { deserializeNamespace } from '../utils/namespace';
 export const serializeAnnounceCancel = (props) => {
     const messageTypeBytes = numberToVarInt(CONTROL_MESSAGE.ANNOUNCE_CANCEL);
     const trackNamespaceLength = numberToVarInt(props.trackNamespace.length);
@@ -12,8 +13,7 @@ export const serializeAnnounceCancel = (props) => {
 };
 export const deserializeAnnounceCancel = async (controlReader) => {
     await varIntToNumber(controlReader); // length
-    const trackNamespaceLength = await varIntToNumber(controlReader);
-    const trackNamespace = await Promise.all(Array.from({ length: trackNamespaceLength }, () => varBytesToString(controlReader)));
+    const trackNamespace = await deserializeNamespace(controlReader);
     const errorCode = await varIntToNumber(controlReader);
     if (!Object.values(ANNOUNCE_ERROR_REASON).includes(errorCode)) {
         throw new Error(`Invalid Announce Cancel Error Code: ${errorCode}`);

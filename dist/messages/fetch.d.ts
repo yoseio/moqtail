@@ -1,5 +1,5 @@
 import { FETCH_TYPE } from '../constants';
-import { Parameter } from '../utils/parameter';
+import { type Parameter } from '../utils/parameter';
 export declare const serializeFetch: (props: {
     subscribeId: number;
     subscriberPriority: number;
@@ -14,5 +14,5 @@ export declare const serializeFetch: (props: {
     joiningSubscribeId?: number;
     precedingGroupOffset?: number;
     parameters?: Parameter[];
-}) => Uint8Array;
+}) => Uint8Array<ArrayBuffer>;
 export declare const deserializeFetch: (controlReader: ReadableStream) => Promise<any>;

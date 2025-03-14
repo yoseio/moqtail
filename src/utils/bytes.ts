@@ -4,7 +4,7 @@ const MAX_U30 = Math.pow(2, 30) - 1;
 const MAX_U53 = Number.MAX_SAFE_INTEGER;
 // const MAX_U62 = 2n ** 62n - 1n
 
-export const buffReadFrombyobReader = async (reader, buffer, offset, size) => {
+export const buffReadFrombyobReader = async (reader: ReadableStreamBYOBReader, buffer: any, offset: number, size: number) => {
   const ret = null;
   if (size <= 0) {
     return ret;
@@ -52,7 +52,7 @@ export const numberToVarInt = (v) => {
   }
 };
 
-export const varIntToNumber = async (readableStream): Promise<number> => {
+export const varIntToNumber = async (readableStream: ReadableStream): Promise<number> => {
   let ret: number;
   const reader = readableStream.getReader({ mode: 'byob' });
   try {
@@ -78,6 +78,11 @@ export const varIntToNumber = async (readableStream): Promise<number> => {
     reader.releaseLock();
   }
   return ret;
+};
+
+export const getUint8 = async (readableStream: ReadableStream): Promise<number> => {
+  const buf = await buffRead(readableStream, 1);
+  return new DataView(buf).getUint8(0);
 };
 
 export const setUint8 = (v: number) => {
@@ -107,19 +112,6 @@ const setUint64 = (v: bigint) => {
   return ret;
 };
 
-export const getUint8 = async (readableStream: ReadableStream): Promise<number> => {
-  const reader = readableStream.getReader({ mode: 'byob' });
-  try {
-    const buffer = new ArrayBuffer(1);
-    const { value, done } = await reader.read(new Uint8Array(buffer));
-    if (done) {
-      throw new Error('short buffer');
-    }
-    return new DataView(buffer).getUint8(0);
-  } finally {
-    reader.releaseLock();
-  }
-};
 
 export const concatBuffer = (arr: Uint8Array[]) => {
   let totalLength = 0;
@@ -139,7 +131,7 @@ export const concatBuffer = (arr: Uint8Array[]) => {
   return retBuffer;
 };
 
-export const buffRead = async (readableStream, size) => {
+export const buffRead = async (readableStream: ReadableStream, size: number) => {
   const ret = null;
   if (size <= 0) {
     return ret;
