@@ -2,6 +2,7 @@ import type { GROUP_ORDER, SUBSCRIBE_FILTER, ExtensionHeader, OBJECT_STATUS } fr
 import type { Track } from './lib/trackManager';
 
 declare global {
+  type ObjectValueList<T extends Record<any, any>> = T[keyof T];
   type PublisherInitProps = {
     serverUrl: string,
     tracks: Track[],

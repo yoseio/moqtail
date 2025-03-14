@@ -28,8 +28,8 @@ export const VIDEO_ENCODER_CONFIGS: { [key: string]: VideoEncoderConfig } = {
 };
 export const VIDEO_ENCODER_DEFAULT_CONFIG: VideoEncoderConfig = {
   codec: 'vp8',
-  width: 1280,
-  height: 720,
+  width: 480,
+  height: 360,
   framerate: 30,
   scalabilityMode: 'L1T2',
   latencyMode: 'realtime'
@@ -44,14 +44,7 @@ export const AUDIO_ENCODER_DEFAULT_CONFIG: AudioEncoderConfig = {
   }
 };
 
-export const VIDEO_DECODER_DEFAULT_CONFIG: VideoDecoderConfig = {
-  codec: 'vp8',
-  codedWidth: 1280,
-  codedHeight: 720,
-  colorSpace: { 'fullRange': false, 'matrix': 'smpte170m', 'primaries': 'bt709', 'transfer': 'bt709' },
-  hardwareAcceleration: 'prefer-hardware',
-  optimizeForLatency: true
-};
+export const VIDEO_DECODER_DEFAULT_CONFIG: VideoDecoderConfig = {"codec":"vp8","codedHeight":360,"codedWidth":480,"colorSpace":{"fullRange":false,"matrix":"smpte170m","primaries":"bt709","transfer":"bt709"},"hardwareAcceleration":"no-preference"}
 export const AUDIO_DECODER_DEFAULT_CONFIG: AudioDecoderConfig = {
   codec: 'opus', // AAC NOT implemented YET (it is in their roadmap)
   sampleRate: 48000, // To fill later

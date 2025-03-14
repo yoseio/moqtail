@@ -1,4 +1,5 @@
 // serializer/deserializer for Low Overhead Container (https://datatracker.ietf.org/doc/draft-mzanaty-moq-loc/)
+import type { ExtensionHeader } from "../dataStreams/extensionHeader";
 import { buffRead, concatBuffer, numberToVarInt, stringToVarBytes, varBytesToString, varIntToNumber } from "../utils/bytes"
 
 export const serializeEncodedChunk = (obj: EncodedVideoChunk | EncodedAudioChunk): Uint8Array => {
@@ -18,4 +19,16 @@ export const deserializeEncodedChunk = async (reader: ReadableStream): Promise<E
   const byteLength = await varIntToNumber(reader);
   const data = await buffRead(reader, byteLength);
   return { type, timestamp, duration, data };
+}
+
+export const LOC_EXTENSION_HEADER_TYPE = {
+  CAPTURE_TIMESTAMP: 2,
+  VIDEO_CONFIG: 16,
+  VIDEO_FRAME_MARKING: 4,
+  AUDIO_LEVEL: 6
+};
+
+export const videoDecoderConfigToExtensionHeader = (config: VideoDecoderConfig): ExtensionHeader => {
+  const jsn = JSON.stringify(config);
+  return { type: LOC_EXTENSION_HEADER_TYPE.VIDEO_CONFIG, value: jsn };
 }
