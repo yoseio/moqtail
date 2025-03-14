@@ -25,3 +25,5 @@ export { serializeSubscribeAnnounces, deserializeSubscribeAnnounces } from './me
 export { serializeSubscribeAnnouncesOk, deserializeSubscribeAnnouncesOk } from './messages/subscribeAnnouncesOk';
 export { serializeSubscribeAnnouncesError, deserializeSubscribeAnnouncesError } from './messages/subscribeAnnouncesError';
 export { serializeUnsubscribeAnnounces, deserializeUnsubscribeAnnounces } from './messages/unsubscribeAnnounces';
+export { readControlMessageType } from './messages/readControlMessageType';
+export { serializeExtensionHeader, deserializeExtensionHeader } from './dataStreams/extensionHeader';

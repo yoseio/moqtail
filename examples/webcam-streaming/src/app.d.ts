@@ -1,0 +1,53 @@
+import type { GROUP_ORDER, SUBSCRIBE_FILTER, ExtensionHeader, OBJECT_STATUS } from './temp';
+import type { Track } from './lib/trackManager';
+
+declare global {
+  type PublisherInitProps = {
+    serverUrl: string,
+    tracks: Track[],
+    authInfo: string
+  };
+  type SubscriberInitProps = {
+    serverUrl: string,
+    authInfo: string,
+    jitterBufferFrameSize?: number
+  };
+  type MyEncoderConfig = {
+    encoderConfig: VideoEncoderConfig | AudioEncoderConfig,
+    keyFrameDuration?: number,
+  }
+  type Track = {
+    namespace: string[];
+    name: string;
+    groups: Group[];
+    groupOrderPublisherPreference: number = GROUP_ORDER.ASCENDING;
+    objectForwardingPrefereces: 'Subgroup' | 'Datagram';
+    largestGroupId?: number;
+    largestObjectId?: number;
+    isTrackEnded?: boolean;
+    encoderConfig?: MyEncoderConfig;
+    type: 'video' | 'audio';
+    subscribers: { subscribeId: number, trackAlias: number, filterType: SUBSCRIBE_FILTER }[];
+  }
+  type ThreadMessage = {
+    type: string,
+    data: any,
+  }
+  type Group = {
+    groupId: number,
+    publishedSubgroupIds: number[],
+    objects?: Object[],
+  }
+  type Object = {
+    objectId: number,
+    groupId: number,
+    publisherPriority: number,
+    forwardingPreference: "Subgroup" | "Datagram",
+    subgroupId?: number,
+    obejctStatus?: OBJECT_STATUS,
+    extensionHeaders?: ExtensionHeader[],
+    payload?: Uint8Array,
+  }
+}
+
+export {}

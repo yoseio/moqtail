@@ -1,11 +1,20 @@
-// TODO: Parameter Deserialization
 import { CONTROL_MESSAGE, PARAMETER } from "../constants";
-import { concatBuffer, numberToVarInt, stringToVarBytes, varBytesToString, varIntToNumber } from "./bytes";
+import { concatBuffer, getNumberLength, numberToVarInt, stringToVarBytes, varBytesToString, varIntToNumber } from "./bytes";
 export const serializeParams = (params) => {
     const serialized = params.map(param => {
         const type = numberToVarInt(param.type);
-        const value = typeof param.value === 'string' ? stringToVarBytes(param.value) : numberToVarInt(param.value);
-        return concatBuffer([type, value]);
+        let len = new Uint8Array(0);
+        let value;
+        console.log(typeof param.value);
+        if (typeof param.value === 'string') {
+            value = stringToVarBytes(param.value);
+        }
+        else {
+            console.log('param.value', param.value, getNumberLength(param.value));
+            len = numberToVarInt(getNumberLength(param.value));
+            value = numberToVarInt(param.value);
+        }
+        return concatBuffer([type, len, value]);
     });
     const numParams = numberToVarInt(params.length);
     return concatBuffer([numParams, ...serialized]);

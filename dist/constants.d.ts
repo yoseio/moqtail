@@ -1,26 +1,28 @@
+export declare const MOQT_DRAFT08_VERSION = 4278190088;
 export declare const MOQT_DRAFT09_VERSION = 4278190089;
 export declare const MOQT_DRAFT10_VERSION = 4278190090;
 export declare const MOQT_SUPPORTED_VERSIONS: number[];
+type ObjectValueList<T extends Record<any, any>> = T[keyof T];
 export declare const PARAMETER: {
-    AUTHORIZATION_INFO: {
-        KEY: number;
+    readonly AUTHORIZATION_INFO: {
+        readonly KEY: 2;
     };
-    DELIVERY_TIMOUT: {
-        KEY: number;
+    readonly DELIVERY_TIMOUT: {
+        readonly KEY: 3;
     };
-    MAX_CACHE_DURATION: {
-        KEY: number;
+    readonly MAX_CACHE_DURATION: {
+        readonly KEY: 4;
     };
-    SETUP: {
-        PATH: {
-            KEY: number;
+    readonly SETUP: {
+        readonly PATH: {
+            readonly KEY: 1;
         };
-        MAX_SUBSCRIBE_ID: {
-            KEY: number;
+        readonly MAX_SUBSCRIBE_ID: {
+            readonly KEY: 2;
         };
     };
 };
-type ObjectValueList<T extends Record<any, any>> = T[keyof T];
+export type PARAMETER = ObjectValueList<typeof PARAMETER>;
 export declare const CONTROL_MESSAGE: {
     readonly CLIENT_SETUP: 64;
     readonly SERVER_SETUP: 65;
@@ -132,6 +134,7 @@ export declare const OBJECT_STATUS: {
     readonly END_OF_TRACK_AND_GROUP: 4;
     readonly END_OF_TRACK: 5;
 };
+export type OBJECT_STATUS = ObjectValueList<typeof OBJECT_STATUS>;
 export declare const TRACK_STATUS_CODE: {
     readonly IN_PROGRESS: 0;
     readonly NOT_EXIST: 1;

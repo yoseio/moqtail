@@ -24,6 +24,20 @@ export const buffReadFrombyobReader = async (reader, buffer, offset, size) => {
   return buffer;
 };
 
+export const getNumberLength = (v: number | bigint) => {
+  if (v <= MAX_U6) {
+    return 1;
+  } else if (v <= MAX_U14) {
+    return 2;
+  } else if (v <= MAX_U30) {
+    return 4;
+  } else if (v <= MAX_U53) {
+    return 8;
+  } else {
+    throw new Error(`overflow, value larger than 53-bits: ${v}`);
+  }
+}
+
 export const numberToVarInt = (v) => {
   if (v <= MAX_U6) {
     return setUint8(v);
@@ -107,7 +121,7 @@ export const getUint8 = async (readableStream: ReadableStream): Promise<number> 
   }
 };
 
-export const concatBuffer = (arr) => {
+export const concatBuffer = (arr: Uint8Array[]) => {
   let totalLength = 0;
   arr.forEach(element => {
     if (element !== undefined) {

@@ -2,14 +2,14 @@ import { CONTROL_MESSAGE } from "../constants";
 import { deserializeParams, Parameter, serializeParams } from "../utils/parameter";
 import { concatBuffer, numberToVarInt, varIntToNumber } from "../utils/bytes";
 
-export const serializeClientSetup = (props: { supportedVersions: number[], params: Parameter[] }) => {
+export const serializeClientSetup = (props: { supportedVersions: number[], params?: Parameter[] }) => {
   const messageType = numberToVarInt(CONTROL_MESSAGE.CLIENT_SETUP);
   const versionLength = numberToVarInt(props.supportedVersions.length);
   const version = props.supportedVersions.map(version => numberToVarInt(version));
   const concatenatedVersions = concatBuffer(version);
-  const params = serializeParams(props.params);
-  const length = numberToVarInt(concatBuffer([versionLength, concatenatedVersions, params]).byteLength);
-  return concatBuffer([messageType, length, versionLength, concatenatedVersions, params]);
+  const parametersBytes = serializeParams(props.params);
+  const length = numberToVarInt(concatBuffer([versionLength, concatenatedVersions, parametersBytes]).byteLength);
+  return concatBuffer([messageType, versionLength, concatenatedVersions, parametersBytes]);
 }
 
 export const deserializeClientSetup = async (controlReader: ReadableStream) => {
