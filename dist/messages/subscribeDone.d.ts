@@ -4,7 +4,7 @@ export declare const serializeSubscribeDone: (props: {
     statusCode: SUBSCRIBE_DONE_REASON;
     reasonPhrase: string;
     streamCount: number;
-}) => Uint8Array;
+}) => Uint8Array<ArrayBuffer>;
 export declare const deserializeSubscribeDone: (controlReader: ReadableStream) => Promise<{
     subscribeId: number;
     statusCode: SUBSCRIBE_DONE_REASON;

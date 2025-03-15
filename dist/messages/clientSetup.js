@@ -6,9 +6,9 @@ export const serializeClientSetup = (props) => {
     const versionLength = numberToVarInt(props.supportedVersions.length);
     const version = props.supportedVersions.map(version => numberToVarInt(version));
     const concatenatedVersions = concatBuffer(version);
-    const parametersBytes = serializeParams(props.params);
+    const parametersBytes = serializeParams(props.params || []);
     const length = numberToVarInt(concatBuffer([versionLength, concatenatedVersions, parametersBytes]).byteLength);
-    return concatBuffer([messageType, versionLength, concatenatedVersions, parametersBytes]);
+    return concatBuffer([messageType, length, versionLength, concatenatedVersions, parametersBytes]);
 };
 export const deserializeClientSetup = async (controlReader) => {
     await varIntToNumber(controlReader); // length

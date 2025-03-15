@@ -1,5 +1,5 @@
 import { Mogger } from '$lib/utils/mogger';
-import { CONTROL_MESSAGE, deserializeAnnounceOk, deserializeEncodedChunk, deserializeServerSetup, deserializeSubgroupHeader, deserializeSubgroupObjectHeader, deserializeSubscribe, deserializeSubscribeDone, deserializeSubscribeOk, readControlMessageType, STREAM } from '../../temp';
+import { CONTROL_MESSAGE, deserializeAnnounceOk, deserializeEncodedChunk, deserializeServerSetup, deserializeSubgroupHeader, deserializeSubgroupObjectHeader, deserializeSubscribe, deserializeSubscribeDone, deserializeSubscribeOk, OBJECT_STATUS, readControlMessageType, STREAM } from '../../temp';
 
 class MoQTCommunicator {
   private wt: WebTransport;
@@ -87,6 +87,16 @@ class MoQTCommunicator {
     Mogger.info('Session closed');
   }
 
+  async readSubgroupObject(reader: ReadableStream, trackAlias: number) {
+    let done = false;
+    while (!done) {
+      const header = await deserializeSubgroupObjectHeader(reader);
+      done = header.objectStatus && (header.objectStatus === OBJECT_STATUS.END_OF_GROUP || header.objectStatus === OBJECT_STATUS.END_OF_TRACK || header.objectStatus === OBJECT_STATUS.END_OF_TRACK_AND_GROUP);
+      const encodedChunkInit = await deserializeEncodedChunk(reader);
+      postMessage({ type: 'subgroupObject', data: { header, encodedChunkInit, trackAlias } });
+    }
+  }
+
   async startReadLoop() {
     while (this.state === 'running') {
       const msgType = await readControlMessageType(this.controlReader);
@@ -127,7 +137,9 @@ class MoQTCommunicator {
       switch (streamType) {
         case STREAM.SUBGROUP_HEADER:
           const subgroupHeader = await deserializeSubgroupHeader(readableStream);
-          postMessage({ type: `stream-${streamType}`, data: { subgroupHeader, readableStream } }, [readableStream]);
+          postMessage({ type: `stream-${streamType}`, data: subgroupHeader });
+          this.readSubgroupObject(readableStream, subgroupHeader.trackAlias);
+          break;
       }
       reader.releaseLock();
     }

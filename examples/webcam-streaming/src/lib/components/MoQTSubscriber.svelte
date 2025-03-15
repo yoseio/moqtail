@@ -2,7 +2,7 @@
   import { Subscriber } from "$lib/subscriber";
   import { GROUP_ORDER, type Subscribe, SUBSCRIBE_FILTER } from "../../temp";
 
-  let moqEl: HTMLCanvasElement;
+  let canvasEl: HTMLCanvasElement;
   let moqIsPlaying = false;
   let subscriberInit = false;
   let subscriber: Subscriber;
@@ -27,6 +27,7 @@
       jitterBufferFrameSize: moqtSubJitterBufferFrameSize,
     });
     subscriberInit = true;
+    subscriber.setCanvasElement(canvasEl);
   }
   const setup = () => {
     if (!subscriber || setupSent) return;
@@ -48,13 +49,13 @@
   };
   const stopStream = () => {}
   const canvasGoFullscreen = () => {
-    moqEl.requestFullscreen();
+    canvasEl.requestFullscreen();
   };
 </script>
 
 <div class="sub">
   <h3>Subscriber</h3>
-  <canvas width={canvasWidth} height={canvasHeight} bind:this={moqEl} />
+  <canvas width={canvasWidth} height={canvasHeight} bind:this={canvasEl} />
   <button on:click={canvasGoFullscreen}>Go Fullscreen</button>
   <div class="track">
     <div>

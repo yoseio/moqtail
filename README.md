@@ -1,12 +1,12 @@
 ## moqtail
 ![NPM Version](https://img.shields.io/npm/v/moqtail)
 
-Media over QUIC Transport client implementation for browsers. Currently kept up with Draft-10.
+Media over QUIC Transport message serializer/deserializer aiming for browser usages.
 
 ## Key Features
 - serializer/deserializer for all control messages at `src/messages`
+- serializer/deserializer for data streams at `src/dataStreams`
 
 TODO: 
 - data management (track/group/object)
 - stream management
-- abstract instance for each role (publisher/subscriber/relay)

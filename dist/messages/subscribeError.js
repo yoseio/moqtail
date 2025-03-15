@@ -21,3 +21,4 @@ export const deserializeSubscribeError = async (controlReader) => {
     const trackAlias = await varIntToNumber(controlReader);
     return { subscribeId, errorCode, reasonPhrase, trackAlias };
 };
+;

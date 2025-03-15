@@ -1,7 +1,6 @@
 import { Mogger } from "$lib/utils/mogger";
 import { deserializeEncodedChunk, deserializeSubgroupObjectHeader, type Subscribe } from "../../../temp";
 
-// video decoder thread
 class MoQTAudioDecoder {
   private reader: ReadableStreamDefaultReader;
   private subscribe: Subscribe;
@@ -44,7 +43,7 @@ class MoQTAudioDecoder {
   }
 }
 
-const decoder = new MoQTAudioDecoder();
-self.addEventListener('message', decoder.onMessage.bind(decoder));
+const ad = new MoQTAudioDecoder();
+self.addEventListener('message', ad.onMessage.bind(ad));
 
 export {};

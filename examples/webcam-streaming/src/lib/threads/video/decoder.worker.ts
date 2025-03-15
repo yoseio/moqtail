@@ -1,47 +1,48 @@
+import { VIDEO_DECODER_DEFAULT_CONFIG } from "$lib/config";
 import { Mogger } from "$lib/utils/mogger";
-import { deserializeEncodedChunk, deserializeSubgroupObjectHeader, type Subscribe } from "../../../temp";
+import type { SubgroupObject, Subscribe } from "../../../temp";
 
-// video decoder thread
 class MoQTVideoDecoder {
-  private reader: ReadableStream;
   private subscribe: Subscribe;
-  private state: 'init' | 'decoding' | 'stopped' = 'stopped';
+  private decoder: VideoDecoder;
 
-  onMessage(event: MessageEvent) {
-    const data = event.data as ThreadMessage;
-    switch(data.type) {
-      case 'init':
-        this.subscribe = data.data;
-        this.state = 'init';
-        break;
-      case 'registerStream':
-        this.reader = data.data as ReadableStream;
-      case 'decode':
-        this.decode();
-        break;
-      case 'stopDecoding':
-        this.state = 'stopped';
-        break;
+  onMessage(message: MessageEvent) {
+    const data = message.data as ThreadMessage;
+    const handlers: { [key: string]: (data: any) => void } = {
+      init: this.init.bind(this),
+      setDecoderConfig: this.setDecoderConfig.bind(this),
+      decode: this.decode.bind(this),
+    };
+    const handler = handlers[data.type];
+    if (!handler) {
+      postMessage({ type: 'error', data: `Unknown message type: ${data.type}` });
+      return;
     }
+    handler(data.data);
   }
 
-  async decode() {
-    this.state = 'decoding';
-    const decoder = new VideoDecoder({
+  init(subscribe: Subscribe) {
+    this.subscribe = subscribe;
+    this.decoder = new VideoDecoder({
       output: (frame: VideoFrame) => postMessage({ type: 'videoFrame', data: { subscribeId: this.subscribe.subscribeId, frame }}),
       error: (error: DOMException) => Mogger.error('VideoDecoder error', error.message)
     });
-    while(this.state === 'decoding') {
-      const object = await deserializeSubgroupObjectHeader(this.reader);
-      // TODO: some object validations
-      const encodedVideoChunkInit = await deserializeEncodedChunk(this.reader);
-      const chunk = new EncodedVideoChunk(encodedVideoChunkInit);
-      decoder.decode(chunk);
-    }
+    this.decoder.configure(VIDEO_DECODER_DEFAULT_CONFIG);
+  }
+
+  setDecoderConfig(config: VideoDecoderConfig) {
+    this.decoder.configure(config);
+  }
+
+  decode({ header, encodedVideoChunkInit }: { header: SubgroupObject, encodedVideoChunkInit: EncodedVideoChunkInit }) {
+    // TODO: some header validation
+    Mogger.debug('Decoding video chunk');
+    const chunk = new EncodedVideoChunk(encodedVideoChunkInit);
+    this.decoder.decode(chunk);
   }
 }
 
-const decoder = new MoQTVideoDecoder();
-self.addEventListener('message', decoder.onMessage.bind(decoder));
+const decoderInstance = new MoQTVideoDecoder();
+self.addEventListener('message', decoderInstance.onMessage.bind(decoderInstance));
 
 export {};

@@ -1,12 +1,13 @@
 import { CONTROL_MESSAGE, GROUP_ORDER, SUBSCRIBE_FILTER } from "../constants";
 import { deserializeParams, serializeParams } from "../utils/parameter";
 import { concatBuffer, numberToVarInt, stringToVarBytes, varIntToNumber, varBytesToString, setUint8, getUint8 } from "../utils/bytes";
+import { deserializeNamespace } from "../utils/namespace";
 export const serializeSubscribe = (props) => {
     const messageType = numberToVarInt(CONTROL_MESSAGE.SUBSCRIBE);
     const subscribeIdBytes = numberToVarInt(props.subscribeId);
     const trackAliasBytes = numberToVarInt(props.trackAlias);
-    const namespaceLength = numberToVarInt(props.namespace.length);
-    const namespaceBytes = props.namespace.map(stringToVarBytes);
+    const namespaceLength = numberToVarInt(props.trackNamespace.length);
+    const namespaceBytes = props.trackNamespace.map(stringToVarBytes);
     const trackNameBytes = stringToVarBytes(props.trackName);
     const subscriberPriorityBytes = setUint8(props.subscriberPriority);
     const groupOrderBytes = setUint8(props.groupOrder);
@@ -23,8 +24,7 @@ export const deserializeSubscribe = async (controlReader) => {
     await varIntToNumber(controlReader); // length
     const subscribeId = await varIntToNumber(controlReader);
     const trackAlias = await varIntToNumber(controlReader);
-    const namespaceLength = await varIntToNumber(controlReader);
-    const namespace = await Promise.all(Array.from({ length: namespaceLength }, () => varBytesToString(controlReader)));
+    const trackNamespace = await deserializeNamespace(controlReader);
     const trackName = await varBytesToString(controlReader);
     const subscriberPriority = await getUint8(controlReader);
     const groupOrder = await getUint8(controlReader);
@@ -39,5 +39,5 @@ export const deserializeSubscribe = async (controlReader) => {
     const startObject = filterType === SUBSCRIBE_FILTER.ABSOLUTE_START || filterType === SUBSCRIBE_FILTER.ABSOLUTE_RANGE ? await varIntToNumber(controlReader) : undefined;
     const endGroup = filterType === SUBSCRIBE_FILTER.ABSOLUTE_RANGE ? await varIntToNumber(controlReader) : undefined;
     const parameters = await deserializeParams(CONTROL_MESSAGE.SUBSCRIBE, controlReader);
-    return { subscribeId, trackAlias, namespace, trackName, subscriberPriority, groupOrder, filterType, startGroup, startObject, endGroup, parameters };
+    return { subscribeId, trackAlias, trackNamespace, trackName, subscriberPriority, groupOrder, filterType, startGroup, startObject, endGroup, parameters };
 };
