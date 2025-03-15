@@ -104,6 +104,7 @@ export const FETCH_TYPE = {
     JOINING: 0x2
 };
 export const GROUP_ORDER = {
+    PUBLISHER: 0x0,
     ASCENDING: 0x1,
     DESCENDING: 0x2
 };

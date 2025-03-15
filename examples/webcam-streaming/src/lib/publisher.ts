@@ -1,6 +1,6 @@
 // main thread for publisher
 // interaction with the component page: video/audio start, stop, pause, resume, 
-import { CONTROL_MESSAGE, GROUP_ORDER, MOQT_DRAFT08_VERSION, MOQT_DRAFT09_VERSION, MOQT_DRAFT10_VERSION, PARAMETER, serializeAnnounce, serializeClientSetup, serializeSubgroupHeader, serializeSubscribeError, serializeSubscribeOk, serializeUnannounce, SUBSCRIBE_ERROR_REASON, SUBSCRIBE_FILTER, serializeSubgroupObject, serializeEncodedChunk } from '../temp';
+import { CONTROL_MESSAGE, GROUP_ORDER, MOQT_DRAFT08_VERSION, MOQT_DRAFT09_VERSION, MOQT_DRAFT10_VERSION, PARAMETER, serializeAnnounce, serializeClientSetup, serializeSubgroupHeader, serializeSubscribeError, serializeSubscribeOk, serializeUnannounce, SUBSCRIBE_ERROR_REASON, SUBSCRIBE_FILTER, serializeSubgroupObject, serializeEncodedChunk, videoDecoderConfigToExtensionHeader } from '../temp';
 import type { ServerSetup, AnnounceOk, Subscribe } from '../temp';
 // @ts-ignore
 import CommunicatorWorker from './threads/communicator.worker?worker';
@@ -189,10 +189,10 @@ export class Publisher {
         targetTrack.largestObjectId !== undefined ? targetTrack.largestObjectId++ : targetTrack.largestObjectId = 0;
         const subgroupObject = serializeSubgroupObject({
           objectId: targetTrack.largestObjectId,
+          // extensionHeaders: [msg.metadata.decoderConfig && videoDecoderConfigToExtensionHeader(msg.metadata.decoderConfig)],
           extensionHeaders: [],
           payload: locBytes
         });
-        Mogger.debug(msg.metadata.frameType);
         this.communicator.postMessage({ type: 'sendSubgroupObject', data: { subgroupId, subgroupObject } });
         break;
       case 'error':

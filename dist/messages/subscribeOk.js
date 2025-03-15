@@ -28,3 +28,4 @@ export const deserializeSubscribeOk = async (controlReader) => {
     const parameters = await deserializeParams(CONTROL_MESSAGE.SUBSCRIBE_OK, controlReader);
     return { subscribeId, expires, groupOrder, contentExists, largestGroupId, largestObjectId, parameters };
 };
+;

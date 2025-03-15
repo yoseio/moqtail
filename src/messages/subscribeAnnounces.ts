@@ -1,6 +1,7 @@
 import { numberToVarInt, stringToVarBytes, concatBuffer, varIntToNumber, varBytesToString } from '../utils/bytes';
 import { CONTROL_MESSAGE } from '../constants';
-import { serializeParams, deserializeParams, Parameter } from '../utils/parameter';
+import { serializeParams, deserializeParams, type Parameter } from '../utils/parameter';
+import { deserializeNamespace } from '../utils/namespace';
 
 export const serializeSubscribeAnnounces = (props: { trackNamespacePrefix: string[], parameters?: Parameter[] }) => {
   const messageTypeBytes = numberToVarInt(CONTROL_MESSAGE.SUBSCRIBE_ANNOUNCES);
@@ -14,8 +15,7 @@ export const serializeSubscribeAnnounces = (props: { trackNamespacePrefix: strin
 
 export const deserializeSubscribeAnnounces = async (controlReader: ReadableStream) => {
   await varIntToNumber(controlReader); // length
-  const trackNamespacePrefixLength = await varIntToNumber(controlReader);
-  const trackNamespacePrefix = await Promise.all(Array.from({ length: trackNamespacePrefixLength }, () => varBytesToString(controlReader)));
+  const trackNamespacePrefix = await deserializeNamespace(controlReader);
   const parameters = await deserializeParams(CONTROL_MESSAGE.SUBSCRIBE_ANNOUNCES, controlReader);
   return { trackNamespacePrefix, parameters };
 }

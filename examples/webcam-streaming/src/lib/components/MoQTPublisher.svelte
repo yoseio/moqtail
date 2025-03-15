@@ -12,7 +12,7 @@
 
   export let moqtServerUrl: string;
   let namespace = ['moqtail', 'webcam-demo'];
-  let keyFrameDuration = 60;
+  let keyFrameDuration = 30;
   let authInfo = 'secret';
 
   const videoTrack: Track = {

@@ -3,8 +3,8 @@ import { deserializeParams, serializeParams } from "../utils/parameter";
 import { concatBuffer, numberToVarInt, varIntToNumber } from "../utils/bytes";
 export const serializeServerSetup = (props) => {
     const messageType = numberToVarInt(CONTROL_MESSAGE.SERVER_SETUP);
-    const selectedVersion = numberToVarInt(props.version);
-    const params = serializeParams(props.params);
+    const selectedVersion = numberToVarInt(props.selectedVersion);
+    const params = serializeParams(props.parameters);
     const length = numberToVarInt(concatBuffer([selectedVersion, params]).byteLength);
     return concatBuffer([messageType, length, selectedVersion, params]);
 };
