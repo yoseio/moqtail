@@ -114,7 +114,7 @@ export class Subscriber {
           this.communicator.postMessage({ type: 'closeSession', data: null });
           break;
         }
-        Mogger.info(`VideoFrame with subscribeId:${vfData.subscribeId} received`);
+        Mogger.debug(`VideoFrame with subscribeId:${vfData.subscribeId} received`);
         // this.canvasElement.width = vfData.frame.codedWidth;
         // this.canvasElement.height = vfData.frame.codedHeight;
         this.ctx.clearRect(0, 0, this.canvasElement.width, this.canvasElement.height);

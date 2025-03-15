@@ -11,7 +11,7 @@
   export let moqtServerUrl;
   export let canvasWidth = 480;
   export let canvasHeight = 360;
-  let namespace = ['moqtail', 'webcam-demo'];
+  let namespace = ['moqtail'];
   let videoTrackName = 'video';
   let audioTrackName = 'audio';
   let authInfo = 'secret';

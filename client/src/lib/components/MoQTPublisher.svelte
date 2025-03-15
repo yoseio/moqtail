@@ -11,7 +11,7 @@
   let stream: MediaStream;
 
   export let moqtServerUrl: string;
-  let namespace = ['moqtail', 'webcam-demo'];
+  let namespace = ['moqtail'];
   let keyFrameDuration = 30;
   let authInfo = 'secret';
 

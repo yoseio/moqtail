@@ -4,6 +4,8 @@
   import RelayServerUrl from '$lib/components/RelayServerUrl.svelte';
 
   let moqtServerUrl = 'https://203.178.143.71:4433/moq';
+  // let moqtServerUrl = 'https://fb.mvfst.net:9448/moq-relay';
+  // let moqtServerUrl = 'https://31.133.145.159:9000'
 </script>
 
 <svelte:head>
@@ -15,7 +17,7 @@
   <h1>Webcam Streaming Demo</h1>
   <div class="description">
     <p>possibly sends: CLIENT_SETUP, ANNOUNCE, UNANNOUNCE, SUBSCRIBE and UNSUBSCRIBE</p>
-    <p>handles incoming: SERVER_SETUP, ANNOUNCE_OK, SUBSCRIBE_OK</p>
+    <p>handles incoming: SERVER_SETUP, ANNOUNCE_OK, ANNOUNCE_ERROR, SUBSCRIBE_OK</p>
   </div>
   <div class="relay-server">
     <RelayServerUrl bind:serverUrl={moqtServerUrl} />

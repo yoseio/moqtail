@@ -1,4 +1,4 @@
-## Unidirectional Webcam Streaming
+## moqtail-streaming
 an example use case of moqtail.
 
 ## develop

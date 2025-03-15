@@ -44,7 +44,13 @@ export const AUDIO_ENCODER_DEFAULT_CONFIG: AudioEncoderConfig = {
   }
 };
 
-export const VIDEO_DECODER_DEFAULT_CONFIG: VideoDecoderConfig = {"codec":"vp8","codedHeight":360,"codedWidth":480,"colorSpace":{"fullRange":false,"matrix":"smpte170m","primaries":"bt709","transfer":"bt709"},"hardwareAcceleration":"no-preference"}
+export const VIDEO_DECODER_DEFAULT_CONFIG: VideoDecoderConfig = {
+  codec: "vp8",
+  codedHeight: 360,
+  codedWidth: 480,
+  colorSpace: {"fullRange":false,"matrix":"smpte170m","primaries":"bt709","transfer":"bt709"},
+  hardwareAcceleration: "no-preference"
+}
 export const AUDIO_DECODER_DEFAULT_CONFIG: AudioDecoderConfig = {
   codec: 'opus', // AAC NOT implemented YET (it is in their roadmap)
   sampleRate: 48000, // To fill later

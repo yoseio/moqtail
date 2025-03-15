@@ -119,6 +119,9 @@ export class Publisher {
         msg = message.data.data as AnnounceOk;
         Mogger.info(`Announce with namespace ${message.data.data.trackNamespace} successful`);
         break;
+      case `ctrl-${CONTROL_MESSAGE.ANNOUNCE_ERROR}`:
+        Mogger.error(`Announce error for namespace ${message.data.data.trackNamespace}. reason: ${message.data.data.reasonPhrase}`);
+        break;
       case `ctrl-${CONTROL_MESSAGE.SUBSCRIBE}`:
         msg = message.data.data as Subscribe;
         const targetTrack = this.trackManager.getTrack({ name: msg.trackName });

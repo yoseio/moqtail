@@ -4,7 +4,7 @@ const MAX_U30 = Math.pow(2, 30) - 1;
 const MAX_U53 = Number.MAX_SAFE_INTEGER;
 // const MAX_U62 = 2n ** 62n - 1n
 
-export const buffReadFrombyobReader = async (reader: ReadableStreamBYOBReader, buffer: any, offset: number, size: number) => {
+const buffReadFrombyobReader = async (reader: ReadableStreamBYOBReader, buffer: any, offset: number, size: number) => {
   const ret = null;
   if (size <= 0) {
     return ret;

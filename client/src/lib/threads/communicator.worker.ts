@@ -1,5 +1,5 @@
 import { Mogger } from '$lib/utils/mogger';
-import { CONTROL_MESSAGE, deserializeAnnounceOk, deserializeEncodedChunk, deserializeServerSetup, deserializeSubgroupHeader, deserializeSubgroupObjectHeader, deserializeSubscribe, deserializeSubscribeDone, deserializeSubscribeOk, OBJECT_STATUS, readControlMessageType, STREAM } from '../../temp';
+import { CONTROL_MESSAGE, deserializeAnnounceError, deserializeAnnounceOk, deserializeEncodedChunk, deserializeServerSetup, deserializeSubgroupHeader, deserializeSubgroupObjectHeader, deserializeSubscribe, deserializeSubscribeDone, deserializeSubscribeOk, OBJECT_STATUS, readControlMessageType, STREAM } from '../../temp';
 
 class MoQTCommunicator {
   private wt: WebTransport;
@@ -38,14 +38,14 @@ class MoQTCommunicator {
     this.controlWriter = this.controlStream.writable;
     this.controlReader = this.controlStream.readable;
     this.state = 'running';
-    Mogger.info('Connection established');
+    Mogger.debug('Connection established');
   }
 
   async sendControlMessage(data: Uint8Array) {
     const writer = this.controlWriter.getWriter();
     await writer.write(data);
     writer.releaseLock();
-    Mogger.info('Control message sent');
+    Mogger.debug('Control message sent');
   }
 
   async createSubgroupStream({ subgroupId, subgroupHeader}: { subgroupId: number, subgroupHeader: Uint8Array }) {
@@ -53,7 +53,7 @@ class MoQTCommunicator {
     const writer = this.streams[subgroupId].getWriter();
     await writer.write(subgroupHeader);
     writer.releaseLock();
-    Mogger.info('Stream created');
+    Mogger.debug('Stream created');
   }
 
   async sendObject({ subgroupObject, subgroupId }: { subgroupObject: Uint8Array, subgroupId: number }) {
@@ -64,27 +64,27 @@ class MoQTCommunicator {
     const writer = this.streams[subgroupId].getWriter();
     await writer.write(subgroupObject);
     writer.releaseLock();
-    Mogger.info('Object sent');
+    Mogger.debug('Object sent');
   }
 
   async sendDatagram(data: Uint8Array) {
     const writer = this.wt.datagrams.writable.getWriter();
     await writer.write(data);
     writer.releaseLock();
-    Mogger.info('Datagram sent');
+    Mogger.debug('Datagram sent');
   }
 
   closeSubgroupStream(subgroupId: string) {
     this.streams[subgroupId].getWriter().close();
     delete this.streams[subgroupId];
-    Mogger.info('Stream closed');
+    Mogger.debug('Stream closed');
   }
 
   closeSession() {
     this.state = 'stopped';
     this.controlStream.writable.getWriter().close();
     this.wt.close();
-    Mogger.info('Session closed');
+    Mogger.debug('Session closed');
   }
 
   async readSubgroupObject(reader: ReadableStream, trackAlias: number) {
@@ -102,12 +102,16 @@ class MoQTCommunicator {
       const msgType = await readControlMessageType(this.controlReader);
       let message;
       let error: string = '';
+      // TODO: make it look cool
       switch (msgType) {
         case CONTROL_MESSAGE.SERVER_SETUP:
           message = await deserializeServerSetup(this.controlReader);
           break;
         case CONTROL_MESSAGE.ANNOUNCE_OK:
           message = await deserializeAnnounceOk(this.controlReader);
+          break;
+        case CONTROL_MESSAGE.ANNOUNCE_ERROR:
+          message = await deserializeAnnounceError(this.controlReader);
           break;
         case CONTROL_MESSAGE.SUBSCRIBE:
           message = await deserializeSubscribe(this.controlReader);

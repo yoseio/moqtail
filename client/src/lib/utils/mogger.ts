@@ -13,6 +13,8 @@ export class Mogger {
     [LogLevel.ERROR]: 'ERROR',
   };
 
+  private static currentLogLevel: LogLevel = LogLevel.DEBUG;
+
   private static colors: Record<LogLevel, string> = {
     [LogLevel.DEBUG]: 'gray',
     [LogLevel.INFO]: 'green',
@@ -25,6 +27,8 @@ export class Mogger {
   }
 
   private static log(level: LogLevel, message: string, functionName?: string) {
+    const logLevelsOrder = [LogLevel.DEBUG, LogLevel.INFO, LogLevel.WARN, LogLevel.ERROR];
+    if (logLevelsOrder.indexOf(level) < logLevelsOrder.indexOf(Mogger.currentLogLevel)) return;
     const color = Mogger.colors[level];
     console.log(`%c[${Mogger.getCurrentTimestamp()}] [${level}] ${functionName ? '[' + functionName + ']' : ''} - ${message}`, color);
   }
