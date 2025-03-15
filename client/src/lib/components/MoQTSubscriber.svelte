@@ -12,9 +12,8 @@
   export let canvasWidth = 480;
   export let canvasHeight = 360;
   let namespace = ['moqtail'];
-  let videoTrackName = 'video';
-  let audioTrackName = 'audio';
-  let authInfo = 'secret';
+  let videoTrackName = 'video0';
+  let audioTrackName = 'audio0';
   let moqtSubJitterBufferFrameSize = 10;
 
   // let videoQuality: 'low' | 'medium' | 'high' = 'low';
@@ -23,7 +22,6 @@
     if (subscriberInit) return;
     subscriber = new Subscriber({
       serverUrl: moqtServerUrl,
-      authInfo,
       jitterBufferFrameSize: moqtSubJitterBufferFrameSize,
     });
     subscriberInit = true;
@@ -58,6 +56,18 @@
   <canvas width={canvasWidth} height={canvasHeight} bind:this={canvasEl} />
   <button on:click={canvasGoFullscreen}>Go Fullscreen</button>
   <div class="track">
+    <div>
+      <label for="pub-track-namespace">Track Namespace</label>
+      <input type="text" name="pub-track-info-namespace" bind:value={namespace} />
+    </div>
+    <div>
+      <label for="pub-track-video">Video Track Name</label>
+      <input type="text" name="pub-track-video" bind:value={videoTrackName} />
+    </div>
+    <div>
+      <label for="pub-track-audio">Audio Track Name</label>
+      <input type="text" name="pub-track-audio" bind:value={audioTrackName} />
+    </div>
     <div>
       <label for="pub-track-jitter">Jitter Buffer Frame Size {moqtSubJitterBufferFrameSize}</label>
       <input

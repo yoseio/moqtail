@@ -1,12 +1,12 @@
 import { Mogger } from '$lib/utils/mogger';
-import { CONTROL_MESSAGE, deserializeAnnounceError, deserializeAnnounceOk, deserializeEncodedChunk, deserializeServerSetup, deserializeSubgroupHeader, deserializeSubgroupObjectHeader, deserializeSubscribe, deserializeSubscribeDone, deserializeSubscribeOk, OBJECT_STATUS, readControlMessageType, STREAM } from '../../temp';
+import { CONTROL_MESSAGE, deserializeAnnounceError, deserializeAnnounceOk, deserializeEncodedChunk, deserializeServerSetup, deserializeSubgroupHeader, deserializeSubgroupObjectHeader, deserializeSubscribe, deserializeSubscribeDone, deserializeSubscribeError, deserializeSubscribeOk, OBJECT_STATUS, readControlMessageType, STREAM } from '../../temp';
 
 class MoQTCommunicator {
   private wt: WebTransport;
   private controlStream: WebTransportBidirectionalStream;
   private controlWriter: WritableStream;
   private controlReader: ReadableStream;
-  private streams: { [key: string]: WritableStream } = {};
+  private streams: Map<number, WritableStream> = new Map();
   private state: 'running' | 'stopped' = 'stopped';
 
   constructor(){}
@@ -17,6 +17,7 @@ class MoQTCommunicator {
       startConnection: this.startConnection.bind(this),
       sendControlMessage: this.sendControlMessage.bind(this),
       createSubgroupStream: this.createSubgroupStream.bind(this),
+      closeSubgroupStreams: this.closeSubgroupStreams.bind(this),
       sendSubgroupObject: this.sendObject.bind(this),
       closeStream: this.closeSubgroupStream.bind(this),
       closeSession: this.closeSession.bind(this),
@@ -48,20 +49,35 @@ class MoQTCommunicator {
     Mogger.debug('Control message sent');
   }
 
+  async closeSubgroupStreams(subgroupIds: number[]) {
+    subgroupIds.map(id => {
+      this.closeSubgroupStream(id);
+    })
+  }
+
   async createSubgroupStream({ subgroupId, subgroupHeader}: { subgroupId: number, subgroupHeader: Uint8Array }) {
-    this.streams[subgroupId] = await this.wt.createUnidirectionalStream();
-    const writer = this.streams[subgroupId].getWriter();
+    this.streams.set(subgroupId, await this.wt.createUnidirectionalStream());
+    const writer = this.streams.get(subgroupId).getWriter();
     await writer.write(subgroupHeader);
     writer.releaseLock();
     Mogger.debug('Stream created');
   }
 
+  closeSubgroupStream(subgroupId: number) {
+    this.streams.get(subgroupId).close();
+    this.streams.delete(subgroupId);
+    Mogger.debug(`Stream with subgroupId: ${subgroupId} closed`);
+  }
+
   async sendObject({ subgroupObject, subgroupId }: { subgroupObject: Uint8Array, subgroupId: number }) {
-    if (!this.streams[subgroupId]) {
-      postMessage({ type: 'error', data: `Stream ${subgroupId} not found` });
-      return;
-    }
-    const writer = this.streams[subgroupId].getWriter();
+    // if (!this.streams.has(subgroupId)) {
+    //   postMessage({ type: 'error', data: `Stream ${subgroupId} not found` });
+    //   return;
+    // }
+    while (!this.streams.has(subgroupId)) {
+      await new Promise((resolve) => setTimeout(resolve, 0.5));
+    };
+    const writer = this.streams.get(subgroupId).getWriter();
     await writer.write(subgroupObject);
     writer.releaseLock();
     Mogger.debug('Object sent');
@@ -72,12 +88,6 @@ class MoQTCommunicator {
     await writer.write(data);
     writer.releaseLock();
     Mogger.debug('Datagram sent');
-  }
-
-  closeSubgroupStream(subgroupId: string) {
-    this.streams[subgroupId].getWriter().close();
-    delete this.streams[subgroupId];
-    Mogger.debug('Stream closed');
   }
 
   closeSession() {
@@ -92,9 +102,14 @@ class MoQTCommunicator {
     while (!done) {
       const header = await deserializeSubgroupObjectHeader(reader);
       done = header.objectStatus && (header.objectStatus === OBJECT_STATUS.END_OF_GROUP || header.objectStatus === OBJECT_STATUS.END_OF_TRACK || header.objectStatus === OBJECT_STATUS.END_OF_TRACK_AND_GROUP);
-      const encodedChunkInit = await deserializeEncodedChunk(reader);
-      postMessage({ type: 'subgroupObject', data: { header, encodedChunkInit, trackAlias } });
+      if (!done) {
+        const encodedChunkInit = await deserializeEncodedChunk(reader);
+        postMessage({ type: 'subgroupObject', data: { header, encodedChunkInit, trackAlias } });
+      } else {
+        postMessage({ type: 'subgroupObjectStatus', data: { header } })
+      }
     }
+    await reader.cancel();
   }
 
   async startReadLoop() {
@@ -119,8 +134,12 @@ class MoQTCommunicator {
         case CONTROL_MESSAGE.SUBSCRIBE_OK:
           message = await deserializeSubscribeOk(this.controlReader);
           break;
+        case CONTROL_MESSAGE.SUBSCRIBE_ERROR:
+          message = await deserializeSubscribeError(this.controlReader);
+          break;
         case CONTROL_MESSAGE.SUBSCRIBE_DONE:
           message = await deserializeSubscribeDone(this.controlReader);
+          break;
         default:
           error = `Unexpected message type: ${msgType}`;
       };
@@ -136,7 +155,6 @@ class MoQTCommunicator {
         Mogger.error('Stream reader closed');
         break
       }
-      Mogger.info('Stream received');
       const streamType = await readControlMessageType(readableStream);
       switch (streamType) {
         case STREAM.SUBGROUP_HEADER:

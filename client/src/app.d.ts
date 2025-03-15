@@ -5,12 +5,9 @@ declare global {
   type ObjectValueList<T extends Record<any, any>> = T[keyof T];
   type PublisherInitProps = {
     serverUrl: string,
-    tracks: Track[],
-    authInfo: string
   };
   type SubscriberInitProps = {
     serverUrl: string,
-    authInfo: string,
     jitterBufferFrameSize?: number
   };
   type MyEncoderConfig = {

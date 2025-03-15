@@ -10,7 +10,6 @@ class MoQTVideoDecoder {
     const data = message.data as ThreadMessage;
     const handlers: { [key: string]: (data: any) => void } = {
       init: this.init.bind(this),
-      setDecoderConfig: this.setDecoderConfig.bind(this),
       decode: this.decode.bind(this),
     };
     const handler = handlers[data.type];
@@ -30,15 +29,10 @@ class MoQTVideoDecoder {
     this.decoder.configure(VIDEO_DECODER_DEFAULT_CONFIG);
   }
 
-  setDecoderConfig(config: VideoDecoderConfig) {
-    this.decoder.configure(config);
-  }
-
-  decode({ header, encodedVideoChunkInit }: { header: SubgroupObject, encodedVideoChunkInit: EncodedVideoChunkInit }) {
-    // TODO: some header validation
+  decode({ encodedVideoChunk, config }: { encodedVideoChunk: EncodedVideoChunk, config?: VideoDecoderConfig }) {
+    if (config) this.decoder.configure(config);
     Mogger.debug('Decoding video chunk');
-    const chunk = new EncodedVideoChunk(encodedVideoChunkInit);
-    this.decoder.decode(chunk);
+    this.decoder.decode(encodedVideoChunk);
   }
 }
 

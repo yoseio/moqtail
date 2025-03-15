@@ -1,7 +1,7 @@
 <script lang="ts">
   import MoQTSubscriber from '$lib/components/MoQTSubscriber.svelte';
   import MoQtPublisher from '$lib/components/MoQTPublisher.svelte';
-  import RelayServerUrl from '$lib/components/RelayServerUrl.svelte';
+  import GenericInput from '$lib/components/GenericInput.svelte';
 
   let moqtServerUrl = 'https://203.178.143.71:4433/moq';
   // let moqtServerUrl = 'https://fb.mvfst.net:9448/moq-relay';
@@ -20,7 +20,7 @@
     <p>handles incoming: SERVER_SETUP, ANNOUNCE_OK, ANNOUNCE_ERROR, SUBSCRIBE_OK</p>
   </div>
   <div class="relay-server">
-    <RelayServerUrl bind:serverUrl={moqtServerUrl} />
+    <GenericInput key="Relay Server" bind:defaultVal={moqtServerUrl} />
   </div>
   <div class="container-videos">
     <div class="left">
@@ -47,6 +47,7 @@
     }
     .relay-server {
       margin: 5px;
+      width: 100%;
     }
     &-videos {
       margin: 10px 0 0 0;

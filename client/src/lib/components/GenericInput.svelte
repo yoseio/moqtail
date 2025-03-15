@@ -1,10 +1,11 @@
 <script lang="ts">
-  export let serverUrl: string;
+  export let key: string
+  export let defaultVal: string;
 </script>
 
 <div>
-  <label for="relay-server-url">Relay Server</label>
-  <input type="text" name="relay-server-url" bind:value={serverUrl} />
+  <label for="val">{key}</label>
+  <input type="text" name="val" bind:value={defaultVal} />
 </div>
 
 <style>

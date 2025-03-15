@@ -1,6 +1,6 @@
 import { Mogger } from "./utils/mogger";
-import { CONTROL_MESSAGE, deserializeSubgroupObjectHeader, LOC_EXTENSION_HEADER_TYPE, MOQT_DRAFT08_VERSION, MOQT_DRAFT09_VERSION, MOQT_DRAFT10_VERSION, serializeClientSetup, serializeSubscribe, STREAM } from "../temp";
-import type { Subscribe, ServerSetup, SubscribeOk, SubgroupHeader, SubgroupObject } from "../temp";
+import { CONTROL_MESSAGE, deserializeDecoderConfig, deserializeSubgroupObjectHeader, LOC_EXTENSION_HEADER_TYPE, MOQT_DRAFT08_VERSION, MOQT_DRAFT09_VERSION, MOQT_DRAFT10_VERSION, serializeClientSetup, serializeSubscribe, STREAM } from "../temp";
+import type { Subscribe, ServerSetup, SubscribeOk, SubgroupHeader, SubgroupObject, SubscribeError } from "../temp";
 
 // @ts-ignore
 import CommunicatorWorker from './threads/communicator.worker?worker';
@@ -67,6 +67,10 @@ export class Subscriber {
         subscription.subscribeOk = true;
         this.communicator.postMessage({ type: 'startStreamReadLoop', data: null });
         break;
+      case `ctrl-${CONTROL_MESSAGE.SUBSCRIBE_ERROR}`:
+        msg = message.data.data as SubscribeError;
+        Mogger.error(`Subscribe error for alias ${msg.trackAlias}: ${msg.reasonPhrase}`);
+        break;
       case `stream-${STREAM.SUBGROUP_HEADER}`:
         const subgroupHeader: SubgroupHeader = message.data.data;
         sub = this.subscription.find(s => s.subscribe.trackAlias === subgroupHeader.trackAlias);
@@ -88,13 +92,27 @@ export class Subscriber {
         const trackAlias: number = message.data.data.trackAlias;
         sub = this.subscription.find(s => s.subscribe.trackAlias === trackAlias);
         const header = message.data.data.header as SubgroupObject;
+        let videoDecoderConfig = null;
         header.extensionHeaders.map(h => {
-          if (h.type !== LOC_EXTENSION_HEADER_TYPE.VIDEO_CONFIG) return;
-          const config = JSON.parse(h.value as string);
-          sub.decoder.postMessage({ type: 'setDecoderConfig', data: config });
+          if (h.id !== LOC_EXTENSION_HEADER_TYPE.VIDEO_CONFIG) return;
+          const value = h.value as Uint8Array;
+          const readableStream = new ReadableStream({
+            type: 'bytes',
+            start(controller) {
+              // Push the Uint8Array into the stream
+              controller.enqueue(value);
+              controller.close(); // Close the stream when done
+            }
+          });
+          deserializeDecoderConfig(readableStream).then((config) => {
+            videoDecoderConfig = config;
+          });
         })
-        sub.decoder.postMessage({ type: 'decode', data: { header, encodedVideoChunkInit: encodedChunkInit } });
+        const chunk = new EncodedVideoChunk(encodedChunkInit);
+        sub.decoder.postMessage({ type: 'decode', data: { encodedVideoChunk: chunk, config: videoDecoderConfig } });
         break;
+      case 'subgroupObjectStatus':
+        Mogger.info(`End of subgroup object: ${message.data.data.header.objectStatus}`);
       case 'error':
         Mogger.error(`Subscriber communicator: ${message.data.data}`);
         break;
@@ -114,7 +132,7 @@ export class Subscriber {
           this.communicator.postMessage({ type: 'closeSession', data: null });
           break;
         }
-        Mogger.debug(`VideoFrame with subscribeId:${vfData.subscribeId} received`);
+        Mogger.debug(`VideoFrame with subscribeId:${vfData.subscribeId} received. Rendering...`);
         // this.canvasElement.width = vfData.frame.codedWidth;
         // this.canvasElement.height = vfData.frame.codedHeight;
         this.ctx.clearRect(0, 0, this.canvasElement.width, this.canvasElement.height);

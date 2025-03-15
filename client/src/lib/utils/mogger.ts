@@ -13,7 +13,7 @@ export class Mogger {
     [LogLevel.ERROR]: 'ERROR',
   };
 
-  private static currentLogLevel: LogLevel = LogLevel.DEBUG;
+  private static currentLogLevel: LogLevel = LogLevel.INFO;
 
   private static colors: Record<LogLevel, string> = {
     [LogLevel.DEBUG]: 'gray',

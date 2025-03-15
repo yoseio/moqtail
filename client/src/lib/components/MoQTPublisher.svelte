@@ -12,30 +12,9 @@
 
   export let moqtServerUrl: string;
   let namespace = ['moqtail'];
+  let videoTrackName = 'video0';
+  let audioTrackName = 'audio0';
   let keyFrameDuration = 30;
-  let authInfo = 'secret';
-
-  const videoTrack: Track = {
-    namespace,
-    name: 'video',
-    type: 'video',
-    objectForwardingPrefereces: 'Subgroup',
-    encoderConfig: { encoderConfig: VIDEO_ENCODER_DEFAULT_CONFIG, keyFrameDuration },
-    groupOrderPublisherPreference: GROUP_ORDER.ASCENDING,
-    subscribers: [],
-    groups: [],
-  };
-  const audioTrack: Track = {
-    namespace,
-    name: 'audio',
-    type: 'audio',
-    objectForwardingPrefereces: 'Datagram',
-    encoderConfig: { encoderConfig: AUDIO_ENCODER_DEFAULT_CONFIG, keyFrameDuration },
-    groupOrderPublisherPreference: GROUP_ORDER.ASCENDING,
-    subscribers: [],
-    groups: [],
-  };
-
 
   const camera = {
     inputDevices: null as MediaDeviceInfo[],
@@ -58,11 +37,7 @@
   };
   const connectToServer = async () => {
     if (publisherInit) return;
-    publisher = new Publisher({
-      serverUrl: moqtServerUrl,
-      tracks: [videoTrack, audioTrack],
-      authInfo,
-    });
+    publisher = new Publisher({ serverUrl: moqtServerUrl });
     publisherInit = true;
   };
   const setup = () => {
@@ -73,6 +48,26 @@
   const startStreaming = () => {
     if (!publisherInit) return;
     publisher.announce(namespace);
+    const videoTrack: Track = {
+      namespace,
+      name: videoTrackName,
+      type: 'video',
+      objectForwardingPrefereces: 'Subgroup',
+      encoderConfig: { encoderConfig: VIDEO_ENCODER_DEFAULT_CONFIG, keyFrameDuration },
+      groupOrderPublisherPreference: GROUP_ORDER.ASCENDING,
+      subscribers: [],
+      groups: [],
+    };
+    const audioTrack: Track = {
+      namespace,
+      name: audioTrackName,
+      type: 'audio',
+      objectForwardingPrefereces: 'Datagram',
+      encoderConfig: { encoderConfig: AUDIO_ENCODER_DEFAULT_CONFIG, keyFrameDuration },
+      groupOrderPublisherPreference: GROUP_ORDER.ASCENDING,
+      subscribers: [],
+      groups: [],
+    };
     const vt = stream.getVideoTracks()[0];
     publisher.startStream({ track: videoTrack, mediaTrack: vt });
     const at = stream.getAudioTracks()[0];
@@ -108,6 +103,18 @@
     {/if}
   </div>
   <div class="track">
+    <div>
+      <label for="pub-track-namespace">Track Namespace</label>
+      <input type="text" name="pub-track-info-namespace" bind:value={namespace} />
+    </div>
+    <div>
+      <label for="pub-track-video">Video Track Name</label>
+      <input type="text" name="pub-track-video" bind:value={videoTrackName} />
+    </div>
+    <div>
+      <label for="pub-track-audio">Audio Track Name</label>
+      <input type="text" name="pub-track-audio" bind:value={audioTrackName} />
+    </div>
     <div>
       <label for="pub-track-keyframe-duration">Key Frame Duration {keyFrameDuration}</label>
       <input type="range" min="1" max="120" name="pub-track-keyframe-duration" bind:value={keyFrameDuration} />
