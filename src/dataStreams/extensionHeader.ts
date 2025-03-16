@@ -1,16 +1,19 @@
-import { concatBuffer, numberToVarInt, stringToVarBytes, varBytesToString, varIntToNumber } from "../utils/bytes";
+import { buffRead, concatBuffer, numberToVarInt, stringToVarBytes, varIntToNumber } from "../utils/bytes";
 
 export interface ExtensionHeader {
-  type: number;
-  value: number | string;
+  id: number;
+  value: number | string | Uint8Array;
 }
 
 export const serializeExtensionHeader = (props: ExtensionHeader) => {
-  if (props.type === 0) throw new Error('Extension header type 0 is not allowed');
-  const typeBytes = numberToVarInt(props.type);
+  if (!props) return new Uint8Array(0);
+  if (props.id === 0) throw new Error('Extension header type 0 is not allowed');
+  const typeBytes = numberToVarInt(props.id);
   let valueBytes: Uint8Array;
-  if (props.type % 2 === 0) {
+  if (props.id % 2 === 0) {
     valueBytes = numberToVarInt(props.value as number);
+  } else if (typeof props.value === 'object') {
+    valueBytes = concatBuffer([numberToVarInt(props.value.byteLength), props.value]);
   } else {
     valueBytes = stringToVarBytes(props.value as string);
   }
@@ -18,12 +21,13 @@ export const serializeExtensionHeader = (props: ExtensionHeader) => {
 }
 
 export const deserializeExtensionHeader = async (reader: ReadableStream): Promise<ExtensionHeader> => {
-  const type = await varIntToNumber(reader);
-  let value: string | number;
-  if (type % 2 === 0) {
+  const id = await varIntToNumber(reader);
+  let value: string | number | Uint8Array;
+  if (id % 2 === 0) {
     value = await varIntToNumber(reader);
   } else {
-    value = await varBytesToString(reader);
+    const len = await varIntToNumber(reader);
+    value = await buffRead(reader, len);
   }
-  return { type, value };
+  return { id, value };
 }

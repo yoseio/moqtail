@@ -1,9 +1,5 @@
 import { Mogger } from "$lib/utils/mogger";
 
-interface StreamMessageData {
-  mediaStreamTrack: MediaStreamTrack
-}
-
 // should rename this to capturer and encoder
 class MoQTAudioEncoder {
   private reader: ReadableStreamDefaultReader<AudioData>;
@@ -22,8 +18,10 @@ class MoQTAudioEncoder {
         this.capture(data.data);
         break;
       case 'encode':
-        this.encode(data.data);
+        this.encode();
         break;
+      case 'stop':
+        this.state = 'stopped';
     }
   }
 
@@ -33,7 +31,8 @@ class MoQTAudioEncoder {
     this.reader = readable.getReader();
   }
   
-  async encode(data: StreamMessageData) {
+  async encode() {
+    this.state = 'encoding';
     const encoder = new AudioEncoder({
       output: (chunk: EncodedAudioChunk, metadata: EncodedAudioChunkMetadata) => this.handleChunk(chunk, metadata),
       error: (error: DOMException) => Mogger.error('VideoEncoder error', error.message)
@@ -49,10 +48,8 @@ class MoQTAudioEncoder {
     }
   }
 
-  async handleChunk(chunk: EncodedAudioChunk, metadata: EncodedAudioChunkMetadata) {
-    const chunkData = new Uint8Array(chunk.byteLength);
-    chunk.copyTo(chunkData);
-    postMessage({ type: 'chunk', data: { chunk: chunkData, metadata } });
+  handleChunk(chunk: EncodedAudioChunk, metadata: EncodedAudioChunkMetadata) {
+    postMessage({ type: 'audioChunk', data: { trackName: this.track.name, chunk, metadata } });
   }
 }
 

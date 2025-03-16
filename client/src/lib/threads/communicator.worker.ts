@@ -1,13 +1,22 @@
 import { Mogger } from '$lib/utils/mogger';
 import { CONTROL_MESSAGE, deserializeAnnounceError, deserializeAnnounceOk, deserializeEncodedChunk, deserializeServerSetup, deserializeSubgroupHeader, deserializeSubgroupObjectHeader, deserializeSubscribe, deserializeSubscribeDone, deserializeSubscribeError, deserializeSubscribeOk, OBJECT_STATUS, readControlMessageType, STREAM } from '../../temp';
 
+export const COMMUNICATOR_STATE = {
+  STOPPED: 0b0,
+  RUNNING: 0b1,
+  READING_STREAM: 0b10,
+  READING_DATAGRAM: 0b100
+} as const
+
 class MoQTCommunicator {
   private wt: WebTransport;
   private controlStream: WebTransportBidirectionalStream;
   private controlWriter: WritableStream;
   private controlReader: ReadableStream;
+  private datagramWriter: WritableStreamDefaultWriter;
+  private datagramReader: ReadableStreamDefaultReader;
   private streams: Map<number, WritableStream> = new Map();
-  private state: 'running' | 'stopped' = 'stopped';
+  private state: number = 0;
 
   constructor(){}
 
@@ -19,10 +28,12 @@ class MoQTCommunicator {
       createSubgroupStream: this.createSubgroupStream.bind(this),
       closeSubgroupStreams: this.closeSubgroupStreams.bind(this),
       sendSubgroupObject: this.sendObject.bind(this),
+      sendDatagram: this.sendDatagram.bind(this),
       closeStream: this.closeSubgroupStream.bind(this),
       closeSession: this.closeSession.bind(this),
       startReadLoop: this.startReadLoop.bind(this),
-      startStreamReadLoop: this.startStreamReadLoop.bind(this)
+      startStreamReadLoop: this.startStreamReadLoop.bind(this),
+      startDatagramReadLoop: this.startDatagramReadLoop.bind(this)
     };
     const handler = handlers[data.type];
     if (!handler) {
@@ -38,11 +49,17 @@ class MoQTCommunicator {
     this.controlStream = await this.wt.createBidirectionalStream();
     this.controlWriter = this.controlStream.writable;
     this.controlReader = this.controlStream.readable;
-    this.state = 'running';
+    this.datagramWriter = this.wt.datagrams.writable.getWriter();
+    this.datagramReader = this.wt.datagrams.readable.getReader();
+    this.state = this.state | COMMUNICATOR_STATE.RUNNING;
     Mogger.debug('Connection established');
   }
 
   async sendControlMessage(data: Uint8Array) {
+    if (this.state === COMMUNICATOR_STATE.STOPPED) {
+      Mogger.error('Cannot send control messages as the session is already closed');
+      return;
+    }
     const writer = this.controlWriter.getWriter();
     await writer.write(data);
     writer.releaseLock();
@@ -56,6 +73,10 @@ class MoQTCommunicator {
   }
 
   async createSubgroupStream({ subgroupId, subgroupHeader}: { subgroupId: number, subgroupHeader: Uint8Array }) {
+    if (this.state === COMMUNICATOR_STATE.STOPPED) {
+      Mogger.error('Cannot create subgroup streams as the session is already closed');
+      return;
+    }
     this.streams.set(subgroupId, await this.wt.createUnidirectionalStream());
     const writer = this.streams.get(subgroupId).getWriter();
     await writer.write(subgroupHeader);
@@ -75,23 +96,31 @@ class MoQTCommunicator {
     //   return;
     // }
     while (!this.streams.has(subgroupId)) {
-      await new Promise((resolve) => setTimeout(resolve, 0.5));
+      await new Promise((resolve) => setTimeout(resolve, 0.1));
     };
-    const writer = this.streams.get(subgroupId).getWriter();
-    await writer.write(subgroupObject);
-    writer.releaseLock();
-    Mogger.debug('Object sent');
+    try {
+      const writer = this.streams.get(subgroupId).getWriter();
+      await writer.write(subgroupObject);
+      writer.releaseLock();
+      Mogger.debug('Object sent');
+    } catch (err) {
+      Mogger.error(`Error sending object: ${err}. Closing session...`);
+      this.closeSession();
+    }
   }
 
   async sendDatagram(data: Uint8Array) {
-    const writer = this.wt.datagrams.writable.getWriter();
-    await writer.write(data);
-    writer.releaseLock();
+    if (this.state === COMMUNICATOR_STATE.STOPPED) {
+      Mogger.error('Cannot send datagrams as the session is already closed');
+      this.datagramWriter.close();
+      return;
+    }
+    await this.datagramWriter.write(data);
     Mogger.debug('Datagram sent');
   }
 
   closeSession() {
-    this.state = 'stopped';
+    this.state = COMMUNICATOR_STATE.STOPPED;
     this.controlStream.writable.getWriter().close();
     this.wt.close();
     Mogger.debug('Session closed');
@@ -113,7 +142,7 @@ class MoQTCommunicator {
   }
 
   async startReadLoop() {
-    while (this.state === 'running') {
+    while (this.state & COMMUNICATOR_STATE.RUNNING) {
       const msgType = await readControlMessageType(this.controlReader);
       let message;
       let error: string = '';
@@ -148,7 +177,12 @@ class MoQTCommunicator {
   }
 
   async startStreamReadLoop() {
-    while (this.state === 'running') {
+    if (this.state & COMMUNICATOR_STATE.READING_STREAM) {
+      Mogger.debug('duplicated startStreamReadLoop call. aborting');
+      return;
+    }
+    this.state = this.state | COMMUNICATOR_STATE.READING_STREAM;
+    while (this.state & COMMUNICATOR_STATE.READING_STREAM) {
       const reader = this.wt.incomingUnidirectionalStreams.getReader();
       const { value: readableStream, done } = await reader.read();
       if (done || !readableStream) {
@@ -165,6 +199,8 @@ class MoQTCommunicator {
       }
       reader.releaseLock();
     }
+  }
+  async startDatagramReadLoop() {
   }
 }
 

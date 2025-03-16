@@ -34,7 +34,7 @@
   }
   const playStream = () => {
     if (!subscriber || !setupSent) return;
-    const props: Subscribe = {
+    const subscribeVideo: Subscribe = {
       trackNamespace: namespace,
       trackName: videoTrackName,
       subscribeId: 0,
@@ -43,7 +43,17 @@
       groupOrder: GROUP_ORDER.ASCENDING,
       filterType: SUBSCRIBE_FILTER.LATEST_OBJECT,
     }
-    subscriber.subscribe(props, 'video');
+    subscriber.subscribe(subscribeVideo, 'video');
+    const subscribeAudio: Subscribe = {
+      trackNamespace: namespace,
+      trackName: audioTrackName,
+      subscribeId: 1,
+      trackAlias: 241,
+      subscriberPriority: 1,
+      groupOrder: GROUP_ORDER.ASCENDING,
+      filterType: SUBSCRIBE_FILTER.LATEST_OBJECT
+    }
+    subscriber.subscribe(subscribeAudio, 'audio');
   };
   const stopStream = () => {}
   const canvasGoFullscreen = () => {

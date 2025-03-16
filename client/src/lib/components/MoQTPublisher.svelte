@@ -67,6 +67,8 @@
       groupOrderPublisherPreference: GROUP_ORDER.ASCENDING,
       subscribers: [],
       groups: [],
+      largestGroupId: -1,
+      largestObjectId: -1,
     };
     const vt = stream.getVideoTracks()[0];
     publisher.startStream({ track: videoTrack, mediaTrack: vt });

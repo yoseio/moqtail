@@ -20,6 +20,8 @@ class MoQTVideoEncoder {
       case 'encode':
         this.encode();
         break;
+      case 'stop':
+        this.state = 'stopped';
     }
   }
 
@@ -47,9 +49,7 @@ class MoQTVideoEncoder {
   }
 
   async handleChunk(chunk: EncodedVideoChunk, metadata: EncodedVideoChunkMetadata) {
-    // const chunkData = new Uint8Array(chunk.byteLength);
-    // chunk.copyTo(chunkData);
-    postMessage({ type: 'chunk', data: { trackName: this.track.name, chunk, metadata: { ...metadata, frameType: chunk.type } } });
+    postMessage({ type: 'videoChunk', data: { trackName: this.track.name, chunk, metadata: { ...metadata, frameType: chunk.type } } });
   }
 }
 

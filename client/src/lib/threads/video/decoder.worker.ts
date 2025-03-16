@@ -31,7 +31,6 @@ class MoQTVideoDecoder {
 
   decode({ encodedVideoChunk, config }: { encodedVideoChunk: EncodedVideoChunk, config?: VideoDecoderConfig }) {
     if (config) this.decoder.configure(config);
-    Mogger.debug('Decoding video chunk');
     this.decoder.decode(encodedVideoChunk);
   }
 }

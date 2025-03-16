@@ -1,5 +1,5 @@
 import { Mogger } from "./utils/mogger";
-import { CONTROL_MESSAGE, deserializeDecoderConfig, deserializeSubgroupObjectHeader, LOC_EXTENSION_HEADER_TYPE, MOQT_DRAFT08_VERSION, MOQT_DRAFT09_VERSION, MOQT_DRAFT10_VERSION, serializeClientSetup, serializeSubscribe, STREAM } from "../temp";
+import { CONTROL_MESSAGE, deserializeVideoDecoderConfig, deserializeSubgroupObjectHeader, LOC_EXTENSION_HEADER_TYPE, MOQT_DRAFT08_VERSION, MOQT_DRAFT09_VERSION, MOQT_DRAFT10_VERSION, serializeClientSetup, serializeSubscribe, STREAM } from "../temp";
 import type { Subscribe, ServerSetup, SubscribeOk, SubgroupHeader, SubgroupObject, SubscribeError } from "../temp";
 
 // @ts-ignore
@@ -14,6 +14,7 @@ type RegisteredSubscription = { subscribe: Subscribe, subscribeOk: boolean, deco
 export class Subscriber {
   private communicator: Worker;
   private supportedVersions = [MOQT_DRAFT08_VERSION, MOQT_DRAFT09_VERSION, MOQT_DRAFT10_VERSION];
+  private selectedVersion: number = 0;
   private subscription: RegisteredSubscription[] = [];
   private waitingForKeyFrame = true;
 
@@ -53,6 +54,7 @@ export class Subscriber {
           this.communicator.postMessage({ type: 'closeSession', data: null });
           break;
         }
+        this.selectedVersion = msg.selectedVersion;
         Mogger.info(`Setup successful with version ${msg.selectedVersion}`);
         break;
       case `ctrl-${CONTROL_MESSAGE.SUBSCRIBE_OK}`:
@@ -91,10 +93,20 @@ export class Subscriber {
         this.waitingForKeyFrame = false;
         const trackAlias: number = message.data.data.trackAlias;
         sub = this.subscription.find(s => s.subscribe.trackAlias === trackAlias);
+        if (!sub) {
+          Mogger.error(`Unknown subgroup object with alias:${trackAlias} received`);
+          this.communicator.postMessage({ type: 'closeSession', data: null });
+          break;
+        } else if (!sub.subscribeOk) {
+          Mogger.error(`Subgroup Objcet with alias:${trackAlias} received before subscribeOk`);
+          this.communicator.postMessage({ type: 'closeSession', data: null });
+          break;
+        }
         const header = message.data.data.header as SubgroupObject;
         let videoDecoderConfig = null;
         header.extensionHeaders.map(h => {
           if (h.id !== LOC_EXTENSION_HEADER_TYPE.VIDEO_CONFIG) return;
+          // TODO: implement fixed buffer reader and deserialize as it is
           const value = h.value as Uint8Array;
           const readableStream = new ReadableStream({
             type: 'bytes',
@@ -104,7 +116,7 @@ export class Subscriber {
               controller.close(); // Close the stream when done
             }
           });
-          deserializeDecoderConfig(readableStream).then((config) => {
+          deserializeVideoDecoderConfig(readableStream).then((config) => {
             videoDecoderConfig = config;
           });
         })
@@ -113,6 +125,7 @@ export class Subscriber {
         break;
       case 'subgroupObjectStatus':
         Mogger.info(`End of subgroup object: ${message.data.data.header.objectStatus}`);
+        break;
       case 'error':
         Mogger.error(`Subscriber communicator: ${message.data.data}`);
         break;
@@ -122,16 +135,6 @@ export class Subscriber {
     switch (message.data.type) {
       case 'videoFrame':
         const vfData = message.data.data as { subscribeId: number, frame: VideoFrame };
-        const sub = this.subscription.find(sub => sub.subscribe.subscribeId === vfData.subscribeId);
-        if (!sub) {
-          Mogger.error(`Unknown videoFrame with subscribeId:${vfData.subscribeId} received`);
-          this.communicator.postMessage({ type: 'closeSession', data: null });
-          break;
-        } else if (!sub.subscribeOk) {
-          Mogger.error(`VideoFrame with subscribeId:${vfData.subscribeId} received before subscribeOk`);
-          this.communicator.postMessage({ type: 'closeSession', data: null });
-          break;
-        }
         Mogger.debug(`VideoFrame with subscribeId:${vfData.subscribeId} received. Rendering...`);
         // this.canvasElement.width = vfData.frame.codedWidth;
         // this.canvasElement.height = vfData.frame.codedHeight;
