@@ -1,5 +1,5 @@
 import { Mogger } from '$lib/utils/mogger';
-import { CONTROL_MESSAGE, DATAGRAM, deserializeAnnounceError, deserializeAnnounceOk, deserializeDatagramHeader, deserializeDatagramType, deserializeEncodedChunk, deserializeServerSetup, deserializeSubgroupHeader, deserializeSubgroupObjectHeader, deserializeSubscribe, deserializeSubscribeDone, deserializeSubscribeError, deserializeSubscribeOk, OBJECT_STATUS, readControlMessageType, STREAM } from '../../temp';
+import { CONTROL_MESSAGE, DATAGRAM, deserializeAnnounceError, deserializeAnnounceOk, deserializeDatagramHeader, deserializeDatagramType, deserializeEncodedChunk, deserializeServerSetup, deserializeSubgroupHeader, deserializeSubgroupObjectHeader, deserializeSubscribe, deserializeSubscribeDone, deserializeSubscribeError, deserializeSubscribeOk, deserializeUnsubscribe, OBJECT_STATUS, readControlMessageType, STREAM } from '../../temp';
 
 export const COMMUNICATOR_STATE = {
   STOPPED: 0b0,
@@ -199,6 +199,9 @@ class MoQTCommunicator {
           break;
         case CONTROL_MESSAGE.SUBSCRIBE_DONE:
           message = await deserializeSubscribeDone(this.controlReader);
+          break;
+        case CONTROL_MESSAGE.UNSUBSCRIBE:
+          message = await deserializeUnsubscribe(this.controlReader);
           break;
         default:
           error = `Unexpected message type: ${msgType}`;
