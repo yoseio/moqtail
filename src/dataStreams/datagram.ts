@@ -3,6 +3,10 @@ import { concatBuffer, getUint8, numberToVarInt, setUint8, varIntToNumber } from
 import { deserializeExtensionHeader, serializeExtensionHeader } from "./extensionHeader";
 import type { ExtensionHeader } from "./extensionHeader";
 
+export const deserializeDatagramType = async (readableStream: ReadableStream): Promise<number> => {
+  return await varIntToNumber(readableStream);
+}
+
 export const serializeDatagram = (props: Datagram) => {
   const typeBytes = numberToVarInt(props.payload.byteLength ? DATAGRAM.OBJECT_DATAGRAM: DATAGRAM.OBJECT_DATAGRAM_STATUS);
   const trackAliasBytes = numberToVarInt(props.trackAlias);
@@ -15,7 +19,7 @@ export const serializeDatagram = (props: Datagram) => {
   return datagram;
 }
 
-export const deserializeDatagramHeder = async (readableStream: ReadableStream): Promise<Datagram> => {
+export const deserializeDatagramHeader = async (readableStream: ReadableStream): Promise<Datagram> => {
   const ret: Datagram = {} as Datagram;
   ret.trackAlias = await varIntToNumber(readableStream);
   ret.groupId = await varIntToNumber(readableStream);

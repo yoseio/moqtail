@@ -8,7 +8,7 @@ declare global {
   };
   type SubscriberInitProps = {
     serverUrl: string,
-    jitterBufferFrameSize?: number
+    jitterBufferFrameSize?: number,
   };
   type MyEncoderConfig = {
     encoderConfig: VideoEncoderConfig | AudioEncoderConfig,

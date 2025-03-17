@@ -39,9 +39,6 @@ export const AUDIO_ENCODER_DEFAULT_CONFIG: AudioEncoderConfig = {
   sampleRate: 48000,
   numberOfChannels: 1,
   bitrate: 32000,
-  opus: { // See https://www.w3.org/TR/webcodecs-opus-codec-registration/
-    frameDuration: 10000 // In ns. Lower latency than default = 20000
-  }
 };
 
 export const VIDEO_DECODER_DEFAULT_CONFIG: VideoDecoderConfig = {
@@ -55,8 +52,4 @@ export const AUDIO_DECODER_DEFAULT_CONFIG: AudioDecoderConfig = {
   codec: 'opus', // AAC NOT implemented YET (it is in their roadmap)
   sampleRate: 48000, // To fill later
   numberOfChannels: 1, // To fill later
-  bitrate: 32000,
-  opus: { // See https://www.w3.org/TR/webcodecs-opus-codec-registration/
-    frameDuration: 10000 // In ns. Lower latency than default = 20000
-  }
 };

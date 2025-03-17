@@ -27,7 +27,6 @@ class MoQTVideoEncoder {
 
   capture(readable: ReadableStream<VideoFrame>) {
     this.state = 'capturing';
-    Mogger.info(`Capturing video track: ${this.track.name}`);
     this.reader = readable.getReader();
   }
   

@@ -1,5 +1,5 @@
 import { Mogger } from '$lib/utils/mogger';
-import { CONTROL_MESSAGE, deserializeAnnounceError, deserializeAnnounceOk, deserializeEncodedChunk, deserializeServerSetup, deserializeSubgroupHeader, deserializeSubgroupObjectHeader, deserializeSubscribe, deserializeSubscribeDone, deserializeSubscribeError, deserializeSubscribeOk, OBJECT_STATUS, readControlMessageType, STREAM } from '../../temp';
+import { CONTROL_MESSAGE, DATAGRAM, deserializeAnnounceError, deserializeAnnounceOk, deserializeDatagramHeader, deserializeDatagramType, deserializeEncodedChunk, deserializeServerSetup, deserializeSubgroupHeader, deserializeSubgroupObjectHeader, deserializeSubscribe, deserializeSubscribeDone, deserializeSubscribeError, deserializeSubscribeOk, OBJECT_STATUS, readControlMessageType, STREAM } from '../../temp';
 
 export const COMMUNICATOR_STATE = {
   STOPPED: 0b0,
@@ -13,7 +13,7 @@ class MoQTCommunicator {
   private controlStream: WebTransportBidirectionalStream;
   private controlWriter: WritableStream;
   private controlReader: ReadableStream;
-  private datagramWriter: WritableStreamDefaultWriter;
+  private datagramWriter: WritableStream;
   private datagramReader: ReadableStreamDefaultReader;
   private streams: Map<number, WritableStream> = new Map();
   private state: number = 0;
@@ -49,7 +49,7 @@ class MoQTCommunicator {
     this.controlStream = await this.wt.createBidirectionalStream();
     this.controlWriter = this.controlStream.writable;
     this.controlReader = this.controlStream.readable;
-    this.datagramWriter = this.wt.datagrams.writable.getWriter();
+    this.datagramWriter = this.wt.datagrams.writable;
     this.datagramReader = this.wt.datagrams.readable.getReader();
     this.state = this.state | COMMUNICATOR_STATE.RUNNING;
     Mogger.debug('Connection established');
@@ -115,7 +115,9 @@ class MoQTCommunicator {
       this.datagramWriter.close();
       return;
     }
-    await this.datagramWriter.write(data);
+    const writer = this.datagramWriter.getWriter();
+    writer.write(data);
+    writer.releaseLock();
     Mogger.debug('Datagram sent');
   }
 
@@ -139,6 +141,35 @@ class MoQTCommunicator {
       }
     }
     await reader.cancel();
+  }
+
+  async readDatagramObject(reader: ReadableStream) {
+    // TODO: send objectStatus from publisher
+    // then the end of loop can be detected
+    // let done = false;
+    // while (!done) {
+    //   Mogger.debug('Reading datagram object');
+    //   const type = await deserializeDatagramType(reader);
+    //   const header = await deserializeDatagramHeader(reader);
+    //   done = type === DATAGRAM.OBJECT_DATAGRAM_STATUS;
+    //   if (type === DATAGRAM.OBJECT_DATAGRAM) {
+    //     const encodedChunkInit = await deserializeEncodedChunk(reader);
+    //     postMessage({ type: 'datagramObject', data: { header, encodedChunkInit } });
+    //   } else {
+    //     postMessage({ type: 'datagramObjectStatus', data: { header } });
+    //   }
+    // }
+    // await reader.cancel();
+    Mogger.debug('Reading datagram object');
+      const type = await deserializeDatagramType(reader);
+      const header = await deserializeDatagramHeader(reader);
+      // done = type === DATAGRAM.OBJECT_DATAGRAM_STATUS;
+      if (type === DATAGRAM.OBJECT_DATAGRAM) {
+        const encodedChunkInit = await deserializeEncodedChunk(reader);
+        postMessage({ type: 'datagramObject', data: { header, encodedChunkInit } });
+      } else {
+        postMessage({ type: 'datagramObjectStatus', data: { header } });
+      }
   }
 
   async startReadLoop() {
@@ -201,6 +232,27 @@ class MoQTCommunicator {
     }
   }
   async startDatagramReadLoop() {
+    if (this.state & COMMUNICATOR_STATE.READING_DATAGRAM) {
+      Mogger.debug('duplicated startDatagramReadLoop call. aborting');
+      return;
+    }
+    this.state = this.state | COMMUNICATOR_STATE.READING_DATAGRAM;
+    while (this.state & COMMUNICATOR_STATE.READING_DATAGRAM) {
+      const stream = await this.datagramReader.read()
+      if (!stream.done) {
+        // Create a BYOT capable reader for the data by reading whole datagram      
+        const readableStream = new ReadableStream({
+          start(controller) {
+            controller.enqueue(stream.value);
+            controller.close();
+          },
+          type: "bytes",
+        });
+        // TODO: the ideal structure is doing below outside of communicator worker as this is not communicator's scope to parse message
+        // currently parsing here because I haven't found the way to pass readableStream correctly without causing non-byte stream error
+        this.readDatagramObject(readableStream, );
+      }
+    }
   }
 }
 

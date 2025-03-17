@@ -1,6 +1,7 @@
 <script lang="ts">
   import { AUDIO_ENCODER_DEFAULT_CONFIG, VIDEO_ENCODER_DEFAULT_CONFIG } from '$lib/config';
   import { Publisher } from '$lib/publisher';
+  import { Mogger } from '$lib/utils/mogger';
   import { GROUP_ORDER } from '../../temp';
   import { onMount } from 'svelte';
 
@@ -71,8 +72,10 @@
       largestObjectId: -1,
     };
     const vt = stream.getVideoTracks()[0];
+    Mogger.info(`Streaming ${vt.label}`);
     publisher.startStream({ track: videoTrack, mediaTrack: vt });
     const at = stream.getAudioTracks()[0];
+    Mogger.info(`Streaming ${at.label}`);
     publisher.startStream({ track: audioTrack, mediaTrack: at });
   }
   const stopStreaming = () => {

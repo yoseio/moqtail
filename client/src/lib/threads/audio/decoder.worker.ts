@@ -1,45 +1,41 @@
+import { AUDIO_DECODER_DEFAULT_CONFIG } from "$lib/config";
 import { Mogger } from "$lib/utils/mogger";
-import { deserializeEncodedChunk, deserializeSubgroupObjectHeader, type Subscribe } from "../../../temp";
+import type { Subscribe } from "../../../temp";
 
 class MoQTAudioDecoder {
-  private reader: ReadableStreamDefaultReader;
   private subscribe: Subscribe;
-  private state: 'init' | 'decoding' | 'stopped' = 'stopped';
+  private decoder: AudioDecoder;
 
-  onMessage(event: MessageEvent) {
-    const data = event.data as ThreadMessage;
-    switch(data.type) {
-      case 'init':
-        this.subscribe = data.data;
-        this.state = 'init';
-        break;
-      case 'registerStream':
-        const stream = data.data as ReadableStream;
-        this.reader = stream.getReader();
-      case 'decode':
-        this.decode();
-        break;
-      case 'stopDecoding':
-        this.state = 'stopped';
-        break;
+  onMessage(message: MessageEvent) {
+    const data = message.data as ThreadMessage;
+    const handlers: { [key: string]: (data: any) => void } = {
+      init: this.init.bind(this),
+      decode: this.decode.bind(this),
+    };
+    const handler = handlers[data.type];
+    if (!handler) {
+      postMessage({ type: 'error', data: `Unknown message type: ${data.type}` });
+      return;
     }
+    handler(data.data);
   }
 
-  async decode() {
-    this.state = 'decoding';
-    const decoder = new VideoDecoder({
-      output: (frame: VideoFrame) => postMessage({ type: 'frame', data: frame }),
-      error: (error: DOMException) => Mogger.error('VideoDecoder error', error.message)
+  init(subscribe: Subscribe) {
+    this.subscribe = subscribe;
+    this.decoder = new AudioDecoder({
+      output: this.handleAudioData.bind(this),
+      error: (error: DOMException) => Mogger.error('AudioDecoder error', error.message)
     });
-    while(this.state === 'decoding') {
-      const { done, value: readableSteram }: { done: boolean, value?: ReadableStream } = await this.reader.read();
-      const object = await deserializeSubgroupObjectHeader(readableSteram as ReadableStream);
-      // TODO: some object validations
-      const encodedVideoChunkInit = await deserializeEncodedChunk(readableSteram);
-      const chunk = new EncodedVideoChunk(encodedVideoChunkInit);
-      decoder.decode(chunk);
-      this.reader.releaseLock();
-    }
+    this.decoder.configure(AUDIO_DECODER_DEFAULT_CONFIG);
+  }
+
+  handleAudioData(audioData: AudioData) {
+    postMessage({ type: 'audioData', data: { audioData } });
+  }
+
+  decode({ encodedAudioChunk, config }: { encodedAudioChunk: EncodedAudioChunk, config?: AudioDecoderConfig }) {
+    if (config) this.decoder.configure(config);
+    this.decoder.decode(encodedAudioChunk);
   }
 }
 
