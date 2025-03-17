@@ -1,5 +1,5 @@
 import { Mogger } from "./utils/mogger";
-import { CONTROL_MESSAGE, deserializeVideoDecoderConfig, deserializeSubgroupObjectHeader, LOC_EXTENSION_HEADER_TYPE, MOQT_DRAFT08_VERSION, MOQT_DRAFT09_VERSION, MOQT_DRAFT10_VERSION, serializeClientSetup, serializeSubscribe, STREAM, deserializeAudioDecoderConfig } from "../temp";
+import { CONTROL_MESSAGE, deserializeVideoDecoderConfig, deserializeSubgroupObjectHeader, LOC_EXTENSION_HEADER_TYPE, MOQT_DRAFT08_VERSION, MOQT_DRAFT09_VERSION, MOQT_DRAFT10_VERSION, serializeClientSetup, serializeSubscribe, STREAM, deserializeAudioDecoderConfig, serializeUnsubscribe } from "../temp";
 import type { Subscribe, ServerSetup, SubscribeOk, SubgroupHeader, SubgroupObject, SubscribeError, Datagram } from "../temp";
 
 // @ts-ignore
@@ -42,6 +42,11 @@ export class Subscriber {
     decoder.onmessage = this.decoderMessageHandler.bind(this);
     decoder.postMessage({ type: 'init', data: props });
     this.subscription.push({ subscribe: props, subscribeOk: false, decoder });
+  }
+  unsubscribe(trackName: string) {
+    const sub = this.subscription.find(s => s.subscribe.trackName === trackName);
+    const msg = serializeUnsubscribe(sub.subscribe.subscribeId);
+    this.communicator.postMessage({ type: 'sendControlMessage', data: msg });
   }
 
   setCanvasElement(canvasElement: HTMLCanvasElement) {

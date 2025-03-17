@@ -14,3 +14,7 @@ export const deserializeUnsubscribe = async (controlReader: ReadableStream) => {
   const subscribeId = await varIntToNumber(controlReader);
   return { subscribeId };
 }
+
+export interface Unsubscribe {
+  subscribeId: number;
+}

@@ -1,4 +1,4 @@
-import { numberToVarInt, stringToVarBytes, concatBuffer, varIntToNumber, varBytesToString } from '../utils/bytes';
+import { numberToVarInt, stringToVarBytes, concatBuffer, varIntToNumber, varBytesToString, setUint8 } from '../utils/bytes';
 import { CONTROL_MESSAGE, SUBSCRIBE_DONE_REASON } from '../constants';
 
 export const serializeSubscribeDone = (props: { subscribeId: number, statusCode: SUBSCRIBE_DONE_REASON, reasonPhrase: string, streamCount: number }) => {
@@ -7,7 +7,8 @@ export const serializeSubscribeDone = (props: { subscribeId: number, statusCode:
   const statusCodeBytes = numberToVarInt(props.statusCode);
   const streamCountBytes = numberToVarInt(props.streamCount);
   const reasonPhraseBytes = stringToVarBytes(props.reasonPhrase);
-  const body = concatBuffer([subscribeIdBytes, statusCodeBytes, streamCountBytes, reasonPhraseBytes]);
+  const contentExists = setUint8(0);
+  const body = concatBuffer([subscribeIdBytes, statusCodeBytes, streamCountBytes, reasonPhraseBytes, contentExists]);
   const length = numberToVarInt(body.byteLength);
   return concatBuffer([messageTypeBytes, length, body]);
 }

@@ -129,47 +129,37 @@ class MoQTCommunicator {
   }
 
   async readSubgroupObject(reader: ReadableStream, trackAlias: number) {
-    let done = false;
-    while (!done) {
-      const header = await deserializeSubgroupObjectHeader(reader);
-      done = header.objectStatus && (header.objectStatus === OBJECT_STATUS.END_OF_GROUP || header.objectStatus === OBJECT_STATUS.END_OF_TRACK || header.objectStatus === OBJECT_STATUS.END_OF_TRACK_AND_GROUP);
-      if (!done) {
-        const encodedChunkInit = await deserializeEncodedChunk(reader);
-        postMessage({ type: 'subgroupObject', data: { header, encodedChunkInit, trackAlias } });
-      } else {
-        postMessage({ type: 'subgroupObjectStatus', data: { header } })
+    try {
+      let done = false;
+      while (!done) {
+        const header = await deserializeSubgroupObjectHeader(reader);
+        done = header.objectStatus && (header.objectStatus === OBJECT_STATUS.END_OF_GROUP || header.objectStatus === OBJECT_STATUS.END_OF_TRACK || header.objectStatus === OBJECT_STATUS.END_OF_TRACK_AND_GROUP);
+        if (!done) {
+          const encodedChunkInit = await deserializeEncodedChunk(reader);
+          postMessage({ type: 'subgroupObject', data: { header, encodedChunkInit, trackAlias } });
+        } else {
+          postMessage({ type: 'subgroupObjectStatus', data: { header } })
+        }
       }
+      await reader.cancel();
+    } catch (err) {
+      Mogger.error(`Error reading subgroup object: ${err}`);
     }
-    await reader.cancel();
   }
 
   async readDatagramObject(reader: ReadableStream) {
     // TODO: send objectStatus from publisher
     // then the end of loop can be detected
-    // let done = false;
-    // while (!done) {
-    //   Mogger.debug('Reading datagram object');
-    //   const type = await deserializeDatagramType(reader);
-    //   const header = await deserializeDatagramHeader(reader);
-    //   done = type === DATAGRAM.OBJECT_DATAGRAM_STATUS;
-    //   if (type === DATAGRAM.OBJECT_DATAGRAM) {
-    //     const encodedChunkInit = await deserializeEncodedChunk(reader);
-    //     postMessage({ type: 'datagramObject', data: { header, encodedChunkInit } });
-    //   } else {
-    //     postMessage({ type: 'datagramObjectStatus', data: { header } });
-    //   }
-    // }
-    // await reader.cancel();
     Mogger.debug('Reading datagram object');
-      const type = await deserializeDatagramType(reader);
-      const header = await deserializeDatagramHeader(reader);
-      // done = type === DATAGRAM.OBJECT_DATAGRAM_STATUS;
-      if (type === DATAGRAM.OBJECT_DATAGRAM) {
-        const encodedChunkInit = await deserializeEncodedChunk(reader);
-        postMessage({ type: 'datagramObject', data: { header, encodedChunkInit } });
-      } else {
-        postMessage({ type: 'datagramObjectStatus', data: { header } });
-      }
+    const type = await deserializeDatagramType(reader);
+    const header = await deserializeDatagramHeader(reader);
+    // done = type === DATAGRAM.OBJECT_DATAGRAM_STATUS;
+    if (type === DATAGRAM.OBJECT_DATAGRAM) {
+      const encodedChunkInit = await deserializeEncodedChunk(reader);
+      postMessage({ type: 'datagramObject', data: { header, encodedChunkInit } });
+    } else {
+      postMessage({ type: 'datagramObjectStatus', data: { header } });
+    }
   }
 
   async startReadLoop() {

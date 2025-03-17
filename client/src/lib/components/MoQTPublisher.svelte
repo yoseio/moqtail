@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { AUDIO_ENCODER_DEFAULT_CONFIG, VIDEO_ENCODER_DEFAULT_CONFIG } from '$lib/config';
+  import { AUDIO_ENCODER_DEFAULT_CONFIG, VIDEO_ENCODER_DEFAULT_CONFIG, VIDEO_ENCODER_MOQMI_CONFIG } from '$lib/config';
   import { Publisher } from '$lib/publisher';
   import { Mogger } from '$lib/utils/mogger';
   import { GROUP_ORDER } from '../../temp';
@@ -10,6 +10,13 @@
   let setupSent = false;
   let publisher: Publisher;
   let stream: MediaStream;
+
+  const videoEncoders = {
+    h264: VIDEO_ENCODER_MOQMI_CONFIG,
+    vp8: VIDEO_ENCODER_DEFAULT_CONFIG
+  }
+
+  let videoEncoderChoice = 'vp8';
 
   export let moqtServerUrl: string;
   let namespace = ['moqtail'];
@@ -54,7 +61,7 @@
       name: videoTrackName,
       type: 'video',
       objectForwardingPrefereces: 'Subgroup',
-      encoderConfig: { encoderConfig: VIDEO_ENCODER_DEFAULT_CONFIG, keyFrameDuration },
+      encoderConfig: { encoderConfig: videoEncoders[videoEncoderChoice], keyFrameDuration },
       groupOrderPublisherPreference: GROUP_ORDER.ASCENDING,
       subscribers: [],
       groups: [],
@@ -80,7 +87,9 @@
   }
   const stopStreaming = () => {
     if (!publisherInit) return;
-    publisher.unannounce(namespace);
+    publisher.stopStream(videoTrackName);
+    publisher.stopStream(audioTrackName);
+    // publisher.unannounce(namespace);
     publisherInit = false;
   }
 
@@ -123,6 +132,12 @@
     <div>
       <label for="pub-track-keyframe-duration">Key Frame Duration {keyFrameDuration}</label>
       <input type="range" min="1" max="120" name="pub-track-keyframe-duration" bind:value={keyFrameDuration} />
+    </div>
+    <div>
+      <label for="pub-track-video-encoder-option">Video Encoder</label>
+      <select name="pub-track-video-encoder-option" bind:value={videoEncoderChoice}>
+        <option value="h264">H.264</option>
+        <option value="vp8">VP8</option>
     </div>
   </div>
   <button on:click={async () => await connectToServer()}>Connect to server</button>

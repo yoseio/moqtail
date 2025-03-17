@@ -1,31 +1,10 @@
-export const VIDEO_ENCODER_CONFIGS: { [key: string]: VideoEncoderConfig } = {
-  'high': {
-    codec: 'hvc1.1.6.L120.00',
-    width: 3840,
-    height: 2160,
-    framerate: 30,
-    latencyMode: 'realtime',
-    hardwareAcceleration: 'no-preference'
-  },
-  'medium': {
-    codec: 'avc1.64002A',
-    width: 1920,
-    height: 1080,
-    bitrate: 2_000_000,
-    framerate: 60,
-    latencyMode: 'realtime',
-    hardwareAcceleration: 'no-preference'
-  },
-  'low': {
-    codec: 'avc1.64002A',
-    width: 720,
-    height: 404,
-    bitrate: 500_000,
-    framerate: 30,
-    latencyMode: 'realtime',
-    hardwareAcceleration: 'no-preference'
-  },
-};
+export const VIDEO_ENCODER_MOQMI_CONFIG: VideoEncoderConfig = {
+  codec: 'avc1.42001e',
+  width: 480,
+  height: 360,
+  framerate: 30,
+  latencyMode: 'realtime',
+}
 export const VIDEO_ENCODER_DEFAULT_CONFIG: VideoEncoderConfig = {
   codec: 'vp8',
   width: 480,

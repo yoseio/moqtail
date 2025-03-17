@@ -26,6 +26,7 @@ declare global {
     encoderConfig?: MyEncoderConfig;
     type: 'video' | 'audio';
     subscribers: { subscribeId: number, trackAlias: number, filterType: SUBSCRIBE_FILTER }[];
+    streamCount?: number;
   }
   type ThreadMessage = {
     type: string,

@@ -58,7 +58,10 @@
     }
     subscriber.subscribe(subscribeAudio, 'audio');
   };
-  const stopStream = () => {}
+  const stopStream = () => {
+    subscriber.unsubscribe(videoTrackName);
+    subscriber.unsubscribe(audioTrackName);
+  }
   const canvasGoFullscreen = () => {
     canvasEl.requestFullscreen();
   };

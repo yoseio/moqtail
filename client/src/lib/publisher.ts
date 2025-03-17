@@ -1,7 +1,7 @@
 // main thread for publisher
 // interaction with the component page: video/audio start, stop, pause, resume, 
-import { CONTROL_MESSAGE, MOQT_DRAFT08_VERSION, MOQT_DRAFT09_VERSION, MOQT_DRAFT10_VERSION, PARAMETER, serializeAnnounce, serializeClientSetup, serializeSubgroupHeader, serializeSubscribeError, serializeSubscribeOk, serializeUnannounce, SUBSCRIBE_ERROR_REASON, SUBSCRIBE_FILTER, serializeSubgroupObject, serializeEncodedChunk, videoDecoderConfigToExtensionHeader, OBJECT_STATUS, serializeDatagram, audioDecoderConfigToExtensionHeader } from '../temp';
-import type { ServerSetup, AnnounceOk, Subscribe } from '../temp';
+import { CONTROL_MESSAGE, MOQT_DRAFT08_VERSION, MOQT_DRAFT09_VERSION, MOQT_DRAFT10_VERSION, PARAMETER, serializeAnnounce, serializeClientSetup, serializeSubgroupHeader, serializeSubscribeError, serializeSubscribeOk, serializeUnannounce, SUBSCRIBE_ERROR_REASON, SUBSCRIBE_FILTER, serializeSubgroupObject, serializeEncodedChunk, videoDecoderConfigToExtensionHeader, OBJECT_STATUS, serializeDatagram, audioDecoderConfigToExtensionHeader, serializeSubscribeDone, SUBSCRIBE_DONE_REASON } from '../temp';
+import type { ServerSetup, AnnounceOk, Subscribe, Unsubscribe } from '../temp';
 // @ts-ignore
 import CommunicatorWorker from './threads/communicator.worker?worker';
 // @ts-ignore
@@ -40,6 +40,7 @@ export class Publisher {
   }
 
   startStream({ track, mediaTrack }: { track: Track, mediaTrack: MediaStreamTrack }) {
+    track.streamCount = 0;
     if (!this.trackManager.getTrack({ name: track.name })) {
       this.registerTrack(track);
     }
@@ -59,6 +60,20 @@ export class Publisher {
       this.audioEncoder[track.name].postMessage({ type: 'capture', data: processor.readable }, [processor.readable]);
     }
   }
+  stopStream(trackName: string) {
+    const track = this.trackManager.getTrack({ name: trackName });
+    if (!track) {
+      Mogger.error(`Track ${trackName} not found`);
+      return;
+    }
+    track.subscribers.forEach(sub => {
+      // this.closeStreamsGracefully(sub.subscribeId, )
+      this.subscribeDone(sub.subscribeId, track);
+    });
+    const encoder = track.type === 'video' ? this.videoEncoders[track.name] : this.audioEncoder[track.name];
+    encoder.postMessage({ type: 'stop', data: null });
+    // encoder.terminate();
+  }
 
   setup() {
     this.communicator.postMessage({ type: 'startReadLoop', data: null });
@@ -76,6 +91,15 @@ export class Publisher {
   }
   unannounce(namespace: string[]) {
     const msg = serializeUnannounce({ trackNamespace: namespace });
+    this.communicator.postMessage({ type: 'sendControlMessage', data: msg });
+  }
+  subscribeDone(subscribeId: number, track: Track) {
+    const msg = serializeSubscribeDone({
+      subscribeId: subscribeId,
+      statusCode: SUBSCRIBE_DONE_REASON.TRACK_ENDED,
+      reasonPhrase: 'Publisher has stopped sending the track',
+      streamCount: track.objectForwardingPrefereces === 'Datagram' ? 0 : track.streamCount
+    });
     this.communicator.postMessage({ type: 'sendControlMessage', data: msg });
   }
 
@@ -97,7 +121,7 @@ export class Publisher {
       payload: new Uint8Array(0)
     });
     this.communicator.postMessage({ type: 'sendSubgroupObject', data: { lastSubgroupId, obj } });
-    // instead of closing from the publisher, the subscriber close the stream after receicing last object
+    // instead of closing from the publisher, the subscriber close the stream after receiving the last object
     // that way, 'short buffer' error in the subscriber can be avoided
     // this.communicator.postMessage({ type: 'closeSubgroupStreams', data: subgroupIds });
   }
@@ -119,6 +143,7 @@ export class Publisher {
       });
       this.communicator.postMessage({ type: 'createSubgroupStream', data: { subgroupId, subgroupHeader } });
     }
+    targetTrack.streamCount++;
   }
 
   private communicatorMessageHandler(message: MessageEvent) {
@@ -167,6 +192,19 @@ export class Publisher {
         const sub_ok = serializeSubscribeOk({ subscribeId: msg.subscribeId, expires: 0, groupOrder: msg.groupOrder || targetTrack.groupOrderPublisherPreference, contentExists: 0 });
         this.communicator.postMessage({ type: 'sendControlMessage', data: sub_ok });
         Mogger.info(`Subscribe with namespace ${msg.trackName} successful`);
+        break;
+      case `ctrl-${CONTROL_MESSAGE.UNSUBSCRIBE}`:
+        msg = message.data.data as Unsubscribe
+        const emptyTracks = this.trackManager.removeSubscriber(msg.subscribeId);
+        Mogger.debug(`Unsubscribe with subscribeId ${msg.subscribeId} successful`);
+        if (emptyTracks.length > 0) {
+          emptyTracks.forEach(track => {
+            const targetEncoder = track.type === 'video' ? this.videoEncoders[track.name] : this.audioEncoder[track.name];
+            targetEncoder.postMessage({ type: 'stop', data: null });
+            targetEncoder.terminate();
+            Mogger.debug(`Stopping encoder for track ${track.name}`);
+          });
+        }
         break;
       case 'error':
         Mogger.error(`Publisher communicator: ${message.data.data}`);
