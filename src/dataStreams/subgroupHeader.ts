@@ -1,20 +1,20 @@
 import { STREAM } from "../constants";
-import { concatBuffer, getUint8, numberToVarInt, setUint8, varIntToNumber } from "../utils/bytes";
+import { concatBuffer, getUint8, serializeQuicVarInt, setUint8, deserializeQuicVarInt } from "../utils/bytes";
 
 export const serializeSubgroupHeader = (props: SubgroupHeader) => {
-  const streamTypeBytes = numberToVarInt(STREAM.SUBGROUP_HEADER);
-  const trackAliasBytes = numberToVarInt(props.trackAlias);
-  const groupIdBytes = numberToVarInt(props.groupId);
-  const subgroupIdBytes = numberToVarInt(props.subgroupId);
+  const streamTypeBytes = serializeQuicVarInt(STREAM.SUBGROUP_HEADER);
+  const trackAliasBytes = serializeQuicVarInt(props.trackAlias);
+  const groupIdBytes = serializeQuicVarInt(props.groupId);
+  const subgroupIdBytes = serializeQuicVarInt(props.subgroupId);
   const publisherPriorityBytes = setUint8(props.publisherPriority);
   return concatBuffer([streamTypeBytes, trackAliasBytes, groupIdBytes, subgroupIdBytes, publisherPriorityBytes]);
 }
 
 export const deserializeSubgroupHeader = async (controlReader: ReadableStream): Promise<SubgroupHeader> => {
   const ret: SubgroupHeader = {} as SubgroupHeader;
-  ret.trackAlias = await varIntToNumber(controlReader);
-  ret.groupId = await varIntToNumber(controlReader);
-  ret.subgroupId = await varIntToNumber(controlReader);
+  ret.trackAlias = await deserializeQuicVarInt(controlReader);
+  ret.groupId = await deserializeQuicVarInt(controlReader);
+  ret.subgroupId = await deserializeQuicVarInt(controlReader);
   ret.publisherPriority = await getUint8(controlReader);
   return ret;
 }

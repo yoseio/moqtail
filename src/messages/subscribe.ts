@@ -1,31 +1,31 @@
 import { CONTROL_MESSAGE, GROUP_ORDER, SUBSCRIBE_FILTER } from "../constants";
 import { deserializeParams, type Parameter, serializeParams } from "../utils/parameter";
-import { concatBuffer, numberToVarInt, stringToVarBytes, varIntToNumber, varBytesToString, setUint8, getUint8 } from "../utils/bytes";
+import { concatBuffer, serializeQuicVarInt, stringToVarBytes, deserializeQuicVarInt, varBytesToString, setUint8, getUint8 } from "../utils/bytes";
 import { deserializeNamespace } from "../utils/namespace";
 
 export const serializeSubscribe = (props: Subscribe) => {
-  const messageType = numberToVarInt(CONTROL_MESSAGE.SUBSCRIBE);
-  const subscribeIdBytes = numberToVarInt(props.subscribeId);
-  const trackAliasBytes = numberToVarInt(props.trackAlias);
-  const namespaceLength = numberToVarInt(props.trackNamespace.length);
+  const messageType = serializeQuicVarInt(CONTROL_MESSAGE.SUBSCRIBE);
+  const subscribeIdBytes = serializeQuicVarInt(props.subscribeId);
+  const trackAliasBytes = serializeQuicVarInt(props.trackAlias);
+  const namespaceLength = serializeQuicVarInt(props.trackNamespace.length);
   const namespaceBytes = props.trackNamespace.map(stringToVarBytes);
   const trackNameBytes = stringToVarBytes(props.trackName);
   const subscriberPriorityBytes = setUint8(props.subscriberPriority);
   const groupOrderBytes = setUint8(props.groupOrder);
-  const filterTypeBytes = numberToVarInt(props.filterType);
-  const startGroupBytes = props.startGroup !== undefined ? numberToVarInt(props.startGroup) : new Uint8Array();
-  const startObjectBytes = props.startObject !== undefined ? numberToVarInt(props.startObject) : new Uint8Array();
-  const endGroupBytes = props.endGroup !== undefined ? numberToVarInt(props.endGroup) : new Uint8Array();
+  const filterTypeBytes = serializeQuicVarInt(props.filterType);
+  const startGroupBytes = props.startGroup !== undefined ? serializeQuicVarInt(props.startGroup) : new Uint8Array();
+  const startObjectBytes = props.startObject !== undefined ? serializeQuicVarInt(props.startObject) : new Uint8Array();
+  const endGroupBytes = props.endGroup !== undefined ? serializeQuicVarInt(props.endGroup) : new Uint8Array();
   const parametersBytes = serializeParams(props.parameters || []);
   const body = concatBuffer([subscribeIdBytes, trackAliasBytes, namespaceLength, ...namespaceBytes, trackNameBytes, subscriberPriorityBytes, groupOrderBytes, filterTypeBytes, startGroupBytes, startObjectBytes, endGroupBytes, parametersBytes]);
-  const length = numberToVarInt(body.byteLength);
+  const length = serializeQuicVarInt(body.byteLength);
   return concatBuffer([messageType, length, body]);
 }
 
 export const deserializeSubscribe = async (controlReader: ReadableStream): Promise<Subscribe> => {
-  await varIntToNumber(controlReader); // length
-  const subscribeId = await varIntToNumber(controlReader);
-  const trackAlias = await varIntToNumber(controlReader);
+  await deserializeQuicVarInt(controlReader); // length
+  const subscribeId = await deserializeQuicVarInt(controlReader);
+  const trackAlias = await deserializeQuicVarInt(controlReader);
   const trackNamespace = await deserializeNamespace(controlReader);
   const trackName = await varBytesToString(controlReader);
   const subscriberPriority = await getUint8(controlReader);
@@ -33,13 +33,13 @@ export const deserializeSubscribe = async (controlReader: ReadableStream): Promi
   if (!Object.values(GROUP_ORDER).includes(groupOrder)) {
     throw new Error(`Invalid Group Order: ${groupOrder}`);
   }
-  const filterType = await varIntToNumber(controlReader) as SUBSCRIBE_FILTER;
+  const filterType = await deserializeQuicVarInt(controlReader) as SUBSCRIBE_FILTER;
   if (!Object.values(SUBSCRIBE_FILTER).includes(filterType)) {
     throw new Error(`Invalid Subscribe Filter Type: ${filterType}`);
   }
-  const startGroup = filterType === SUBSCRIBE_FILTER.ABSOLUTE_START || filterType === SUBSCRIBE_FILTER.ABSOLUTE_RANGE ? await varIntToNumber(controlReader) : undefined;
-  const startObject = filterType === SUBSCRIBE_FILTER.ABSOLUTE_START || filterType === SUBSCRIBE_FILTER.ABSOLUTE_RANGE ? await varIntToNumber(controlReader) : undefined;
-  const endGroup = filterType === SUBSCRIBE_FILTER.ABSOLUTE_RANGE ? await varIntToNumber(controlReader) : undefined;
+  const startGroup = filterType === SUBSCRIBE_FILTER.ABSOLUTE_START || filterType === SUBSCRIBE_FILTER.ABSOLUTE_RANGE ? await deserializeQuicVarInt(controlReader) : undefined;
+  const startObject = filterType === SUBSCRIBE_FILTER.ABSOLUTE_START || filterType === SUBSCRIBE_FILTER.ABSOLUTE_RANGE ? await deserializeQuicVarInt(controlReader) : undefined;
+  const endGroup = filterType === SUBSCRIBE_FILTER.ABSOLUTE_RANGE ? await deserializeQuicVarInt(controlReader) : undefined;
   const parameters = await deserializeParams(CONTROL_MESSAGE.SUBSCRIBE, controlReader);
   return { subscribeId, trackAlias, trackNamespace, trackName, subscriberPriority, groupOrder, filterType, startGroup, startObject, endGroup, parameters };
 }

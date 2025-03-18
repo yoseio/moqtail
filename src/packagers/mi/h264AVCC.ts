@@ -1,4 +1,4 @@
-import { buffRead, concatBuffer, numberToVarInt, varIntToNumber } from "src/temp/utils/bytes";
+import { buffRead, concatBuffer, serializeQuicVarInt, deserializeQuicVarInt } from "../../utils/bytes";
 
 export type H264AVCCMetadata = {
   seqId: number,
@@ -10,22 +10,22 @@ export type H264AVCCMetadata = {
 }
 
 export const serializeH264AVCCMetadata = (props: H264AVCCMetadata): Uint8Array => {
-  const seqIdBytes = numberToVarInt(props.seqId);
-  const ptsBytes = numberToVarInt(props.pts);
-  const dtsBytes = numberToVarInt(props.dts);
-  const timebaseBytes = numberToVarInt(props.timebase);
-  const durationBytes = numberToVarInt(props.duration);
-  const wallclockBytes = numberToVarInt(props.wallclock);
+  const seqIdBytes = serializeQuicVarInt(props.seqId);
+  const ptsBytes = serializeQuicVarInt(props.pts);
+  const dtsBytes = serializeQuicVarInt(props.dts);
+  const timebaseBytes = serializeQuicVarInt(props.timebase);
+  const durationBytes = serializeQuicVarInt(props.duration);
+  const wallclockBytes = serializeQuicVarInt(props.wallclock);
   return concatBuffer([seqIdBytes, ptsBytes, dtsBytes, timebaseBytes, durationBytes, wallclockBytes]);
 }
 
 export const deserializeH264AVCCMetadata = async (controlReader: ReadableStream): Promise<H264AVCCMetadata> => {
-  const seqId = await varIntToNumber(controlReader);
-  const pts = await varIntToNumber(controlReader);
-  const dts = await varIntToNumber(controlReader);
-  const timebase = await varIntToNumber(controlReader);
-  const duration = await varIntToNumber(controlReader);
-  const wallclock = await varIntToNumber(controlReader);
+  const seqId = await deserializeQuicVarInt(controlReader);
+  const pts = await deserializeQuicVarInt(controlReader);
+  const dts = await deserializeQuicVarInt(controlReader);
+  const timebase = await deserializeQuicVarInt(controlReader);
+  const duration = await deserializeQuicVarInt(controlReader);
+  const wallclock = await deserializeQuicVarInt(controlReader);
   return { seqId, pts, dts, timebase, duration, wallclock };
 }
 
@@ -50,33 +50,33 @@ export type H264AVCCExtraData = {
 }
 
 export const serializeH264AVCCExtraData = (props: H264AVCCExtraData): Uint8Array => {
-  const configurationVersion = numberToVarInt(props.extraData.configurationVersion);
-  const AVCProfileIndication = numberToVarInt(props.extraData.AVCProfileIndication);
-  const profileCompatibility = numberToVarInt(props.extraData.profileCompatibility);
-  const AVCLevelIndication = numberToVarInt(props.extraData.AVCLevelIndication);
-  const lengthSizeMinusOne = numberToVarInt(props.extraData.lengthSizeMinusOne);
-  const sequenceParameterSets = props.extraData.sequenceParameterSets.map(sps => concatBuffer([numberToVarInt(sps.sequenceParameterSetLength), sps.sequenceParameterSetNALUnit]));
-  const pictureParameterSets = props.extraData.pictureParameterSets.map(pps => concatBuffer([numberToVarInt(pps.pictureParameterSetLength), pps.pictureParameterSetNALUnit]));
+  const configurationVersion = serializeQuicVarInt(props.extraData.configurationVersion);
+  const AVCProfileIndication = serializeQuicVarInt(props.extraData.AVCProfileIndication);
+  const profileCompatibility = serializeQuicVarInt(props.extraData.profileCompatibility);
+  const AVCLevelIndication = serializeQuicVarInt(props.extraData.AVCLevelIndication);
+  const lengthSizeMinusOne = serializeQuicVarInt(props.extraData.lengthSizeMinusOne);
+  const sequenceParameterSets = props.extraData.sequenceParameterSets.map(sps => concatBuffer([serializeQuicVarInt(sps.sequenceParameterSetLength), sps.sequenceParameterSetNALUnit]));
+  const pictureParameterSets = props.extraData.pictureParameterSets.map(pps => concatBuffer([serializeQuicVarInt(pps.pictureParameterSetLength), pps.pictureParameterSetNALUnit]));
   return concatBuffer([configurationVersion, AVCProfileIndication, profileCompatibility, AVCLevelIndication, lengthSizeMinusOne, ...sequenceParameterSets, ...pictureParameterSets]);
 }
 
 export const deserializeH264AVCCExtraData = async (controlReader: ReadableStream): Promise<H264AVCCExtraData> => {
-  const configurationVersion = await varIntToNumber(controlReader);
-  const AVCProfileIndication = await varIntToNumber(controlReader);
-  const profileCompatibility = await varIntToNumber(controlReader);
-  const AVCLevelIndication = await varIntToNumber(controlReader);
-  const lengthSizeMinusOne = await varIntToNumber(controlReader);
+  const configurationVersion = await deserializeQuicVarInt(controlReader);
+  const AVCProfileIndication = await deserializeQuicVarInt(controlReader);
+  const profileCompatibility = await deserializeQuicVarInt(controlReader);
+  const AVCLevelIndication = await deserializeQuicVarInt(controlReader);
+  const lengthSizeMinusOne = await deserializeQuicVarInt(controlReader);
   const sequenceParameterSets = [];
-  const numSPS = await varIntToNumber(controlReader);
+  const numSPS = await deserializeQuicVarInt(controlReader);
   for (let i = 0; i < numSPS; i++) {
-    const sequenceParameterSetLength = await varIntToNumber(controlReader);
+    const sequenceParameterSetLength = await deserializeQuicVarInt(controlReader);
     const sequenceParameterSetNALUnit = await buffRead(controlReader, sequenceParameterSetLength);
     sequenceParameterSets.push({ sequenceParameterSetLength, sequenceParameterSetNALUnit });
   }
   const pictureParameterSets = [];
-  const numPPS = await varIntToNumber(controlReader);
+  const numPPS = await deserializeQuicVarInt(controlReader);
   for (let i = 0; i < numPPS; i++) {
-    const pictureParameterSetLength = await varIntToNumber(controlReader);
+    const pictureParameterSetLength = await deserializeQuicVarInt(controlReader);
     const pictureParameterSetNALUnit = await buffRead(controlReader, pictureParameterSetLength);
     pictureParameterSets.push({ pictureParameterSetLength, pictureParameterSetNALUnit });
   }

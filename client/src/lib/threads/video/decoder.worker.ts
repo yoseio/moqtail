@@ -30,8 +30,16 @@ class MoQTVideoDecoder {
   }
 
   decode({ encodedVideoChunk, config }: { encodedVideoChunk: EncodedVideoChunk, config?: VideoDecoderConfig }) {
-    if (config) this.decoder.configure(config);
-    this.decoder.decode(encodedVideoChunk);
+    try {
+      // if (config) {
+      //   console.log('configured', config);
+      //   this.decoder.configure(config);
+      // }
+      console.log(this.decoder.state, encodedVideoChunk.type);
+      this.decoder.decode(encodedVideoChunk);
+    } catch (error) {
+      Mogger.error('VideoDecoder error', error.message);
+    }
   }
 }
 

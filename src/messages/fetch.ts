@@ -1,49 +1,49 @@
-import { numberToVarInt, concatBuffer, varIntToNumber, stringToVarBytes, varBytesToString, setUint8, getUint8 } from '../utils/bytes';
+import { serializeQuicVarInt, concatBuffer, deserializeQuicVarInt, stringToVarBytes, varBytesToString, setUint8, getUint8 } from '../utils/bytes';
 import { CONTROL_MESSAGE, FETCH_TYPE } from '../constants';
 import { deserializeParams, type Parameter, serializeParams } from '../utils/parameter';
 import { deserializeNamespace } from '../utils/namespace';
 
 export const serializeFetch = (props: { subscribeId: number, subscriberPriority: number, groupOrder: number, fetchType: FETCH_TYPE, trackNamespace?: string[], trackName?: string, startGroup?: number, startObject?: number, endGroup?: number, endObject?: number, joiningSubscribeId?: number, precedingGroupOffset?: number, parameters?: Parameter[] }) => {
-  const messageTypeBytes = numberToVarInt(CONTROL_MESSAGE.FETCH);
-  const subscribeIdBytes = numberToVarInt(props.subscribeId);
+  const messageTypeBytes = serializeQuicVarInt(CONTROL_MESSAGE.FETCH);
+  const subscribeIdBytes = serializeQuicVarInt(props.subscribeId);
   const subscriberPriorityBytes = setUint8(props.subscriberPriority);
   const groupOrderBytes = setUint8(props.groupOrder);
-  const fetchTypeBytes = numberToVarInt(props.fetchType);
+  const fetchTypeBytes = serializeQuicVarInt(props.fetchType);
   let body: Uint8Array;
 
   if (props.fetchType === FETCH_TYPE.STANDALONE) {
     if (!props.trackNamespace || !props.trackName || !props.startGroup || !props.startObject || !props.endGroup || !props.endObject) {
       throw new Error('Invalid Fetch props for Standalone');
     }
-    const trackNamespaceLength = numberToVarInt(props.trackNamespace!.length);
+    const trackNamespaceLength = serializeQuicVarInt(props.trackNamespace!.length);
     const trackNamespaceBytes = props.trackNamespace!.map(stringToVarBytes);
     const trackNameBytes = stringToVarBytes(props.trackName!);
-    const startGroupBytes = numberToVarInt(props.startGroup!);
-    const startObjectBytes = numberToVarInt(props.startObject!);
-    const endGroupBytes = numberToVarInt(props.endGroup!);
-    const endObjectBytes = numberToVarInt(props.endObject!);
+    const startGroupBytes = serializeQuicVarInt(props.startGroup!);
+    const startObjectBytes = serializeQuicVarInt(props.startObject!);
+    const endGroupBytes = serializeQuicVarInt(props.endGroup!);
+    const endObjectBytes = serializeQuicVarInt(props.endObject!);
     const parametersBytes = serializeParams(props.parameters || []);
     body = concatBuffer([subscribeIdBytes, subscriberPriorityBytes, groupOrderBytes, fetchTypeBytes, trackNamespaceLength, ...trackNamespaceBytes, trackNameBytes, startGroupBytes, startObjectBytes, endGroupBytes, endObjectBytes, parametersBytes]);
   } else {
     if (!props.joiningSubscribeId || !props.precedingGroupOffset) {
       throw new Error('Invalid Fetch props for Joining');
     }
-    const joiningSubscribeIdBytes = numberToVarInt(props.joiningSubscribeId!);
-    const precedingGroupOffsetBytes = numberToVarInt(props.precedingGroupOffset!);
+    const joiningSubscribeIdBytes = serializeQuicVarInt(props.joiningSubscribeId!);
+    const precedingGroupOffsetBytes = serializeQuicVarInt(props.precedingGroupOffset!);
     const parametersBytes = serializeParams(props.parameters || []);
     body = concatBuffer([subscribeIdBytes, subscriberPriorityBytes, groupOrderBytes, fetchTypeBytes, joiningSubscribeIdBytes, precedingGroupOffsetBytes, parametersBytes]);
   }
 
-  const length = numberToVarInt(body.byteLength);
+  const length = serializeQuicVarInt(body.byteLength);
   return concatBuffer([messageTypeBytes, length, body]);
 }
 
 export const deserializeFetch = async (controlReader: ReadableStream) => {
-  await varIntToNumber(controlReader); // length
-  const subscribeId = await varIntToNumber(controlReader);
+  await deserializeQuicVarInt(controlReader); // length
+  const subscribeId = await deserializeQuicVarInt(controlReader);
   const subscriberPriority = await getUint8(controlReader);
   const groupOrder = await getUint8(controlReader);
-  const fetchType = await varIntToNumber(controlReader) as FETCH_TYPE;
+  const fetchType = await deserializeQuicVarInt(controlReader) as FETCH_TYPE;
 
   if (fetchType !== FETCH_TYPE.STANDALONE && fetchType !== FETCH_TYPE.JOINING) {
     throw new Error(`Invalid Fetch Type: ${fetchType}`);
@@ -54,15 +54,15 @@ export const deserializeFetch = async (controlReader: ReadableStream) => {
   if (fetchType === FETCH_TYPE.STANDALONE) {
     const trackNamespace = await deserializeNamespace(controlReader);
     const trackName = await varBytesToString(controlReader);
-    const startGroup = await varIntToNumber(controlReader);
-    const startObject = await varIntToNumber(controlReader);
-    const endGroup = await varIntToNumber(controlReader);
-    const endObject = await varIntToNumber(controlReader);
+    const startGroup = await deserializeQuicVarInt(controlReader);
+    const startObject = await deserializeQuicVarInt(controlReader);
+    const endGroup = await deserializeQuicVarInt(controlReader);
+    const endObject = await deserializeQuicVarInt(controlReader);
     const parameters = await deserializeParams(CONTROL_MESSAGE.FETCH, controlReader);
     result = { ...result, trackNamespace, trackName, startGroup, startObject, endGroup, endObject, parameters };
   } else {
-    const joiningSubscribeId = await varIntToNumber(controlReader);
-    const precedingGroupOffset = await varIntToNumber(controlReader);
+    const joiningSubscribeId = await deserializeQuicVarInt(controlReader);
+    const precedingGroupOffset = await deserializeQuicVarInt(controlReader);
     const parameters = await deserializeParams(CONTROL_MESSAGE.FETCH, controlReader);
     result = { ...result, joiningSubscribeId, precedingGroupOffset, parameters };
   }

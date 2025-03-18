@@ -144,6 +144,7 @@ export class Subscriber {
         break;
       case 'subgroupObject':
         const encodedChunkInit = message.data.data.encodedChunkInit as EncodedVideoChunkInit;
+        Mogger.debug(encodedChunkInit.type);
         if (this.videoWaitingForKeyFrame && encodedChunkInit.type !== 'key') {
           Mogger.debug('Waiting for video key frame...');
           break;

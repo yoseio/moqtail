@@ -1,17 +1,17 @@
-import { numberToVarInt, concatBuffer, varIntToNumber } from '../utils/bytes';
+import { serializeQuicVarInt, concatBuffer, deserializeQuicVarInt } from '../utils/bytes';
 import { CONTROL_MESSAGE } from '../constants';
 
 export const serializeUnsubscribe = (subscribeId: number) => {
-  const messageTypeBytes = numberToVarInt(CONTROL_MESSAGE.UNSUBSCRIBE);
-  const subscribeIdBytes = numberToVarInt(subscribeId);
+  const messageTypeBytes = serializeQuicVarInt(CONTROL_MESSAGE.UNSUBSCRIBE);
+  const subscribeIdBytes = serializeQuicVarInt(subscribeId);
   const body = concatBuffer([subscribeIdBytes]);
-  const length = numberToVarInt(body.byteLength);
+  const length = serializeQuicVarInt(body.byteLength);
   return concatBuffer([messageTypeBytes, length, body]);
 }
 
 export const deserializeUnsubscribe = async (controlReader: ReadableStream) => {
-  await varIntToNumber(controlReader); // length
-  const subscribeId = await varIntToNumber(controlReader);
+  await deserializeQuicVarInt(controlReader); // length
+  const subscribeId = await deserializeQuicVarInt(controlReader);
   return { subscribeId };
 }
 

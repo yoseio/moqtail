@@ -38,21 +38,40 @@ export const getNumberLength = (v: number | bigint) => {
   }
 }
 
-export const numberToVarInt = (v) => {
-  if (v <= MAX_U6) {
-    return setUint8(v);
-  } else if (v <= MAX_U14) {
-    return setUint16(v | 0x4000);
-  } else if (v <= MAX_U30) {
-    return setUint32(v | 0x80000000);
-  } else if (v <= MAX_U53) {
-    return setUint64(BigInt(v) | 0xc000000000000000n);
-  } else {
-    throw new Error(`overflow, value larger than 53-bits: ${v}`);
+export const serializeQuicVarInt = (value: number | bigint) => {
+  if (typeof value === 'number') value = BigInt(value);
+  if (value < 0n || value > 0x3fffffffffffffffn) {
+    throw new Error('Value out of range for QUIC varInt');
   }
+  let buffer: Uint8Array;
+  if (value <= 0x3fn) {
+    buffer = new Uint8Array(1);
+    buffer[0] = Number(value);
+  } else if (value <= 0x3fffn) {
+    buffer = new Uint8Array(2);
+    buffer[0] = Number((value >> 8n) | 0x40n);
+    buffer[1] = Number(value & 0xffn);
+  } else if (value <= 0x3fffffffn) {
+    buffer = new Uint8Array(4);
+    buffer[0] = Number((value >> 24n) | 0x80n);
+    buffer[1] = Number((value >> 16n) & 0xffn);
+    buffer[2] = Number((value >> 8n) & 0xffn);
+    buffer[3] = Number(value & 0xffn);
+  } else {
+    buffer = new Uint8Array(8);
+    buffer[0] = Number((value >> 56n) | 0xc0n);
+    buffer[1] = Number((value >> 48n) & 0xffn);
+    buffer[2] = Number((value >> 40n) & 0xffn);
+    buffer[3] = Number((value >> 32n) & 0xffn);
+    buffer[4] = Number((value >> 24n) & 0xffn);
+    buffer[5] = Number((value >> 16n) & 0xffn);
+    buffer[6] = Number((value >> 8n) & 0xffn);
+    buffer[7] = Number(value & 0xffn);
+  }
+  return buffer;
 };
 
-export const varIntToNumber = async (readableStream: ReadableStream): Promise<number> => {
+export const deserializeQuicVarInt = async (readableStream: ReadableStream): Promise<number> => {
   let ret: number;
   const reader = readableStream.getReader({ mode: 'byob' });
   try {
@@ -203,7 +222,7 @@ const base64ToArrayBuffer = (base64) => {
 
 export const stringToVarBytes = (str: string) => {
   const dataStrBytes = new TextEncoder().encode(str);
-  const dataStrLengthBytes = numberToVarInt(dataStrBytes.byteLength);
+  const dataStrLengthBytes = serializeQuicVarInt(dataStrBytes.byteLength);
   return concatBuffer([dataStrLengthBytes, dataStrBytes]);
 };
 
@@ -212,7 +231,7 @@ export const stringToFixedBytes = (str: string) => {
 }
 
 export const varBytesToString = async (receiveStream: ReadableStream) => {
-  const size = await varIntToNumber(receiveStream);
+  const size = await deserializeQuicVarInt(receiveStream);
   const buffer = await buffRead(receiveStream, size);
   return new TextDecoder().decode(buffer);
 }

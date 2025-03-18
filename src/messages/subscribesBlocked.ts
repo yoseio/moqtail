@@ -1,15 +1,15 @@
 import { CONTROL_MESSAGE } from "../constants";
-import { concatBuffer, numberToVarInt, varIntToNumber } from "../utils/bytes";
+import { concatBuffer, serializeQuicVarInt, deserializeQuicVarInt } from "../utils/bytes";
 
 export const serializeSubscribesBlocked = (props: { maxSubscribeId: number }) => {
-  const messageType = numberToVarInt(CONTROL_MESSAGE.SUBSCRIBES_BLOCKED);
-  const maxSubscribeIdBytes = numberToVarInt(props.maxSubscribeId);
-  const length = numberToVarInt(maxSubscribeIdBytes.byteLength);
+  const messageType = serializeQuicVarInt(CONTROL_MESSAGE.SUBSCRIBES_BLOCKED);
+  const maxSubscribeIdBytes = serializeQuicVarInt(props.maxSubscribeId);
+  const length = serializeQuicVarInt(maxSubscribeIdBytes.byteLength);
   return concatBuffer([messageType, length, maxSubscribeIdBytes]);
 }
 
 export const deserializeSubscribesBlocked = async (controlReader: ReadableStream) => {
-  await varIntToNumber(controlReader); // length
-  const maxSubscribeId = await varIntToNumber(controlReader);
+  await deserializeQuicVarInt(controlReader); // length
+  const maxSubscribeId = await deserializeQuicVarInt(controlReader);
   return { maxSubscribeId };
 }

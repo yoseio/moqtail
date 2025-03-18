@@ -1,5 +1,5 @@
-import { varIntToNumber } from "../utils/bytes";
+import { deserializeQuicVarInt } from "../utils/bytes";
 
 export const readControlMessageType = async (reader: ReadableStream) => {
-  return await varIntToNumber(reader);
+  return await deserializeQuicVarInt(reader);
 }

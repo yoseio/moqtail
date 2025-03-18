@@ -1,18 +1,18 @@
 import { CONTROL_MESSAGE } from "../constants";
 import { deserializeParams, type Parameter, serializeParams } from "../utils/parameter";
-import { concatBuffer, numberToVarInt, varIntToNumber } from "../utils/bytes";
+import { concatBuffer, serializeQuicVarInt, deserializeQuicVarInt } from "../utils/bytes";
 
 export const serializeServerSetup = (props: ServerSetup) => {
-  const messageType = numberToVarInt(CONTROL_MESSAGE.SERVER_SETUP);
-  const selectedVersion = numberToVarInt(props.selectedVersion);
+  const messageType = serializeQuicVarInt(CONTROL_MESSAGE.SERVER_SETUP);
+  const selectedVersion = serializeQuicVarInt(props.selectedVersion);
   const params = serializeParams(props.parameters);
-  const length = numberToVarInt(concatBuffer([selectedVersion, params]).byteLength);
+  const length = serializeQuicVarInt(concatBuffer([selectedVersion, params]).byteLength);
   return concatBuffer([messageType, length, selectedVersion, params]);
 }
 
 export const deserializeServerSetup = async (controlReader: ReadableStream) => {
-  await varIntToNumber(controlReader); // length
-  const selectedVersion = await varIntToNumber(controlReader);
+  await deserializeQuicVarInt(controlReader); // length
+  const selectedVersion = await deserializeQuicVarInt(controlReader);
   const parameters = await deserializeParams(CONTROL_MESSAGE.SERVER_SETUP, controlReader);
   return { selectedVersion, parameters };
 }

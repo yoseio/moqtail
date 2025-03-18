@@ -261,33 +261,6 @@ export class Publisher {
         if (isLast) Mogger.debug(`This is the last object in the group`);
         if (isLast) this.closeStreamsGracefully(group.publishedSubgroupIds, subgroupId, targetTrack.largestObjectId + 1);
         break;
-      case 'audioChunk':
-        const audioChunkMsg = message.data.data as { chunk: EncodedAudioChunk, metadata: EncodedAudioChunkMetadata, trackName: string };
-        const audioTrack = this.trackManager.getTrack({ name: audioChunkMsg.trackName });
-        if (!audioTrack) {
-          Mogger.error(`Track ${audioChunkMsg.trackName} not found`);
-          return;
-        }
-        if (audioChunkMsg.chunk.type === 'key') {
-          audioTrack.largestGroupId++;
-          audioTrack.largestObjectId = 0;
-        }
-        const audioChunkBytes = serializeEncodedChunk(audioChunkMsg.chunk);
-        const interestedAliases = this.getAliasOfSubscribersWithLatestObjectFilter(audioTrack);
-        Mogger.debug(`Sending audio chunk to aliases ${interestedAliases}`);
-        for (const alias of interestedAliases) {
-          const datagramObject = serializeDatagram({
-            trackAlias: alias,
-            groupId: audioTrack.largestGroupId,
-            objectId: audioTrack.largestObjectId,
-            publisherPriority: this.getPublisherPriority(audioTrack.type),
-            payload: audioChunkBytes,
-            extensionHeaders: audioChunkMsg.metadata.decoderConfig ? [videoDecoderConfigToExtensionHeader(audioChunkMsg.metadata.decoderConfig)]: [],
-          })
-          this.communicator.postMessage({ type: 'sendDatagram', data: datagramObject });
-        }
-        audioTrack.largestObjectId++;
-        break;
       case 'error':
         Mogger.error(`Error from video encoder: ${message.data.data}`);
         break;

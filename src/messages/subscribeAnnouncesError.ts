@@ -1,22 +1,22 @@
-import { numberToVarInt, stringToVarBytes, concatBuffer, varIntToNumber, varBytesToString } from '../utils/bytes';
+import { serializeQuicVarInt, stringToVarBytes, concatBuffer, deserializeQuicVarInt, varBytesToString } from '../utils/bytes';
 import { CONTROL_MESSAGE, SUBSCRIBE_ANNOUNCES_ERROR_REASON } from '../constants';
 import { deserializeNamespace } from '../utils/namespace';
 
 export const serializeSubscribeAnnouncesError = (props: { trackNamespacePrefix: string[], errorCode: SUBSCRIBE_ANNOUNCES_ERROR_REASON, reasonPhrase: string }) => {
-  const messageTypeBytes = numberToVarInt(CONTROL_MESSAGE.SUBSCRIBE_ANNOUNCES_ERROR);
-  const trackNamespacePrefixLength = numberToVarInt(props.trackNamespacePrefix.length);
+  const messageTypeBytes = serializeQuicVarInt(CONTROL_MESSAGE.SUBSCRIBE_ANNOUNCES_ERROR);
+  const trackNamespacePrefixLength = serializeQuicVarInt(props.trackNamespacePrefix.length);
   const trackNamespacePrefixBytes = props.trackNamespacePrefix.map(stringToVarBytes);
-  const errorCodeBytes = numberToVarInt(props.errorCode);
+  const errorCodeBytes = serializeQuicVarInt(props.errorCode);
   const reasonPhraseBytes = stringToVarBytes(props.reasonPhrase);
   const body = concatBuffer([trackNamespacePrefixLength, ...trackNamespacePrefixBytes, errorCodeBytes, reasonPhraseBytes]);
-  const length = numberToVarInt(body.byteLength);
+  const length = serializeQuicVarInt(body.byteLength);
   return concatBuffer([messageTypeBytes, length, body]);
 }
 
 export const deserializeSubscribeAnnouncesError = async (controlReader: ReadableStream) => {
-  await varIntToNumber(controlReader); // length
+  await deserializeQuicVarInt(controlReader); // length
   const trackNamespacePrefix = await deserializeNamespace(controlReader);
-  const errorCode = await varIntToNumber(controlReader) as SUBSCRIBE_ANNOUNCES_ERROR_REASON;
+  const errorCode = await deserializeQuicVarInt(controlReader) as SUBSCRIBE_ANNOUNCES_ERROR_REASON;
   if (!Object.values(SUBSCRIBE_ANNOUNCES_ERROR_REASON).includes(errorCode)) {
     throw new Error(`Invalid Subscribe Announces Error Code: ${errorCode}`);
   }

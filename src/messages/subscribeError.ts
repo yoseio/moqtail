@@ -1,26 +1,26 @@
-import { numberToVarInt, stringToVarBytes, concatBuffer, varIntToNumber, varBytesToString } from '../utils/bytes';
+import { serializeQuicVarInt, stringToVarBytes, concatBuffer, deserializeQuicVarInt, varBytesToString } from '../utils/bytes';
 import { CONTROL_MESSAGE, SUBSCRIBE_ERROR_REASON } from '../constants';
 
 export const serializeSubscribeError = (props: SubscribeError) => {
-  const messageTypeBytes = numberToVarInt(CONTROL_MESSAGE.SUBSCRIBE_ERROR);
-  const subscribeIdBytes = numberToVarInt(props.subscribeId);
-  const errorCodeBytes = numberToVarInt(props.errorCode);
+  const messageTypeBytes = serializeQuicVarInt(CONTROL_MESSAGE.SUBSCRIBE_ERROR);
+  const subscribeIdBytes = serializeQuicVarInt(props.subscribeId);
+  const errorCodeBytes = serializeQuicVarInt(props.errorCode);
   const reasonPhraseBytes = stringToVarBytes(props.reasonPhrase);
-  const trackAliasBytes = numberToVarInt(props.trackAlias);
+  const trackAliasBytes = serializeQuicVarInt(props.trackAlias);
   const body = concatBuffer([subscribeIdBytes, errorCodeBytes, reasonPhraseBytes, trackAliasBytes]);
-  const length = numberToVarInt(body.byteLength);
+  const length = serializeQuicVarInt(body.byteLength);
   return concatBuffer([messageTypeBytes, length, subscribeIdBytes, errorCodeBytes, reasonPhraseBytes, trackAliasBytes]);
 }
 
 export const deserializeSubscribeError = async (controlReader: ReadableStream): Promise<SubscribeError> => {
-  await varIntToNumber(controlReader); // length
-  const subscribeId = await varIntToNumber(controlReader);
-  const errorCode = await varIntToNumber(controlReader) as SUBSCRIBE_ERROR_REASON;
+  await deserializeQuicVarInt(controlReader); // length
+  const subscribeId = await deserializeQuicVarInt(controlReader);
+  const errorCode = await deserializeQuicVarInt(controlReader) as SUBSCRIBE_ERROR_REASON;
   if (!Object.values(SUBSCRIBE_ERROR_REASON).includes(errorCode)) {
     throw new Error(`Invalid Subscribe Error Code: ${errorCode}`);
   }
   const reasonPhrase = await varBytesToString(controlReader);
-  const trackAlias = await varIntToNumber(controlReader);
+  const trackAlias = await deserializeQuicVarInt(controlReader);
   return { subscribeId, errorCode, reasonPhrase, trackAlias };
 }
 
