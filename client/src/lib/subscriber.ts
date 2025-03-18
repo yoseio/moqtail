@@ -157,10 +157,7 @@ export class Subscriber {
         header.extensionHeaders.map(h => {
           if (h.id !== LOC_EXTENSION_HEADER_TYPE.VIDEO_CONFIG) return;
           // TODO: implement fixed buffer reader and deserialize as it is
-          const readableStream = this.generateReadableStreamFromBuffer(h.value as Uint8Array);
-          deserializeVideoDecoderConfig(readableStream).then((config) => {
-            videoDecoderConfig = config;
-          });
+          videoDecoderConfig = deserializeVideoDecoderConfig(h.value as Uint8Array);
         })
         const chunk = new EncodedVideoChunk(encodedChunkInit);
         sub.decoder.postMessage({ type: 'decode', data: { encodedVideoChunk: chunk, config: videoDecoderConfig } });

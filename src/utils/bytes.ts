@@ -99,6 +99,59 @@ export const deserializeQuicVarInt = async (readableStream: ReadableStream): Pro
   return ret;
 };
 
+export const deserializeQuicVarIntFromArray = (
+  data: Uint8Array,
+  offset: number = 0
+): { value: number; byteLength: number } => {
+  if (offset >= data.length) {
+    throw new Error('Offset is out of bounds');
+  }
+
+  const size = (data[offset] & 0xc0) >> 6;
+  let value: number;
+  let byteLength: number;
+
+  if (size === 0) {
+    value = data[offset] & 0x3f;
+    byteLength = 1;
+  } else if (size === 1) {
+    if (data.length < offset + 2) {
+      throw new Error('Insufficient data for 2-byte QUIC varInt');
+    }
+    value = ((data[offset] & 0x3f) << 8) | data[offset + 1];
+    byteLength = 2;
+  } else if (size === 2) {
+    if (data.length < offset + 4) {
+      throw new Error('Insufficient data for 4-byte QUIC varInt');
+    }
+    value =
+      ((data[offset] & 0x3f) << 24) |
+      (data[offset + 1] << 16) |
+      (data[offset + 2] << 8) |
+      data[offset + 3];
+    byteLength = 4;
+  } else if (size === 3) {
+    if (data.length < offset + 8) {
+      throw new Error('Insufficient data for 8-byte QUIC varInt');
+    }
+    value = Number(
+      (BigInt(data[offset] & 0x3f) << 56n) |
+      (BigInt(data[offset + 1]) << 48n) |
+      (BigInt(data[offset + 2]) << 40n) |
+      (BigInt(data[offset + 3]) << 32n) |
+      (BigInt(data[offset + 4]) << 24n) |
+      (BigInt(data[offset + 5]) << 16n) |
+      (BigInt(data[offset + 6]) << 8n) |
+      BigInt(data[offset + 7])
+    );
+    byteLength = 8;
+  } else {
+    throw new Error('Invalid size for QUIC varInt');
+  }
+
+  return { value, byteLength };
+};
+
 export const getUint8 = async (readableStream: ReadableStream): Promise<number> => {
   const buf = await buffRead(readableStream, 1);
   return new DataView(buf.buffer).getUint8(0);
@@ -167,6 +220,16 @@ export const buffRead = async (readableStream: ReadableStream, size: number): Pr
   return buff;
 };
 
+export const buffReadFromArray = (data: Uint8Array, size: number, offset: number): Uint8Array => {
+  if (size <= 0) {
+    return null;
+  }
+  if (offset + size > data.length) {
+    throw new Error('short buffer');
+  }
+  return data.slice(offset, offset + size);
+}
+
 export const readUntilEof = async (readableStream, blockSize) => {
   const chunkArray = [];
   let totalLength = 0;
@@ -200,35 +263,11 @@ export const readUntilEof = async (readableStream, blockSize) => {
   return payload;
 };
 
-function arrayBufferToBase64(buffer) {
-  let binary = '';
-  const bytes = new Uint8Array(buffer);
-  const len = bytes.byteLength;
-  for (let i = 0; i < len; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return btoa(binary);
-}
-
-const base64ToArrayBuffer = (base64) => {
-  const binaryString = atob(base64);
-  const len = binaryString.length;
-  const bytes = new Uint8Array(len);
-  for (let i = 0; i < len; i++) {
-    bytes[i] = binaryString.charCodeAt(i);
-  }
-  return bytes.buffer;
-};
-
 export const stringToVarBytes = (str: string) => {
   const dataStrBytes = new TextEncoder().encode(str);
   const dataStrLengthBytes = serializeQuicVarInt(dataStrBytes.byteLength);
   return concatBuffer([dataStrLengthBytes, dataStrBytes]);
 };
-
-export const stringToFixedBytes = (str: string) => {
-  return new TextEncoder().encode(str)
-}
 
 export const varBytesToString = async (receiveStream: ReadableStream) => {
   const size = await deserializeQuicVarInt(receiveStream);
@@ -236,7 +275,10 @@ export const varBytesToString = async (receiveStream: ReadableStream) => {
   return new TextDecoder().decode(buffer);
 }
 
-export const fixedBytesToString = async (receiveStream: ReadableStream, size: number) => {
-  const buffer = await buffRead(receiveStream, size);
-  return new TextDecoder().decode(buffer);
+export const varBytesToStringFromArray = (data: Uint8Array, offset: number = 0) => {
+  const result = deserializeQuicVarIntFromArray(data, offset);
+  const start = offset + result.byteLength;
+  const buffer = data.slice(start, start + result.value);
+  const text = new TextDecoder().decode(buffer);
+  return { byteLength: result.byteLength + result.value, value: text };
 }

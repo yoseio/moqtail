@@ -254,12 +254,14 @@ export class Publisher {
           extensionHeaders: videoChunkMsg.metadata.decoderConfig ? [videoDecoderConfigToExtensionHeader(videoChunkMsg.metadata.decoderConfig)]: [],
           payload: videoChunkBytes
         });
-        Mogger.debug(`Sending object with objectId ${targetTrack.largestObjectId} and subgroupId ${subgroupId}. temporalLayerId: ${videoChunkMsg.metadata.temporalLayerId}`);
+        console.log('publisher', videoChunkMsg.metadata.decoderConfig);
         this.communicator.postMessage({ type: 'sendSubgroupObject', data: { subgroupObject, subgroupId } });
         // if this is the last object in the group, close existing streams with final objects
         const isLast = targetTrack.largestObjectId + 1 === targetTrack.encoderConfig.keyFrameDuration;
-        if (isLast) Mogger.debug(`This is the last object in the group`);
-        if (isLast) this.closeStreamsGracefully(group.publishedSubgroupIds, subgroupId, targetTrack.largestObjectId + 1);
+        if (isLast) {
+          this.closeStreamsGracefully(group.publishedSubgroupIds, subgroupId, targetTrack.largestObjectId + 1);
+          Mogger.debug(`This is the last object in the group`);
+        }
         break;
       case 'error':
         Mogger.error(`Error from video encoder: ${message.data.data}`);

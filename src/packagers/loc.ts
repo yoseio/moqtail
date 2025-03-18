@@ -1,6 +1,6 @@
 // serializer/deserializer for Low Overhead Container (https://datatracker.ietf.org/doc/draft-mzanaty-moq-loc/)
 import type { ExtensionHeader } from "../dataStreams/extensionHeader";
-import { buffRead, concatBuffer, serializeQuicVarInt, stringToVarBytes, varBytesToString, deserializeQuicVarInt } from "../utils/bytes"
+import { buffRead, concatBuffer, serializeQuicVarInt, stringToVarBytes, varBytesToString, deserializeQuicVarInt, varBytesToStringFromArray, deserializeQuicVarIntFromArray } from "../utils/bytes"
 
 export const serializeEncodedChunk = (obj: EncodedVideoChunk | EncodedAudioChunk): Uint8Array => {
   const typeBytes = stringToVarBytes(obj.type);
@@ -31,31 +31,74 @@ export const LOC_EXTENSION_HEADER_TYPE = {
 
 export const videoDecoderConfigToExtensionHeader = (config: VideoDecoderConfig): ExtensionHeader => {
   const codecBytes = stringToVarBytes(config.codec);
-  // TODO: desc
   const widthBytes = serializeQuicVarInt(config.codedWidth ?? 0);
   const heightBytes = serializeQuicVarInt(config.codedHeight ?? 0);
   const displayAspectWidthBytes = serializeQuicVarInt(config.displayAspectWidth ?? 0);
   const displayAspectHeightBytes = serializeQuicVarInt(config.displayAspectHeight ?? 0);
   const colorSpaceBytes = stringToVarBytes(JSON.stringify(config.colorSpace ?? ''));
   const hardwareAccelerationBytes = stringToVarBytes(config.hardwareAcceleration ?? 'no-preference');
-  const data = concatBuffer([codecBytes, widthBytes, heightBytes, displayAspectWidthBytes, displayAspectHeightBytes, colorSpaceBytes, hardwareAccelerationBytes]);
+  // TODO: let moqmi packager handle desc instead of here
+  const desc = config.description as ArrayBuffer;
+  const codecDescBytes = desc ? new Uint8Array(desc) : new Uint8Array(0);
+  const codecDescLengthBytes = serializeQuicVarInt(codecDescBytes.byteLength);
+  const data = concatBuffer([codecBytes, widthBytes, heightBytes, displayAspectWidthBytes, displayAspectHeightBytes, colorSpaceBytes, hardwareAccelerationBytes, codecDescLengthBytes, codecDescBytes]);
   return { id: LOC_EXTENSION_HEADER_TYPE.VIDEO_CONFIG, value: data };
 }
 
-export const deserializeVideoDecoderConfig = async (readableStream: ReadableStream): Promise<VideoDecoderConfig> => {
+// export const deserializeVideoDecoderConfig = async (readableStream: ReadableStream): Promise<VideoDecoderConfig> => {
+//   const ret: VideoDecoderConfig = {} as VideoDecoderConfig;
+//   ret.codec = await varBytesToString(readableStream);
+//   const codedWidth = await deserializeQuicVarInt(readableStream);
+//   if (codedWidth) ret.codedWidth = codedWidth;
+//   const codedHeight = await deserializeQuicVarInt(readableStream);
+//   if (codedHeight) ret.codedHeight = codedHeight;
+//   const displayAspectWidth = await deserializeQuicVarInt(readableStream);
+//   if (displayAspectWidth) ret.displayAspectWidth = displayAspectWidth;
+//   const displayAspectHeight = await deserializeQuicVarInt(readableStream);
+//   if (displayAspectHeight) ret.displayAspectHeight = displayAspectHeight;
+//   const cs = await varBytesToString(readableStream);
+//   if (cs) ret.colorSpace = JSON.parse(cs);
+//   ret.hardwareAcceleration = await varBytesToString(readableStream) as HardwareAcceleration;
+//   const descLength = await deserializeQuicVarInt(readableStream);
+//   if (descLength) {
+//     const desc = await buffRead(readableStream, descLength);
+//     ret.description = desc;
+//   }
+//   return ret;
+// }
+
+export const deserializeVideoDecoderConfig = (buff: Uint8Array): VideoDecoderConfig => {
   const ret: VideoDecoderConfig = {} as VideoDecoderConfig;
-  ret.codec = await varBytesToString(readableStream);
-  const codedWidth = await deserializeQuicVarInt(readableStream);
-  if (codedWidth) ret.codedWidth = codedWidth;
-  const codedHeight = await deserializeQuicVarInt(readableStream);
-  if (codedHeight) ret.codedHeight = codedHeight;
-  const displayAspectWidth = await deserializeQuicVarInt(readableStream);
-  if (displayAspectWidth) ret.displayAspectWidth = displayAspectWidth;
-  const displayAspectHeight = await deserializeQuicVarInt(readableStream);
-  if (displayAspectHeight) ret.displayAspectHeight = displayAspectHeight;
-  const cs = await varBytesToString(readableStream);
-  if (cs) ret.colorSpace = JSON.parse(cs);
-  ret.hardwareAcceleration = await varBytesToString(readableStream) as HardwareAcceleration;
+  let offset: number = 0;
+  let result: { value: any, byteLength: number };
+  result = varBytesToStringFromArray(buff);
+  ret.codec = result.value;
+  offset += result.byteLength;
+  result = deserializeQuicVarIntFromArray(buff, offset);
+  if (result.value) ret.codedWidth = result.value;
+  offset += result.byteLength;
+  result = deserializeQuicVarIntFromArray(buff, offset);
+  if (result.value) ret.codedHeight = result.value;
+  offset += result.byteLength;
+  result = deserializeQuicVarIntFromArray(buff, offset);
+  if (result.value) ret.displayAspectWidth = result.value;
+  offset += result.byteLength;
+  result = deserializeQuicVarIntFromArray(buff, offset);
+  if (result.value) ret.displayAspectHeight = result.value;
+  offset += result.byteLength;
+  result = varBytesToStringFromArray(buff, offset);
+  if (result.value) ret.colorSpace = JSON.parse(result.value);
+  offset += result.byteLength;
+  result = varBytesToStringFromArray(buff, offset);
+  if (result.value) ret.hardwareAcceleration = result.value as HardwareAcceleration;
+  offset += result.byteLength;
+  result = deserializeQuicVarIntFromArray(buff, offset);
+  if (result.value) {
+    offset += result.byteLength;
+    const desc = new Uint8Array(buff.slice(offset, offset + result.value));
+    ret.description = desc.buffer;
+  }
+
   return ret;
 }
 
