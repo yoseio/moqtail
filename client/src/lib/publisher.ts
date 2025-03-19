@@ -1,7 +1,7 @@
 // main thread for publisher
 // interaction with the component page: video/audio start, stop, pause, resume, 
 import { CONTROL_MESSAGE, MOQT_DRAFT08_VERSION, MOQT_DRAFT09_VERSION, MOQT_DRAFT10_VERSION, PARAMETER, serializeAnnounce, serializeClientSetup, serializeSubgroupHeader, serializeSubscribeError, serializeSubscribeOk, serializeUnannounce, SUBSCRIBE_ERROR_REASON, SUBSCRIBE_FILTER, serializeSubgroupObject, serializeEncodedChunk, videoDecoderConfigToExtensionHeader, OBJECT_STATUS, serializeDatagram, audioDecoderConfigToExtensionHeader, serializeSubscribeDone, SUBSCRIBE_DONE_REASON } from '../temp';
-import type { ServerSetup, AnnounceOk, Subscribe, Unsubscribe } from '../temp';
+import type { ServerSetup, AnnounceOk, Subscribe, Unsubscribe, ExtensionHeader } from '../temp';
 // @ts-ignore
 import CommunicatorWorker from './threads/communicator.worker?worker';
 // @ts-ignore
@@ -10,6 +10,8 @@ import VideoEncoderWorker from './threads/video/encoder.worker?worker';
 import AudioEncoderWorker from './threads/audio/encoder.worker?worker';
 import { TrackManager } from './trackManager';
 import { Mogger } from './utils/mogger';
+import { getMiExtensionHeaders } from '../temp/packagers/mi/miExtensionHeaders';
+import { MI_MEDIA_TYPE } from '../temp/packagers/mi/miExtensionHeaders';
 
 export class Publisher {
   private communicator: Worker; 
@@ -219,7 +221,7 @@ export class Publisher {
     switch (data.type) {
       // handling the latest encoded video chunk
       case 'videoChunk':
-        const videoChunkMsg = data.data as { chunk: EncodedVideoChunk, metadata: EncodedVideoChunkMetadata & { frameType: EncodedVideoChunkType }, trackName: string };
+        const videoChunkMsg = data.data as { chunk: EncodedVideoChunk, metadata: EncodedVideoChunkMetadata & { frameType: EncodedVideoChunkType }, trackName: string, totalChunkCount: number };
         const targetTrack = this.trackManager.getTrack({ name: videoChunkMsg.trackName });
         if (!targetTrack) {
           Mogger.error(`Track ${videoChunkMsg.trackName} not found`);
@@ -249,12 +251,17 @@ export class Publisher {
         const videoChunkBytes = serializeEncodedChunk(videoChunkMsg.chunk);
         // finally send object
         targetTrack.largestObjectId !== undefined ? targetTrack.largestObjectId++ : targetTrack.largestObjectId = 0;
+        let extensionHeaders: ExtensionHeader[] = [];
+        if (videoChunkMsg.metadata.decoderConfig && videoChunkMsg.metadata.decoderConfig.codec === 'avc1.42001e') {
+          extensionHeaders = getMiExtensionHeaders(MI_MEDIA_TYPE.H264AVCC, videoChunkMsg.metadata.decoderConfig, videoChunkMsg.chunk, videoChunkMsg.totalChunkCount);
+        } else if (videoChunkMsg.metadata.decoderConfig) {
+          extensionHeaders = [videoDecoderConfigToExtensionHeader(videoChunkMsg.metadata.decoderConfig)];
+        }
         const subgroupObject = serializeSubgroupObject({
           objectId: targetTrack.largestObjectId,
-          extensionHeaders: videoChunkMsg.metadata.decoderConfig ? [videoDecoderConfigToExtensionHeader(videoChunkMsg.metadata.decoderConfig)]: [],
+          extensionHeaders,
           payload: videoChunkBytes
         });
-        console.log('publisher', videoChunkMsg.metadata.decoderConfig);
         this.communicator.postMessage({ type: 'sendSubgroupObject', data: { subgroupObject, subgroupId } });
         // if this is the last object in the group, close existing streams with final objects
         const isLast = targetTrack.largestObjectId + 1 === targetTrack.encoderConfig.keyFrameDuration;

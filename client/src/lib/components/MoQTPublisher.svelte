@@ -136,7 +136,7 @@
     <div>
       <label for="pub-track-video-encoder-option">Video Encoder</label>
       <select name="pub-track-video-encoder-option" bind:value={videoEncoderChoice}>
-        <option value="h264">H.264</option>
+        <option value="h264">H.264 (moq-mi)</option>
         <option value="vp8">VP8</option>
     </div>
   </div>

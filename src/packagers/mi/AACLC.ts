@@ -1,4 +1,4 @@
-import { ExtensionHeader } from "../../dataStreams/extensionHeader";
+import type { ExtensionHeader } from "../../dataStreams/extensionHeader";
 import { concatBuffer, deserializeQuicVarInt, serializeQuicVarInt } from "../../utils/bytes";
 import { MI_EXTENSION_HEADER_TYPE } from "./miExtensionHeaders";
 

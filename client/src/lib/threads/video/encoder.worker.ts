@@ -48,7 +48,7 @@ class MoQTVideoEncoder {
   }
 
   async handleChunk(chunk: EncodedVideoChunk, metadata: EncodedVideoChunkMetadata) {
-    postMessage({ type: 'videoChunk', data: { trackName: this.track.name, chunk, metadata: { ...metadata, frameType: chunk.type } } });
+    postMessage({ type: 'videoChunk', data: { trackName: this.track.name, chunk, metadata: { ...metadata, frameType: chunk.type, totalChunkCount: this.chunkCount } } });
   }
 }
 

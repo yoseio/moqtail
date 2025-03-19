@@ -31,7 +31,7 @@ export const getMiExtensionHeaders = (type: MI_MEDIA_TYPE, config: VideoDecoderC
   });
   switch (type) {
     case MI_MEDIA_TYPE.H264AVCC:
-      if (!seqId) throw new Error('H264AVCC chunk must have seqId');
+      if (seqId === undefined) throw new Error('H264AVCC chunk must have seqId');
       const h264avccConfig = config as VideoDecoderConfig;
       ret.push(videoDecoderConfigToExtensionHeader(h264avccConfig));
       const h264Desc = config.description as ArrayBuffer;
@@ -49,7 +49,7 @@ export const getMiExtensionHeaders = (type: MI_MEDIA_TYPE, config: VideoDecoderC
       }));
       break;
     case MI_MEDIA_TYPE.OPUS:
-      if (!seqId) throw new Error('OPUS chunk must have seqId');
+      if (seqId === undefined) throw new Error('OPUS chunk must have seqId');
       const opusConfig = config as AudioDecoderConfig;
       ret.push(audioDecoderConfigToExtensionHeader(opusConfig));
       const opusEncodedChunk = chunk as EncodedAudioChunk;
@@ -65,7 +65,7 @@ export const getMiExtensionHeaders = (type: MI_MEDIA_TYPE, config: VideoDecoderC
       }));
       break;
     case MI_MEDIA_TYPE.AACLC:
-      if (!seqId) throw new Error('AACLC chunk must have seqId');
+      if (seqId === undefined) throw new Error('AACLC chunk must have seqId');
       const aacConfig = config as AudioDecoderConfig;
       ret.push(audioDecoderConfigToExtensionHeader(aacConfig));
       const aacEncodedChunk = chunk as EncodedAudioChunk;
