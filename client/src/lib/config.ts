@@ -14,7 +14,7 @@ export const VIDEO_ENCODER_DEFAULT_CONFIG: VideoEncoderConfig = {
   latencyMode: 'realtime'
 }
 export const AUDIO_ENCODER_DEFAULT_CONFIG: AudioEncoderConfig = {
-  codec: 'opus', // AAC NOT implemented YET (it is in their roadmap)
+  codec: 'opus',
   sampleRate: 48000,
   numberOfChannels: 1,
   bitrate: 32000,
@@ -28,7 +28,7 @@ export const VIDEO_DECODER_DEFAULT_CONFIG: VideoDecoderConfig = {
   hardwareAcceleration: "no-preference"
 }
 export const AUDIO_DECODER_DEFAULT_CONFIG: AudioDecoderConfig = {
-  codec: 'opus', // AAC NOT implemented YET (it is in their roadmap)
-  sampleRate: 48000, // To fill later
-  numberOfChannels: 1, // To fill later
+  codec: 'opus',
+  sampleRate: 48000,
+  numberOfChannels: 1,
 };

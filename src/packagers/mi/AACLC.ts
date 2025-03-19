@@ -1,4 +1,6 @@
+import { ExtensionHeader } from "../../dataStreams/extensionHeader";
 import { concatBuffer, deserializeQuicVarInt, serializeQuicVarInt } from "../../utils/bytes";
+import { MI_EXTENSION_HEADER_TYPE } from "./miExtensionHeaders";
 
 export type AACLCBitstream = {
   seqId: number,
@@ -10,7 +12,7 @@ export type AACLCBitstream = {
   wallclock: number
 };
 
-export const serializeAACLCBitstream = (props: AACLCBitstream): Uint8Array => {
+export const AACLCBitstreamToExtensionHeader = (props: AACLCBitstream): ExtensionHeader => {
   const seqId = serializeQuicVarInt(props.seqId);
   const pts = serializeQuicVarInt(props.pts);
   const timebase = serializeQuicVarInt(props.timebase);
@@ -18,7 +20,8 @@ export const serializeAACLCBitstream = (props: AACLCBitstream): Uint8Array => {
   const numChannels = serializeQuicVarInt(props.numChannels);
   const duration = serializeQuicVarInt(props.duration);
   const wallclock = serializeQuicVarInt(props.wallclock);
-  return concatBuffer([seqId, pts, timebase, sampleFreq, numChannels, duration, wallclock]);
+  const data = concatBuffer([seqId, pts, timebase, sampleFreq, numChannels, duration, wallclock]);
+  return { id: MI_EXTENSION_HEADER_TYPE.AACLC_BITSTREAM, value: data };
 }
 
 export const deserializeAACLCBitstream = async (reader: ReadableStream): Promise<AACLCBitstream> => {

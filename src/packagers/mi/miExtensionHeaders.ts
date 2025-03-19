@@ -1,8 +1,9 @@
-import { serializeQuicVarInt } from "src/temp/utils/bytes";
+import { serializeQuicVarInt } from "../../utils/bytes";
 import type { ExtensionHeader } from "../../dataStreams/extensionHeader";
 import { audioDecoderConfigToExtensionHeader, LOC_EXTENSION_HEADER_TYPE, videoDecoderConfigToExtensionHeader } from "../loc";
 import { H264AVCCExtraDataToExtensionHeader, H264AVCCMetadataToExtensionHeader } from "./h264AVCC";
 import { opusBitstreamToExtensionHeader } from "./opus";
+import { AACLCBitstreamToExtensionHeader } from "./AACLC";
 
 export const MI_EXTENSION_HEADER_TYPE = {
   MEDIA_TYPE: 0xA,
@@ -50,11 +51,38 @@ export const getMiExtensionHeaders = (type: MI_MEDIA_TYPE, config: VideoDecoderC
     case MI_MEDIA_TYPE.OPUS:
       if (!seqId) throw new Error('OPUS chunk must have seqId');
       const opusConfig = config as AudioDecoderConfig;
-      const opusBitstream = opusConfig.description as ArrayBuffer;
-      if (!opusBitstream) throw new Error('OPUS config must have description');
       ret.push(audioDecoderConfigToExtensionHeader(opusConfig));
-      const eaChunk = chunk as EncodedAudioChunk;
-      // How can I get bitstream from description????
+      const opusEncodedChunk = chunk as EncodedAudioChunk;
+      // TODO: use original value before encoding
+      ret.push(opusBitstreamToExtensionHeader({
+        seqId,
+        pts: opusEncodedChunk.timestamp,
+        timebase: 30,
+        sampleFreq: opusConfig.sampleRate,
+        numChannels: opusConfig.numberOfChannels,
+        duration: opusEncodedChunk.duration,
+        wallclock: Date.now()
+      }));
+      break;
+    case MI_MEDIA_TYPE.AACLC:
+      if (!seqId) throw new Error('AACLC chunk must have seqId');
+      const aacConfig = config as AudioDecoderConfig;
+      ret.push(audioDecoderConfigToExtensionHeader(aacConfig));
+      const aacEncodedChunk = chunk as EncodedAudioChunk;
+      // TODO: use original value before encoding
+      ret.push(AACLCBitstreamToExtensionHeader({
+        seqId,
+        pts: aacEncodedChunk.timestamp,
+        timebase: 30,
+        sampleFreq: aacConfig.sampleRate,
+        numChannels: aacConfig.numberOfChannels,
+        duration: aacEncodedChunk.duration,
+        wallclock: Date.now()
+      }))
+      break;
+    default:
+      // TODO: utf-8 text support
+      throw new Error(`Unsupported media type: ${type}`);
   }
   return ret;
 }
