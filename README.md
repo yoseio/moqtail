@@ -6,7 +6,7 @@ Media over QUIC Transport message serializer/deserializer aiming for browser usa
 ## Key Features
 - serializer/deserializer for all control messages at `src/messages`
 - serializer/deserializer for data streams at `src/dataStreams`
+- serializer/deserializer for packagers at `src/packagers`
 
-TODO: 
-- data management (track/group/object)
-- stream management
+## client dev
+at this point I copy moqtail's src to the client directory with the name "temp" because using serializer/deserializer as local npm package lacks efficiency. When you work on the client directly, don't forget to place temp directory.

@@ -32,13 +32,7 @@ export const getMiExtensionHeaders = (type: MI_MEDIA_TYPE, config: VideoDecoderC
   switch (type) {
     case MI_MEDIA_TYPE.H264AVCC:
       if (seqId === undefined) throw new Error('H264AVCC chunk must have seqId');
-      const h264avccConfig = config as VideoDecoderConfig;
-      ret.push(videoDecoderConfigToExtensionHeader(h264avccConfig));
-      const h264Desc = config.description as ArrayBuffer;
-      // in moq-mi v2, chunks with key frame are always the first object in a group
       const evChunk = chunk as EncodedVideoChunk;
-      if (evChunk.type === 'key' && !h264Desc) throw new Error('H264AVCC key frame must have description');
-      ret.push(H264AVCCExtraDataToExtensionHeader(h264Desc));
       ret.push(H264AVCCMetadataToExtensionHeader({
         seqId,
         pts: evChunk.timestamp,
@@ -47,6 +41,13 @@ export const getMiExtensionHeaders = (type: MI_MEDIA_TYPE, config: VideoDecoderC
         duration: evChunk.duration,
         wallclock: Date.now()
       }));
+      if (!config) break; // delta frame
+      const h264avccConfig = config as VideoDecoderConfig;
+      ret.push(videoDecoderConfigToExtensionHeader(h264avccConfig));
+      const h264Desc = config.description as ArrayBuffer;
+      // in moq-mi v2, chunks with key frame are always the first object in a group
+      if (evChunk.type === 'key' && !h264Desc) throw new Error('H264AVCC key frame must have description');
+      ret.push(H264AVCCExtraDataToExtensionHeader(h264Desc));
       break;
     case MI_MEDIA_TYPE.OPUS:
       if (seqId === undefined) throw new Error('OPUS chunk must have seqId');

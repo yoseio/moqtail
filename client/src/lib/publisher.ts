@@ -221,7 +221,7 @@ export class Publisher {
     switch (data.type) {
       // handling the latest encoded video chunk
       case 'videoChunk':
-        const videoChunkMsg = data.data as { chunk: EncodedVideoChunk, metadata: EncodedVideoChunkMetadata & { frameType: EncodedVideoChunkType }, trackName: string, totalChunkCount: number };
+        const videoChunkMsg = data.data as { chunk: EncodedVideoChunk, metadata: EncodedVideoChunkMetadata & { frameType: EncodedVideoChunkType, totalChunkCount: number }, trackName: string };
         const targetTrack = this.trackManager.getTrack({ name: videoChunkMsg.trackName });
         if (!targetTrack) {
           Mogger.error(`Track ${videoChunkMsg.trackName} not found`);
@@ -252,9 +252,12 @@ export class Publisher {
         // finally send object
         targetTrack.largestObjectId !== undefined ? targetTrack.largestObjectId++ : targetTrack.largestObjectId = 0;
         let extensionHeaders: ExtensionHeader[] = [];
-        if (videoChunkMsg.metadata.decoderConfig && videoChunkMsg.metadata.decoderConfig.codec === 'avc1.42001e') {
-          extensionHeaders = getMiExtensionHeaders(MI_MEDIA_TYPE.H264AVCC, videoChunkMsg.metadata.decoderConfig, videoChunkMsg.chunk, videoChunkMsg.totalChunkCount);
-        } else if (videoChunkMsg.metadata.decoderConfig) {
+        // if (videoChunkMsg.metadata.decoderConfig.codec === 'avc1.42001e') {
+        //   extensionHeaders = getMiExtensionHeaders(MI_MEDIA_TYPE.H264AVCC, videoChunkMsg.metadata.decoderConfig, videoChunkMsg.chunk, videoChunkMsg.metadata.totalChunkCount);
+        // } else if (videoChunkMsg.metadata.decoderConfig) {
+        //   extensionHeaders = [videoDecoderConfigToExtensionHeader(videoChunkMsg.metadata.decoderConfig)];
+        // }
+        if (videoChunkMsg.metadata.decoderConfig) {
           extensionHeaders = [videoDecoderConfigToExtensionHeader(videoChunkMsg.metadata.decoderConfig)];
         }
         const subgroupObject = serializeSubgroupObject({

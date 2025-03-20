@@ -42,13 +42,13 @@ class MoQTVideoEncoder {
       const { done, value } = await this.reader.read();
       if (done) break;
       encoder.encode(value, { keyFrame: this.chunkCount % encoderConfig.keyFrameDuration === 0 });
-      this.chunkCount++;
       value.close();
     }
   }
 
   async handleChunk(chunk: EncodedVideoChunk, metadata: EncodedVideoChunkMetadata) {
     postMessage({ type: 'videoChunk', data: { trackName: this.track.name, chunk, metadata: { ...metadata, frameType: chunk.type, totalChunkCount: this.chunkCount } } });
+    this.chunkCount++;
   }
 }
 
