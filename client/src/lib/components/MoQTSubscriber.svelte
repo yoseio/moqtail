@@ -1,7 +1,7 @@
 <script lang="ts">
   import { Subscriber } from "$lib/subscriber";
   import { onMount } from "svelte";
-  import { GROUP_ORDER, type Subscribe, SUBSCRIBE_FILTER } from "../../temp";
+  import { GROUP_ORDER, type Subscribe, SUBSCRIBE_FILTER } from "moqtail";
 
   let canvasEl: HTMLCanvasElement;
   let audioContext: AudioContext;

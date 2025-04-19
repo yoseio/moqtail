@@ -1,0 +1,22 @@
+import { CONTROL_MESSAGE } from "../constants";
+import { deserializeParams, serializeParams } from "../utils/parameter";
+import { concatBuffer, serializeQuicVarInt, deserializeQuicVarInt } from "../utils/bytes";
+export const serializeClientSetup = (props) => {
+    const messageType = serializeQuicVarInt(CONTROL_MESSAGE.CLIENT_SETUP);
+    const versionLength = serializeQuicVarInt(props.supportedVersions.length);
+    const version = props.supportedVersions.map(version => serializeQuicVarInt(version));
+    const concatenatedVersions = concatBuffer(version);
+    const parametersBytes = serializeParams(props.params || []);
+    const length = serializeQuicVarInt(concatBuffer([versionLength, concatenatedVersions, parametersBytes]).byteLength);
+    return concatBuffer([messageType, length, versionLength, concatenatedVersions, parametersBytes]);
+};
+export const deserializeClientSetup = async (controlReader) => {
+    await deserializeQuicVarInt(controlReader); // length
+    const versionLength = await deserializeQuicVarInt(controlReader);
+    let versions = [];
+    for (let i = 0; i < versionLength; i++) {
+        versions.push(await deserializeQuicVarInt(controlReader));
+    }
+    const parameters = await deserializeParams(CONTROL_MESSAGE.CLIENT_SETUP, controlReader);
+    return { versions, parameters };
+};

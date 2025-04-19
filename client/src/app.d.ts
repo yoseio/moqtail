@@ -1,4 +1,4 @@
-import type { GROUP_ORDER, SUBSCRIBE_FILTER, ExtensionHeader, OBJECT_STATUS } from './temp';
+import type { GROUP_ORDER, SUBSCRIBE_FILTER, ExtensionHeader, OBJECT_STATUS } from 'moqtail';
 import type { Track } from './lib/trackManager';
 
 declare global {

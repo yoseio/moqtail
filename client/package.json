@@ -1,5 +1,5 @@
 {
-	"name": "video-call-demo",
+	"name": "client",
 	"version": "0.0.2",
 	"scripts": {
 		"dev": "vite dev --host 0.0.0.0",
@@ -36,7 +36,7 @@
 	},
 	"type": "module",
 	"dependencies": {
-		"hls.js": "^1.5.8"
+		"moqtail": "*"
 	},
 	"engines": {
 		"node": "18"

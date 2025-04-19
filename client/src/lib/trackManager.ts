@@ -1,4 +1,4 @@
-import type { SUBSCRIBE_FILTER } from "../temp";
+import type { SUBSCRIBE_FILTER } from "moqtail";
 
 export class TrackManager {
   private tracks: Track[] = [];

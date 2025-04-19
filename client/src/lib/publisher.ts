@@ -1,7 +1,11 @@
 // main thread for publisher
 // interaction with the component page: video/audio start, stop, pause, resume, 
-import { CONTROL_MESSAGE, MOQT_DRAFT08_VERSION, MOQT_DRAFT09_VERSION, MOQT_DRAFT10_VERSION, PARAMETER, serializeAnnounce, serializeClientSetup, serializeSubgroupHeader, serializeSubscribeError, serializeSubscribeOk, serializeUnannounce, SUBSCRIBE_ERROR_REASON, SUBSCRIBE_FILTER, serializeSubgroupObject, serializeEncodedChunk, videoDecoderConfigToExtensionHeader, OBJECT_STATUS, serializeDatagram, audioDecoderConfigToExtensionHeader, serializeSubscribeDone, SUBSCRIBE_DONE_REASON } from '../temp';
-import type { ServerSetup, AnnounceOk, Subscribe, Unsubscribe, ExtensionHeader } from '../temp';
+import { CONTROL_MESSAGE, MOQT_DRAFT08_VERSION, MOQT_DRAFT09_VERSION, MOQT_DRAFT10_VERSION, PARAMETER,
+  serializeAnnounce, serializeClientSetup, serializeSubgroupHeader, serializeSubscribeError, serializeSubscribeOk,
+  serializeUnannounce, SUBSCRIBE_ERROR_REASON, SUBSCRIBE_FILTER, serializeSubgroupObject, serializeEncodedChunk,
+  videoDecoderConfigToExtensionHeader, OBJECT_STATUS, serializeDatagram, audioDecoderConfigToExtensionHeader,
+  serializeSubscribeDone, SUBSCRIBE_DONE_REASON } from 'moqtail';
+import type { ServerSetup, AnnounceOk, Subscribe, Unsubscribe, ExtensionHeader } from 'moqtail';
 // @ts-ignore
 import CommunicatorWorker from './threads/communicator.worker?worker';
 // @ts-ignore
@@ -10,8 +14,6 @@ import VideoEncoderWorker from './threads/video/encoder.worker?worker';
 import AudioEncoderWorker from './threads/audio/encoder.worker?worker';
 import { TrackManager } from './trackManager';
 import { Mogger } from './utils/mogger';
-import { getMiExtensionHeaders } from '../temp/packagers/mi/miExtensionHeaders';
-import { MI_MEDIA_TYPE } from '../temp/packagers/mi/miExtensionHeaders';
 
 export class Publisher {
   private communicator: Worker; 

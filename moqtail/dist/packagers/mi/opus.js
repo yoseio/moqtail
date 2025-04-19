@@ -1,0 +1,23 @@
+import { concatBuffer, deserializeQuicVarInt, serializeQuicVarInt } from "../../utils/bytes";
+import { MI_EXTENSION_HEADER_TYPE } from "./miExtensionHeaders";
+export const opusBitstreamToExtensionHeader = (props) => {
+    const seqId = serializeQuicVarInt(props.seqId);
+    const pts = serializeQuicVarInt(props.pts);
+    const timebase = serializeQuicVarInt(props.timebase);
+    const sampleFreq = serializeQuicVarInt(props.sampleFreq);
+    const numChannels = serializeQuicVarInt(props.numChannels);
+    const duration = serializeQuicVarInt(props.duration);
+    const wallclock = serializeQuicVarInt(props.wallclock);
+    const data = concatBuffer([seqId, pts, timebase, sampleFreq, numChannels, duration, wallclock]);
+    return { id: MI_EXTENSION_HEADER_TYPE.OPUS_BITSTREAM, value: data };
+};
+export const deserializeOpusBitstream = async (reader) => {
+    const seqId = await deserializeQuicVarInt(reader);
+    const pts = await deserializeQuicVarInt(reader);
+    const timebase = await deserializeQuicVarInt(reader);
+    const sampleFreq = await deserializeQuicVarInt(reader);
+    const numChannels = await deserializeQuicVarInt(reader);
+    const duration = await deserializeQuicVarInt(reader);
+    const wallclock = await deserializeQuicVarInt(reader);
+    return { seqId, pts, timebase, sampleFreq, numChannels, duration, wallclock };
+};

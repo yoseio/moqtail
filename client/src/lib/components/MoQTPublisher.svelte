@@ -2,7 +2,7 @@
   import { AUDIO_ENCODER_DEFAULT_CONFIG, VIDEO_ENCODER_DEFAULT_CONFIG, VIDEO_ENCODER_MOQMI_CONFIG } from '$lib/config';
   import { Publisher } from '$lib/publisher';
   import { Mogger } from '$lib/utils/mogger';
-  import { GROUP_ORDER } from '../../temp';
+  import { GROUP_ORDER } from 'moqtail';
   import { onMount } from 'svelte';
 
   let liveEl: HTMLVideoElement;

@@ -1,6 +1,6 @@
 import { AUDIO_DECODER_DEFAULT_CONFIG } from "$lib/config";
 import { Mogger } from "$lib/utils/mogger";
-import type { Subscribe } from "../../../temp";
+import type { Subscribe } from ".moqtail";
 
 class MoQTAudioDecoder {
   private subscribe: Subscribe;

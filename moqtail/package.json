@@ -1,0 +1,39 @@
+{
+  "name": "moqtail",
+  "version": "0.0.3",
+  "description": "Media over QUIC Transport Browser Implementation",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "test": "jest",
+    "build": "tsc",
+    "format": "prettier --write ."
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/kota-yata/moqtail.git"
+  },
+  "keywords": [
+    "moqt"
+  ],
+  "type": "module",
+  "author": "Kota Yatagai",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/kota-yata/moqtail/issues"
+  },
+  "homepage": "https://github.com/kota-yata/moqtail#readme",
+  "dependencies": {
+    "typescript": "^5.6.2"
+  },
+  "devDependencies": {
+    "@types/dom-mediacapture-transform": "^0.1.11",
+    "@types/jest": "^29.5.14",
+    "jest": "^29.7.0",
+    "prettier": "3.3.3",
+    "ts-jest": "^29.2.6"
+  }
+}
