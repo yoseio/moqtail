@@ -16,7 +16,7 @@
   let namespace = ['moqtail'];
   let videoTrackName = 'video0';
   let audioTrackName = 'audio0';
-  let moqtSubJitterBufferFrameSize = 10;
+  let jitterBufferSize = 10;
 
   // let videoQuality: 'low' | 'medium' | 'high' = 'low';
 
@@ -24,7 +24,7 @@
     if (subscriberInit) return;
     subscriber = new Subscriber({
       serverUrl: moqtServerUrl,
-      jitterBufferFrameSize: moqtSubJitterBufferFrameSize,
+      jitterBufferFrameSize: jitterBufferSize,
     });
     subscriberInit = true;
     subscriber.setCanvasElement(canvasEl);
@@ -89,14 +89,14 @@
       <input type="text" name="pub-track-audio" bind:value={audioTrackName} />
     </div>
     <div>
-      <label for="pub-track-jitter">Jitter Buffer Frame Size {moqtSubJitterBufferFrameSize}</label>
+      <label for="pub-track-jitter">Jitter Buffer {jitterBufferSize}ms</label>
       <input
         type="range"
         min="0"
         max="60"
         step="10"
         name="pub-track-jitter"
-        bind:value={moqtSubJitterBufferFrameSize}
+        bind:value={jitterBufferSize}
       />
     </div>
   </div>
