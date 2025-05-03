@@ -1,6 +1,6 @@
 export declare const serializeUnannounce: (props: {
     trackNamespace: string[];
-}) => Uint8Array;
+}) => Uint8Array<ArrayBuffer>;
 export declare const deserializeUnannounce: (controlReader: ReadableStream) => Promise<{
     trackNamespace: string[];
 }>;

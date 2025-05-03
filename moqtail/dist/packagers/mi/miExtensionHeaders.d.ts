@@ -1,4 +1,3 @@
-/// <reference types="dom-webcodecs" />
 import type { ExtensionHeader } from "../../dataStreams/extensionHeader";
 export declare const MI_EXTENSION_HEADER_TYPE: {
     readonly MEDIA_TYPE: 10;

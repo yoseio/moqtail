@@ -35,12 +35,12 @@ describe('deserializeVideoDecoderConfig', () => {
         const codecBytes = stringToVarBytes(minimalConfig.codec);
         const serializedBuffer = concatBuffer([
             codecBytes,
-            serializeQuicVarInt(0),
-            serializeQuicVarInt(0),
-            serializeQuicVarInt(0),
-            serializeQuicVarInt(0),
-            stringToVarBytes(''),
-            stringToVarBytes(''),
+            serializeQuicVarInt(0), // codedWidth missing
+            serializeQuicVarInt(0), // codedHeight missing
+            serializeQuicVarInt(0), // displayAspectWidth missing
+            serializeQuicVarInt(0), // displayAspectHeight missing
+            stringToVarBytes(''), // empty colorSpace
+            stringToVarBytes(''), // empty hardwareAcceleration
             serializeQuicVarInt(0) // empty description
         ]);
         const deserializedMinimal = deserializeVideoDecoderConfig(serializedBuffer);

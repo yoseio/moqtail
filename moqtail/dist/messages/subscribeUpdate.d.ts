@@ -6,7 +6,7 @@ export declare const serializeSubscribeUpdate: (props: {
     endGroup: number;
     subscriberPriority: number;
     parameters: Parameter[];
-}) => Uint8Array;
+}) => Uint8Array<ArrayBuffer>;
 export declare const deserializeSubscribeUpdate: (controlReader: ReadableStream) => Promise<{
     subscribeId: number;
     startGroup: number;

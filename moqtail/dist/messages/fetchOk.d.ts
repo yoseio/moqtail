@@ -6,7 +6,7 @@ export declare const serializeFetchOk: (props: {
     largestGroupId: number;
     largestObjectId: number;
     parameters?: Parameter[];
-}) => Uint8Array;
+}) => Uint8Array<ArrayBuffer>;
 export declare const deserializeFetchOk: (controlReader: ReadableStream) => Promise<{
     subscribeId: number;
     groupOrder: number;

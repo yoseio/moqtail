@@ -18,7 +18,7 @@ export const deserializeEncodedChunk = async (reader) => {
 };
 export const LOC_EXTENSION_HEADER_TYPE = {
     CAPTURE_TIMESTAMP: 2,
-    VIDEO_CONFIG: 15,
+    VIDEO_CONFIG: 15, // 16
     AUDIO_CONFIG: 17,
     VIDEO_FRAME_MARKING: 4,
     AUDIO_LEVEL: 6
@@ -111,4 +111,8 @@ export const deserializeAudioDecoderConfig = async (readableStream) => {
     ret.sampleRate = await deserializeQuicVarInt(readableStream);
     ret.numberOfChannels = await deserializeQuicVarInt(readableStream);
     return ret;
+};
+export const captureTimestampToExtensionHeader = (timestamp) => {
+    const timestampBytes = serializeQuicVarInt(timestamp);
+    return { id: LOC_EXTENSION_HEADER_TYPE.CAPTURE_TIMESTAMP, value: timestampBytes };
 };

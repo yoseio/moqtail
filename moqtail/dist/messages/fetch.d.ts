@@ -14,5 +14,5 @@ export declare const serializeFetch: (props: {
     joiningSubscribeId?: number;
     precedingGroupOffset?: number;
     parameters?: Parameter[];
-}) => Uint8Array;
+}) => Uint8Array<ArrayBuffer>;
 export declare const deserializeFetch: (controlReader: ReadableStream) => Promise<any>;
