@@ -1,6 +1,6 @@
 import { VIDEO_DECODER_DEFAULT_CONFIG } from "$lib/config";
 import { Mogger } from "$lib/utils/mogger";
-import type { SubgroupObject, Subscribe } from ".moqtail";
+import type { SubgroupObject, Subscribe } from "moqtail";
 
 class MoQTVideoDecoder {
   private subscribe: Subscribe;
@@ -34,7 +34,6 @@ class MoQTVideoDecoder {
       if (config) {
         const isSupported = VideoDecoder.isConfigSupported(config);
         if (!isSupported) throw new Error(`Unsupported video decoder configuration: ${config}`);
-        console.log('configured', config);
         this.decoder.configure(config);
       }
       this.decoder.decode(encodedVideoChunk);
