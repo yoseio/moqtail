@@ -23,7 +23,7 @@ class MoQTVideoDecoder {
   init(subscribe: Subscribe) {
     this.subscribe = subscribe;
     this.decoder = new VideoDecoder({
-      output: (frame: VideoFrame) => postMessage({ type: 'videoFrame', data: { subscribeId: this.subscribe.subscribeId, frame }}),
+      output: (frame: VideoFrame) => postMessage({ type: 'videoFrame', data: { subscribeId: this.subscribe.subscribeId, frame }}, [frame]),
       error: (error: DOMException) => Mogger.error('VideoDecoder error', error.message)
     });
     this.decoder.configure(VIDEO_DECODER_DEFAULT_CONFIG);

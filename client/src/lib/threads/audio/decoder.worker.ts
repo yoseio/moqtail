@@ -30,7 +30,8 @@ class MoQTAudioDecoder {
   }
 
   handleAudioData(audioData: AudioData) {
-    postMessage({ type: 'audioData', data: { audioData } });
+    // @ts-ignore audioData is not included in the Transferable type yet, but it should be
+    postMessage({ type: 'audioData', data: { audioData } }, [audioData]);
   }
 
   decode({ encodedAudioChunk, config }: { encodedAudioChunk: EncodedAudioChunk, config?: AudioDecoderConfig }) {
