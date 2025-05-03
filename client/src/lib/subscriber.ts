@@ -8,6 +8,7 @@ import CommunicatorWorker from './threads/communicator.worker?worker';
 import VideoDecoderWorker from './threads/video/decoder.worker?worker';
 // @ts-ignore
 import AudioDecoderWorker from './threads/audio/decoder.worker?worker';
+import { moqVideoTransmissionLatencyStore } from "./store";
 
 type RegisteredSubscription = { subscribe: Subscribe, subscribeOk: boolean, decoder: Worker };
 
@@ -23,6 +24,7 @@ export class Subscriber {
   private videoCtx: CanvasRenderingContext2D;
 
   private audioCtx: AudioContext;
+  private audioNextPlaybackTime: number = 0;
 
   constructor(props: SubscriberInitProps) {
     this.communicator = new CommunicatorWorker();
@@ -103,7 +105,9 @@ export class Subscriber {
     const source = this.audioCtx.createBufferSource();
     source.buffer = audioBuffer;
     source.connect(this.audioCtx.destination);
-    source.start();
+    if (this.audioNextPlaybackTime === 0) this.audioNextPlaybackTime = this.audioCtx.currentTime;
+    source.start(this.audioNextPlaybackTime);
+    this.audioNextPlaybackTime += audioBuffer.duration;
   }
 
   communicatorMessageHandler(message: MessageEvent) {
@@ -153,12 +157,13 @@ export class Subscriber {
         sub = this.subscription.find(s => s.subscribe.trackAlias === videoTrackAlias);
         const header = message.data.data.header as SubgroupObject;
         let videoDecoderConfig = null;
-        let cts = 0;
         header.extensionHeaders.map(h => {
           if (h.id === LOC_EXTENSION_HEADER_TYPE.VIDEO_CONFIG) {
             videoDecoderConfig = deserializeVideoDecoderConfig(h.value as Uint8Array);
           } else if (h.id === LOC_EXTENSION_HEADER_TYPE.CAPTURE_TIMESTAMP) {
-            cts = h.value as number;
+            const sender = h.value as number;
+            const now = Math.round(performance.timeOrigin) + (performance.now() | 0);
+            moqVideoTransmissionLatencyStore.set(now - sender);
           }
         })
         const chunk = new EncodedVideoChunk(encodedChunkInit);
