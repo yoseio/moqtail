@@ -2,6 +2,7 @@
   import MoQTSubscriber from '$lib/components/MoQTSubscriber.svelte';
   import MoQtPublisher from '$lib/components/MoQTPublisher.svelte';
   import GenericInput from '$lib/components/GenericInput.svelte';
+  import Statistics from '$lib/components/Statistics.svelte';
 
   let moqtServerUrl = 'https://203.178.143.71:4433/moq';
   // let moqtServerUrl = 'https://fb.mvfst.net:9448/moq-relay';
@@ -29,6 +30,9 @@
     <div class="right">
       <MoQTSubscriber {moqtServerUrl} canvasWidth={480} canvasHeight={360} />
     </div>
+  </div>
+  <div class="container-statistics">
+    <Statistics />
   </div>
 </div>
 
