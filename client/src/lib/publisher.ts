@@ -262,12 +262,8 @@ export class Publisher {
         // }
         if (videoChunkMsg.metadata.decoderConfig) {
           extensionHeaders = [videoDecoderConfigToExtensionHeader(videoChunkMsg.metadata.decoderConfig)];
-        }
-        // Here I add the date.now() for sync on the receiver side
-        // because I couldn't really tell what the origin of EncodedVideoChunk/EncodedAudioChunk.timestamp is (not UNIX time at least).
-        // The easiest way to sychronize not only A/V streams but also other heterogeneous streams is to use global timestamps (such as date.now()).
-        // date.now() could be volatile, but so is DOMHighResTimeStamp as far as my observation
-        extensionHeaders.push(captureTimestampToExtensionHeader(Date.now()));
+        };
+        extensionHeaders.push(captureTimestampToExtensionHeader(Math.round(performance.timeOrigin) + (performance.now() | 0)));
         const subgroupObject = serializeSubgroupObject({
           objectId: targetTrack.largestObjectId,
           extensionHeaders,
