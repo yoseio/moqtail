@@ -13,3 +13,4 @@ export declare const deserializeVideoDecoderConfig: (buff: Uint8Array) => VideoD
 export declare const audioDecoderConfigToExtensionHeader: (config: AudioDecoderConfig) => ExtensionHeader;
 export declare const deserializeAudioDecoderConfig: (readableStream: ReadableStream) => Promise<AudioDecoderConfig>;
 export declare const captureTimestampToExtensionHeader: (timestamp: number) => ExtensionHeader;
+export declare const deserializeCaptureTimestamp: (buff: Uint8Array) => number;

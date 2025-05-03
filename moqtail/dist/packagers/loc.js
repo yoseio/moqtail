@@ -113,6 +113,9 @@ export const deserializeAudioDecoderConfig = async (readableStream) => {
     return ret;
 };
 export const captureTimestampToExtensionHeader = (timestamp) => {
-    const timestampBytes = serializeQuicVarInt(timestamp);
-    return { id: LOC_EXTENSION_HEADER_TYPE.CAPTURE_TIMESTAMP, value: timestampBytes };
+    return { id: LOC_EXTENSION_HEADER_TYPE.CAPTURE_TIMESTAMP, value: timestamp };
+};
+export const deserializeCaptureTimestamp = (buff) => {
+    const timestamp = deserializeQuicVarIntFromArray(buff, 0);
+    return timestamp.value;
 };
