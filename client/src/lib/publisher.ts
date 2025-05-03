@@ -4,7 +4,8 @@ import { CONTROL_MESSAGE, MOQT_DRAFT08_VERSION, MOQT_DRAFT09_VERSION, MOQT_DRAFT
   serializeAnnounce, serializeClientSetup, serializeSubgroupHeader, serializeSubscribeError, serializeSubscribeOk,
   serializeUnannounce, SUBSCRIBE_ERROR_REASON, SUBSCRIBE_FILTER, serializeSubgroupObject, serializeEncodedChunk,
   videoDecoderConfigToExtensionHeader, OBJECT_STATUS, serializeDatagram, audioDecoderConfigToExtensionHeader,
-  serializeSubscribeDone, SUBSCRIBE_DONE_REASON } from 'moqtail';
+  serializeSubscribeDone, SUBSCRIBE_DONE_REASON, 
+  captureTimestampToExtensionHeader} from 'moqtail';
 import type { ServerSetup, AnnounceOk, Subscribe, Unsubscribe, ExtensionHeader } from 'moqtail';
 // @ts-ignore
 import CommunicatorWorker from './threads/communicator.worker?worker';
@@ -262,6 +263,11 @@ export class Publisher {
         if (videoChunkMsg.metadata.decoderConfig) {
           extensionHeaders = [videoDecoderConfigToExtensionHeader(videoChunkMsg.metadata.decoderConfig)];
         }
+        // Here I add the date.now() for sync on the receiver side
+        // because I couldn't really tell what the origin of EncodedVideoChunk/EncodedAudioChunk.timestamp is (not UNIX time at least).
+        // The easiest way to sychronize not only A/V streams but also other heterogeneous streams is to use global timestamps (such as date.now()).
+        // date.now() could be volatile, but so is DOMHighResTimeStamp as far as my observation
+        extensionHeaders.push(captureTimestampToExtensionHeader(Date.now()));
         const subgroupObject = serializeSubgroupObject({
           objectId: targetTrack.largestObjectId,
           extensionHeaders,
@@ -297,7 +303,6 @@ export class Publisher {
         }
         const audioChunkBytes = serializeEncodedChunk(audioChunkMsg.chunk);
         const interestedAliases = this.getAliasOfSubscribersWithLatestObjectFilter(audioTrack);
-        Mogger.debug(`Sending audio chunk to aliases ${interestedAliases}`);
         for (const alias of interestedAliases) {
           const datagramObject = serializeDatagram({
             trackAlias: alias,

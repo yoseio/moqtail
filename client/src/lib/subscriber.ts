@@ -1,5 +1,5 @@
 import { Mogger } from "./utils/mogger";
-import { CONTROL_MESSAGE, deserializeVideoDecoderConfig, deserializeSubgroupObjectHeader, LOC_EXTENSION_HEADER_TYPE, MOQT_DRAFT08_VERSION, MOQT_DRAFT09_VERSION, MOQT_DRAFT10_VERSION, serializeClientSetup, serializeSubscribe, STREAM, deserializeAudioDecoderConfig, serializeUnsubscribe } from "moqtail";
+import { CONTROL_MESSAGE, deserializeVideoDecoderConfig, deserializeSubgroupObjectHeader, LOC_EXTENSION_HEADER_TYPE, MOQT_DRAFT08_VERSION, MOQT_DRAFT09_VERSION, MOQT_DRAFT10_VERSION, serializeClientSetup, serializeSubscribe, STREAM, deserializeAudioDecoderConfig, serializeUnsubscribe, deserializeCaptureTimestamp } from "moqtail";
 import type { Subscribe, ServerSetup, SubscribeOk, SubgroupHeader, SubgroupObject, SubscribeError, Datagram } from "moqtail";
 
 // @ts-ignore
@@ -153,10 +153,13 @@ export class Subscriber {
         sub = this.subscription.find(s => s.subscribe.trackAlias === videoTrackAlias);
         const header = message.data.data.header as SubgroupObject;
         let videoDecoderConfig = null;
+        let cts = 0;
         header.extensionHeaders.map(h => {
-          if (h.id !== LOC_EXTENSION_HEADER_TYPE.VIDEO_CONFIG) return;
-          // TODO: implement fixed buffer reader and deserialize as it is
-          videoDecoderConfig = deserializeVideoDecoderConfig(h.value as Uint8Array);
+          if (h.id === LOC_EXTENSION_HEADER_TYPE.VIDEO_CONFIG) {
+            videoDecoderConfig = deserializeVideoDecoderConfig(h.value as Uint8Array);
+          } else if (h.id === LOC_EXTENSION_HEADER_TYPE.CAPTURE_TIMESTAMP) {
+            cts = h.value as number;
+          }
         })
         const chunk = new EncodedVideoChunk(encodedChunkInit);
         sub.decoder.postMessage({ type: 'decode', data: { encodedVideoChunk: chunk, config: videoDecoderConfig } });
@@ -192,7 +195,6 @@ export class Subscriber {
     switch (message.data.type) {
       case 'videoFrame':
         const vfData = message.data.data as { subscribeId: number, frame: VideoFrame };
-        Mogger.debug(`VideoFrame with subscribeId:${vfData.subscribeId} received. Rendering...`);
         // this.canvasElement.width = vfData.frame.codedWidth;
         // this.canvasElement.height = vfData.frame.codedHeight;
         this.videoCtx.clearRect(0, 0, this.canvasElement.width, this.canvasElement.height);
@@ -203,7 +205,6 @@ export class Subscriber {
         const ad = message.data.data.audioData as AudioData
         const audioBuffer = this.audioDataToAudioBuffer(ad);
         this.playDecodedAudio(audioBuffer);
-        Mogger.debug(`AudioData received`);
         ad.close();
         break;
     }
