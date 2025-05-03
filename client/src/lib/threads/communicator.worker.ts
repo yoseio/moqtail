@@ -102,7 +102,6 @@ class MoQTCommunicator {
       const writer = this.streams.get(subgroupId).getWriter();
       await writer.write(subgroupObject);
       writer.releaseLock();
-      Mogger.debug('Object sent');
     } catch (err) {
       Mogger.error(`Error sending object: ${err}. Closing session...`);
       this.closeSession();
@@ -118,7 +117,6 @@ class MoQTCommunicator {
     const writer = this.datagramWriter.getWriter();
     writer.write(data);
     writer.releaseLock();
-    Mogger.debug('Datagram sent');
   }
 
   closeSession() {
@@ -150,7 +148,6 @@ class MoQTCommunicator {
   async readDatagramObject(reader: ReadableStream) {
     // TODO: send objectStatus from publisher
     // then the end of loop can be detected
-    Mogger.debug('Reading datagram object');
     const type = await deserializeDatagramType(reader);
     const header = await deserializeDatagramHeader(reader);
     // done = type === DATAGRAM.OBJECT_DATAGRAM_STATUS;
