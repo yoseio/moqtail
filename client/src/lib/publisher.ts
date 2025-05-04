@@ -263,7 +263,9 @@ export class Publisher {
         if (videoChunkMsg.metadata.decoderConfig) {
           extensionHeaders = [videoDecoderConfigToExtensionHeader(videoChunkMsg.metadata.decoderConfig)];
         };
-        extensionHeaders.push(captureTimestampToExtensionHeader(Math.round(performance.timeOrigin) + (performance.now() | 0)));
+        if (videoChunkMsg.chunk.timestamp % 4 === 0) { // %4 is just a random number. I want the latency measurement to be less frequent
+          extensionHeaders.push(captureTimestampToExtensionHeader(Math.round(performance.timeOrigin) + (performance.now() | 0)));
+        }
         const subgroupObject = serializeSubgroupObject({
           objectId: targetTrack.largestObjectId,
           extensionHeaders,

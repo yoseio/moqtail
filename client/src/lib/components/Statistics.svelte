@@ -2,8 +2,6 @@
   import { moqVideoTransmissionLatencyStore } from "$lib/store";
   import { Mogger } from "$lib/utils/mogger";
 
-  let encodingLatency = "0 ms";
-  let decodingLatency = "0 ms";
   let cpuLoad = "Compute Pressure API not supported";
 
   const pressureObserverCallback = (records) => {
@@ -21,10 +19,20 @@
   }
 </script>
 
+<div class="statistics">
+  <h3>Statistics</h3>
+  <div class="stat-item">
+    <span class="stat-label">Transmission Latency:</span> {$moqVideoTransmissionLatencyStore}ms
+  </div>
+  <div class="stat-item">
+    <span class="stat-label">CPU Load:</span> {cpuLoad}
+  </div>
+</div>
+
 <style>
   .statistics {
     padding: 1rem;
-    max-width: 300px;
+    max-width: 500px;
     margin: 0 auto;
   }
 
@@ -36,18 +44,3 @@
     font-weight: bold;
   }
 </style>
-
-<div class="statistics">
-  <div class="stat-item">
-    <span class="stat-label">Encoding Latency:</span> {encodingLatency}
-  </div>
-  <div class="stat-item">
-    <span class="stat-label">Decoding Latency:</span> {decodingLatency}
-  </div>
-  <div class="stat-item">
-    <span class="stat-label">Transmission Latency:</span> {$moqVideoTransmissionLatencyStore}ms
-  </div>
-  <div class="stat-item">
-    <span class="stat-label">CPU Load:</span> {cpuLoad}
-  </div>
-</div>
