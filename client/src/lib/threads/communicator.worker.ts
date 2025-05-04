@@ -6,7 +6,7 @@ export const COMMUNICATOR_STATE = {
   RUNNING: 0b1,
   READING_STREAM: 0b10,
   READING_DATAGRAM: 0b100
-} as const
+} as const;
 
 class MoQTCommunicator {
   private wt: WebTransport;
@@ -16,10 +16,7 @@ class MoQTCommunicator {
   private datagramWriter: WritableStream;
   private datagramReader: ReadableStreamDefaultReader;
   private streams: Map<number, WritableStream> = new Map();
-  private state: number = 0;
-
-  constructor(){}
-
+  private state = 0;
   onMessage(message: MessageEvent) {
     const data = message.data as ThreadMessage;
     const handlers: { [key: string]: (data: any) => void } = {
@@ -42,7 +39,6 @@ class MoQTCommunicator {
     }
     handler(data.data);
   }
-
   async startConnection(url: string) {
     this.wt = new WebTransport(url, { congestionControl: 'throughput' });
     await this.wt.ready;
@@ -54,7 +50,6 @@ class MoQTCommunicator {
     this.state = this.state | COMMUNICATOR_STATE.RUNNING;
     Mogger.debug('Connection established');
   }
-
   async sendControlMessage(data: Uint8Array) {
     if (this.state === COMMUNICATOR_STATE.STOPPED) {
       Mogger.error('Cannot send control messages as the session is already closed');
@@ -65,14 +60,12 @@ class MoQTCommunicator {
     writer.releaseLock();
     Mogger.debug('Control message sent');
   }
-
   async closeSubgroupStreams(subgroupIds: number[]) {
     subgroupIds.map(id => {
       this.closeSubgroupStream(id);
-    })
+    });
   }
-
-  async createSubgroupStream({ subgroupId, subgroupHeader}: { subgroupId: number, subgroupHeader: Uint8Array }) {
+  async createSubgroupStream({ subgroupId, subgroupHeader }: { subgroupId: number, subgroupHeader: Uint8Array }) {
     if (this.state === COMMUNICATOR_STATE.STOPPED) {
       Mogger.error('Cannot create subgroup streams as the session is already closed');
       return;
@@ -83,13 +76,11 @@ class MoQTCommunicator {
     writer.releaseLock();
     Mogger.debug('Stream created');
   }
-
   closeSubgroupStream(subgroupId: number) {
     this.streams.get(subgroupId).close();
     this.streams.delete(subgroupId);
     Mogger.debug(`Stream with subgroupId: ${subgroupId} closed`);
   }
-
   async sendObject({ subgroupObject, subgroupId }: { subgroupObject: Uint8Array, subgroupId: number }) {
     // if (!this.streams.has(subgroupId)) {
     //   postMessage({ type: 'error', data: `Stream ${subgroupId} not found` });
@@ -107,7 +98,6 @@ class MoQTCommunicator {
       this.closeSession();
     }
   }
-
   async sendDatagram(data: Uint8Array) {
     if (this.state === COMMUNICATOR_STATE.STOPPED) {
       Mogger.error('Cannot send datagrams as the session is already closed');
@@ -118,14 +108,12 @@ class MoQTCommunicator {
     writer.write(data);
     writer.releaseLock();
   }
-
   closeSession() {
     this.state = COMMUNICATOR_STATE.STOPPED;
     this.controlStream.writable.getWriter().close();
     this.wt.close();
     Mogger.debug('Session closed');
   }
-
   async readSubgroupObject(reader: ReadableStream, trackAlias: number) {
     try {
       let done = false;
@@ -136,7 +124,7 @@ class MoQTCommunicator {
           const encodedChunkInit = await deserializeEncodedChunk(reader);
           postMessage({ type: 'subgroupObject', data: { header, encodedChunkInit, trackAlias } });
         } else {
-          postMessage({ type: 'subgroupObjectStatus', data: { header } })
+          postMessage({ type: 'subgroupObjectStatus', data: { header } });
         }
       }
       await reader.cancel();
@@ -144,7 +132,6 @@ class MoQTCommunicator {
       Mogger.error(`Error reading subgroup object: ${err}`);
     }
   }
-
   async readDatagramObject(reader: ReadableStream) {
     // TODO: send objectStatus from publisher
     // then the end of loop can be detected
@@ -158,45 +145,43 @@ class MoQTCommunicator {
       postMessage({ type: 'datagramObjectStatus', data: { header } });
     }
   }
-
   async startReadLoop() {
     while (this.state & COMMUNICATOR_STATE.RUNNING) {
       const msgType = await readControlMessageType(this.controlReader);
       let message;
-      let error: string = '';
+      let error = '';
       // TODO: make it look cool
       switch (msgType) {
-        case CONTROL_MESSAGE.SERVER_SETUP:
-          message = await deserializeServerSetup(this.controlReader);
-          break;
-        case CONTROL_MESSAGE.ANNOUNCE_OK:
-          message = await deserializeAnnounceOk(this.controlReader);
-          break;
-        case CONTROL_MESSAGE.ANNOUNCE_ERROR:
-          message = await deserializeAnnounceError(this.controlReader);
-          break;
-        case CONTROL_MESSAGE.SUBSCRIBE:
-          message = await deserializeSubscribe(this.controlReader);
-          break;
-        case CONTROL_MESSAGE.SUBSCRIBE_OK:
-          message = await deserializeSubscribeOk(this.controlReader);
-          break;
-        case CONTROL_MESSAGE.SUBSCRIBE_ERROR:
-          message = await deserializeSubscribeError(this.controlReader);
-          break;
-        case CONTROL_MESSAGE.SUBSCRIBE_DONE:
-          message = await deserializeSubscribeDone(this.controlReader);
-          break;
-        case CONTROL_MESSAGE.UNSUBSCRIBE:
-          message = await deserializeUnsubscribe(this.controlReader);
-          break;
-        default:
-          error = `Unexpected message type: ${msgType}`;
+      case CONTROL_MESSAGE.SERVER_SETUP:
+        message = await deserializeServerSetup(this.controlReader);
+        break;
+      case CONTROL_MESSAGE.ANNOUNCE_OK:
+        message = await deserializeAnnounceOk(this.controlReader);
+        break;
+      case CONTROL_MESSAGE.ANNOUNCE_ERROR:
+        message = await deserializeAnnounceError(this.controlReader);
+        break;
+      case CONTROL_MESSAGE.SUBSCRIBE:
+        message = await deserializeSubscribe(this.controlReader);
+        break;
+      case CONTROL_MESSAGE.SUBSCRIBE_OK:
+        message = await deserializeSubscribeOk(this.controlReader);
+        break;
+      case CONTROL_MESSAGE.SUBSCRIBE_ERROR:
+        message = await deserializeSubscribeError(this.controlReader);
+        break;
+      case CONTROL_MESSAGE.SUBSCRIBE_DONE:
+        message = await deserializeSubscribeDone(this.controlReader);
+        break;
+      case CONTROL_MESSAGE.UNSUBSCRIBE:
+        message = await deserializeUnsubscribe(this.controlReader);
+        break;
+      default:
+        error = `Unexpected message type: ${msgType}`;
       };
       !error ? postMessage({ type: `ctrl-${msgType}`, data: message }): postMessage({ type: 'error', data: error });
     }
   }
-
   async startStreamReadLoop() {
     if (this.state & COMMUNICATOR_STATE.READING_STREAM) {
       Mogger.debug('duplicated startStreamReadLoop call. aborting');
@@ -208,15 +193,15 @@ class MoQTCommunicator {
       const { value: readableStream, done } = await reader.read();
       if (done || !readableStream) {
         Mogger.error('Stream reader closed');
-        break
+        break;
       }
       const streamType = await readControlMessageType(readableStream);
       switch (streamType) {
-        case STREAM.SUBGROUP_HEADER:
-          const subgroupHeader = await deserializeSubgroupHeader(readableStream);
-          postMessage({ type: `stream-${streamType}`, data: subgroupHeader });
-          this.readSubgroupObject(readableStream, subgroupHeader.trackAlias);
-          break;
+      case STREAM.SUBGROUP_HEADER:
+        const subgroupHeader = await deserializeSubgroupHeader(readableStream);
+        postMessage({ type: `stream-${streamType}`, data: subgroupHeader });
+        this.readSubgroupObject(readableStream, subgroupHeader.trackAlias);
+        break;
       }
       reader.releaseLock();
     }
@@ -228,19 +213,19 @@ class MoQTCommunicator {
     }
     this.state = this.state | COMMUNICATOR_STATE.READING_DATAGRAM;
     while (this.state & COMMUNICATOR_STATE.READING_DATAGRAM) {
-      const stream = await this.datagramReader.read()
+      const stream = await this.datagramReader.read();
       if (!stream.done) {
-        // Create a BYOT capable reader for the data by reading whole datagram      
+        // Create a BYOT capable reader for the data by reading whole datagram
         const readableStream = new ReadableStream({
           start(controller) {
             controller.enqueue(stream.value);
             controller.close();
           },
-          type: "bytes",
+          type: 'bytes',
         });
         // TODO: the ideal structure is doing below outside of communicator worker as this is not communicator's scope to parse message
         // currently parsing here because I haven't found the way to pass readableStream correctly without causing non-byte stream error
-        this.readDatagramObject(readableStream, );
+        this.readDatagramObject(readableStream,);
       }
     }
   }

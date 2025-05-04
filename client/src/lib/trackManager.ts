@@ -1,4 +1,4 @@
-import type { SUBSCRIBE_FILTER } from "moqtail";
+import type { SUBSCRIBE_FILTER } from 'moqtail';
 
 export class TrackManager {
   private tracks: Track[] = [];
@@ -20,7 +20,7 @@ export class TrackManager {
     track.subscribers.push({ subscribeId, trackAlias, filterType });
   }
   public removeSubscriber(subscribeId: number): Track[] {
-    let emptyTracks: Track[] = [];
+    const emptyTracks: Track[] = [];
     this.tracks.forEach(track => {
       track.subscribers = track.subscribers.filter(subscriber => subscriber.subscribeId !== subscribeId);
       if (track.subscribers.length === 0) emptyTracks.push(track);

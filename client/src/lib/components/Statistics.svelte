@@ -1,21 +1,19 @@
 <script>
-  import { moqVideoTransmissionLatencyStore } from "$lib/store";
-  import { Mogger } from "$lib/utils/mogger";
+  import { moqVideoTransmissionLatencyStore } from '$lib/store';
+  import { Mogger } from '$lib/utils/mogger';
 
-  let cpuLoad = "Compute Pressure API not supported";
+  let cpuLoad = 'Compute Pressure API not supported';
 
   const pressureObserverCallback = (records) => {
     const lastRecord = records[records.length - 1];
     cpuLoad = lastRecord.state;
-  }
+  };
 
   try {
     const observer = new PressureObserver(pressureObserverCallback); // ts might be salty but let it be
-    observer.observe("cpu", {
-      sampleInterval: 1000,
-    });
+    observer.observe('cpu', { sampleInterval: 1000, });
   } catch (error) {
-    Mogger.error("PressureObserver not supported:", error);
+    Mogger.error('PressureObserver not supported:', error);
   }
 </script>
 

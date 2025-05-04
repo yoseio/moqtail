@@ -1,36 +1,33 @@
-import { Mogger } from "$lib/utils/mogger";
+import { Mogger } from '$lib/utils/mogger';
 
 // should rename this to capturer and encoder
 class MoQTAudioEncoder {
   private reader: ReadableStreamDefaultReader<AudioData>;
-  private track: Track
+  private track: Track;
   private state: 'init' | 'capturing' | 'encoding' | 'stopped' = 'stopped';
   private chunkCount = 0;
-
   onMessage(event: MessageEvent) {
     const data = event.data as ThreadMessage;
     switch (data.type) {
-      case 'init':
-        this.track = data.data;
-        this.state = 'init';
-        break;
-      case 'capture':
-        this.capture(data.data);
-        break;
-      case 'encode':
-        this.encode();
-        break;
-      case 'stop':
-        this.state = 'stopped';
+    case 'init':
+      this.track = data.data;
+      this.state = 'init';
+      break;
+    case 'capture':
+      this.capture(data.data);
+      break;
+    case 'encode':
+      this.encode();
+      break;
+    case 'stop':
+      this.state = 'stopped';
     }
   }
-
   capture(readable: ReadableStream<AudioData>) {
     this.state = 'capturing';
     Mogger.info(`Capturing audio track: ${this.track.name}`);
     this.reader = readable.getReader();
   }
-  
   async encode() {
     this.state = 'encoding';
     const encoder = new AudioEncoder({
@@ -47,7 +44,6 @@ class MoQTAudioEncoder {
       value.close();
     }
   }
-
   handleChunk(chunk: EncodedAudioChunk, metadata: EncodedAudioChunkMetadata) {
     postMessage({ type: 'audioChunk', data: { trackName: this.track.name, chunk, metadata } });
   }

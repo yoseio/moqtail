@@ -14,7 +14,7 @@
   const videoEncoders = {
     h264: VIDEO_ENCODER_MOQMI_CONFIG,
     vp8: VIDEO_ENCODER_DEFAULT_CONFIG
-  }
+  };
 
   let videoEncoderChoice = 'vp8';
 
@@ -52,7 +52,7 @@
     if (!publisherInit || setupSent) return;
     publisher.setup();
     setupSent = true;
-  }
+  };
   const startStreaming = () => {
     if (!publisherInit) return;
     publisher.announce(namespace);
@@ -84,14 +84,14 @@
     const at = stream.getAudioTracks()[0];
     Mogger.info(`Streaming ${at.label}`);
     publisher.startStream({ track: audioTrack, mediaTrack: at });
-  }
+  };
   const stopStreaming = () => {
     if (!publisherInit) return;
     publisher.stopStream(videoTrackName);
     publisher.stopStream(audioTrackName);
     // publisher.unannounce(namespace);
     publisherInit = false;
-  }
+  };
 
   onMount(async () => {
     stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true }).catch(() => {

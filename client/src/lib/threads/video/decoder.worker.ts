@@ -1,11 +1,10 @@
-import { VIDEO_DECODER_DEFAULT_CONFIG } from "$lib/config";
-import { Mogger } from "$lib/utils/mogger";
-import type { SubgroupObject, Subscribe } from "moqtail";
+import { VIDEO_DECODER_DEFAULT_CONFIG } from '$lib/config';
+import { Mogger } from '$lib/utils/mogger';
+import type { SubgroupObject, Subscribe } from 'moqtail';
 
 class MoQTVideoDecoder {
   private subscribe: Subscribe;
   private decoder: VideoDecoder;
-
   onMessage(message: MessageEvent) {
     const data = message.data as ThreadMessage;
     const handlers: { [key: string]: (data: any) => void } = {
@@ -19,16 +18,14 @@ class MoQTVideoDecoder {
     }
     handler(data.data);
   }
-
   init(subscribe: Subscribe) {
     this.subscribe = subscribe;
     this.decoder = new VideoDecoder({
-      output: (frame: VideoFrame) => postMessage({ type: 'videoFrame', data: { subscribeId: this.subscribe.subscribeId, frame }}, [frame]),
+      output: (frame: VideoFrame) => postMessage({ type: 'videoFrame', data: { subscribeId: this.subscribe.subscribeId, frame } }, [frame]),
       error: (error: DOMException) => Mogger.error('VideoDecoder error', error.message)
     });
     this.decoder.configure(VIDEO_DECODER_DEFAULT_CONFIG);
   }
-
   decode({ encodedVideoChunk, config }: { encodedVideoChunk: EncodedVideoChunk, config?: VideoDecoderConfig }) {
     try {
       if (config) {

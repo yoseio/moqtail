@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { Subscriber } from "$lib/subscriber";
-  import { onMount } from "svelte";
-  import { GROUP_ORDER, type Subscribe, SUBSCRIBE_FILTER } from "moqtail";
+  import { Subscriber } from '$lib/subscriber';
+  import { onMount } from 'svelte';
+  import { GROUP_ORDER, type Subscribe, SUBSCRIBE_FILTER } from 'moqtail';
 
   let canvasEl: HTMLCanvasElement;
   let audioContext: AudioContext;
@@ -29,12 +29,12 @@
     subscriberInit = true;
     subscriber.setCanvasElement(canvasEl);
     subscriber.setAudioContext(audioContext);
-  }
+  };
   const setup = () => {
     if (!subscriber || setupSent) return;
     subscriber.setup();
     setupSent = true;
-  }
+  };
   const playStream = () => {
     if (!subscriber || !setupSent) return;
     const subscribeVideo: Subscribe = {
@@ -45,7 +45,7 @@
       subscriberPriority: 10,
       groupOrder: GROUP_ORDER.ASCENDING,
       filterType: SUBSCRIBE_FILTER.LATEST_OBJECT,
-    }
+    };
     subscriber.subscribe(subscribeVideo, 'video');
     const subscribeAudio: Subscribe = {
       trackNamespace: namespace,
@@ -55,13 +55,13 @@
       subscriberPriority: 1,
       groupOrder: GROUP_ORDER.ASCENDING,
       filterType: SUBSCRIBE_FILTER.LATEST_OBJECT
-    }
+    };
     subscriber.subscribe(subscribeAudio, 'audio');
   };
   const stopStream = () => {
     subscriber.unsubscribe(videoTrackName);
     subscriber.unsubscribe(audioTrackName);
-  }
+  };
   const canvasGoFullscreen = () => {
     canvasEl.requestFullscreen();
   };

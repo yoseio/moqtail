@@ -55,6 +55,7 @@ module.exports = {
     'no-undef-init': 'warn',
     'no-undefined': 'warn',
     'no-use-before-define': 'error',
+    'no-case-declarations': 'off',
     'array-bracket-newline': ['warn', 'consistent'],
     'array-bracket-spacing': ['error', 'never'],
     'block-spacing': ['error', 'always'],
