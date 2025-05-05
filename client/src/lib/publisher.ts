@@ -114,14 +114,14 @@ export class Publisher {
       return (subgroupId + 10 % 256);
     }
   }
-  private closeStreamsGracefully(subgroupIds: number[], lastSubgroupId: number, lastObjectId: number) {
-    const obj = serializeSubgroupObject({
+  private sendEndOfGroup(lastSubgroupId: number, lastObjectId: number) {
+    const subgroupObject = serializeSubgroupObject({
       objectId: lastObjectId,
       extensionHeaders: [],
       objectStatus: OBJECT_STATUS.END_OF_GROUP,
       payload: new Uint8Array(0)
     });
-    this.communicator.postMessage({ type: 'sendSubgroupObject', data: { lastSubgroupId, obj } });
+    this.communicator.postMessage({ type: 'sendSubgroupObject', data: { subgroupObject, subgroupId: lastSubgroupId } });
     // instead of closing from the publisher, the subscriber close the stream after receiving the last object
     // that way, 'short buffer' error in the subscriber can be avoided
     // this.communicator.postMessage({ type: 'closeSubgroupStreams', data: subgroupIds });
@@ -265,12 +265,9 @@ export class Publisher {
         payload: videoChunkBytes
       });
       this.communicator.postMessage({ type: 'sendSubgroupObject', data: { subgroupObject, subgroupId } });
-      // if this is the last object in the group, close existing streams with final objects
+      // if this is the last object in the group, send END_OF_GROUP
       const isLast = targetTrack.largestObjectId + 1 === targetTrack.encoderConfig.keyFrameDuration;
-      if (isLast) {
-        this.closeStreamsGracefully(group.publishedSubgroupIds, subgroupId, targetTrack.largestObjectId + 1);
-        Mogger.debug(`This is the last object in the group`);
-      }
+      if (isLast) this.sendEndOfGroup(subgroupId, targetTrack.largestObjectId + 1);
       break;
     case 'error':
       Mogger.error(`Error from video encoder: ${message.data.data}`);

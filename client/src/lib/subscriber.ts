@@ -1,5 +1,5 @@
 import { Mogger } from './utils/mogger';
-import { CONTROL_MESSAGE, deserializeVideoDecoderConfig, LOC_EXTENSION_HEADER_TYPE, MOQT_DRAFT08_VERSION, MOQT_DRAFT09_VERSION, MOQT_DRAFT10_VERSION, serializeClientSetup, serializeSubscribe, STREAM, deserializeAudioDecoderConfig, serializeUnsubscribe } from 'moqtail';
+import { CONTROL_MESSAGE, deserializeVideoDecoderConfig, LOC_EXTENSION_HEADER_TYPE, MOQT_DRAFT08_VERSION, MOQT_DRAFT09_VERSION, MOQT_DRAFT10_VERSION, serializeClientSetup, serializeSubscribe, STREAM, deserializeAudioDecoderConfig, serializeUnsubscribe, OBJECT_STATUS } from 'moqtail';
 import type { Subscribe, ServerSetup, SubscribeOk, SubgroupHeader, SubgroupObject, SubscribeError, Datagram } from 'moqtail';
 
 // @ts-ignore
@@ -159,7 +159,7 @@ export class Subscriber {
       sub.decoder.postMessage({ type: 'decode', data: { encodedVideoChunk: chunk, config: videoDecoderConfig } });
       break;
     case 'subgroupObjectStatus':
-      Mogger.info(`End of subgroup object: ${message.data.data.header.objectStatus}`);
+      this.communicator.postMessage({ type: 'closeStream', data: { subgroupId: message.data.data.subgroupId } });
       break;
     case 'datagramObject':
       const datagramObject = message.data.data as { header: Datagram, encodedChunkInit: EncodedAudioChunkInit };

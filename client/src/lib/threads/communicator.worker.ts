@@ -62,7 +62,7 @@ class MoQTCommunicator {
   }
   async closeSubgroupStreams(subgroupIds: number[]) {
     subgroupIds.map(id => {
-      this.closeSubgroupStream(id);
+      this.closeSubgroupStream({ subgroupId: id });
     });
   }
   async createSubgroupStream({ subgroupId, subgroupHeader }: { subgroupId: number, subgroupHeader: Uint8Array }) {
@@ -76,8 +76,9 @@ class MoQTCommunicator {
     writer.releaseLock();
     Mogger.debug('Stream created');
   }
-  closeSubgroupStream(subgroupId: number) {
-    this.streams.get(subgroupId).close();
+  closeSubgroupStream({ subgroupId }: { subgroupId: number }) {
+    const stream = this.streams.get(subgroupId);
+    if (stream) stream.close();
     this.streams.delete(subgroupId);
     Mogger.debug(`Stream with subgroupId: ${subgroupId} closed`);
   }
@@ -114,7 +115,7 @@ class MoQTCommunicator {
     this.wt.close();
     Mogger.debug('Session closed');
   }
-  async readSubgroupObject(reader: ReadableStream, trackAlias: number) {
+  async readSubgroupObject(reader: ReadableStream, trackAlias: number, subgroupId: number) {
     try {
       let done = false;
       while (!done) {
@@ -122,9 +123,9 @@ class MoQTCommunicator {
         done = header.objectStatus && (header.objectStatus === OBJECT_STATUS.END_OF_GROUP || header.objectStatus === OBJECT_STATUS.END_OF_TRACK || header.objectStatus === OBJECT_STATUS.END_OF_TRACK_AND_GROUP);
         if (!done) {
           const encodedChunkInit = await deserializeEncodedChunk(reader);
-          postMessage({ type: 'subgroupObject', data: { header, encodedChunkInit, trackAlias } });
+          postMessage({ type: 'subgroupObject', data: { header, encodedChunkInit, trackAlias, subgroupId } });
         } else {
-          postMessage({ type: 'subgroupObjectStatus', data: { header } });
+          postMessage({ type: 'subgroupObjectStatus', data: { header, subgroupId } });
         }
       }
       await reader.cancel();
@@ -200,7 +201,7 @@ class MoQTCommunicator {
       case STREAM.SUBGROUP_HEADER:
         const subgroupHeader = await deserializeSubgroupHeader(readableStream);
         postMessage({ type: `stream-${streamType}`, data: subgroupHeader });
-        this.readSubgroupObject(readableStream, subgroupHeader.trackAlias);
+        this.readSubgroupObject(readableStream, subgroupHeader.trackAlias, subgroupHeader.subgroupId);
         break;
       }
       reader.releaseLock();
