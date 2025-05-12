@@ -1,5 +1,5 @@
 import {
-  getNumberLength,
+  getQuicVarIntLength,
   serializeQuicVarInt,
   deserializeQuicVarIntFromArray,
   concatBuffer,
@@ -11,11 +11,11 @@ import {
 
 describe('utils/bytes', () => {
   test('getNumberLength returns correct length', () => {
-    expect(getNumberLength(63)).toBe(1);
-    expect(getNumberLength(16383)).toBe(2);
-    expect(getNumberLength(1073741823)).toBe(4);
-    expect(getNumberLength(Number.MAX_SAFE_INTEGER)).toBe(8);
-    expect(() => getNumberLength(Number.MAX_SAFE_INTEGER + 1)).toThrow();
+    expect(getQuicVarIntLength(63)).toBe(1);
+    expect(getQuicVarIntLength(16383)).toBe(2);
+    expect(getQuicVarIntLength(1073741823)).toBe(4);
+    expect(getQuicVarIntLength(Number.MAX_SAFE_INTEGER)).toBe(8);
+    expect(() => getQuicVarIntLength(Number.MAX_SAFE_INTEGER + 1)).toThrow();
   });
 
   test('serializeQuicVarInt serializes correctly', () => {

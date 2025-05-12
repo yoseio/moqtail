@@ -24,7 +24,7 @@ export const buffReadFrombyobReader = async (reader: ReadableStreamBYOBReader, b
   return buffer;
 };
 
-export const getNumberLength = (v: number | bigint) => {
+export const getQuicVarIntLength = (v: number | bigint) => {
   if (v <= MAX_U6) {
     return 1;
   } else if (v <= MAX_U14) {
@@ -44,14 +44,14 @@ export const serializeQuicVarInt = (value: number | bigint) => {
     throw new Error('Value out of range for QUIC varInt');
   }
   let buffer: Uint8Array;
-  if (value <= 0x3fn) {
+  if (value <= MAX_U6) {
     buffer = new Uint8Array(1);
     buffer[0] = Number(value);
-  } else if (value <= 0x3fffn) {
+  } else if (value <= MAX_U14) {
     buffer = new Uint8Array(2);
     buffer[0] = Number((value >> 8n) | 0x40n);
     buffer[1] = Number(value & 0xffn);
-  } else if (value <= 0x3fffffffn) {
+  } else if (value <= MAX_U30) {
     buffer = new Uint8Array(4);
     buffer[0] = Number((value >> 24n) | 0x80n);
     buffer[1] = Number((value >> 16n) & 0xffn);
