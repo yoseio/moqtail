@@ -4,8 +4,8 @@ import { deserializeExtensionHeader, serializeExtensionHeader, type ExtensionHea
 
 export const serializeSubgroupObject = (props: SubgroupObject) => {
   const objectIdBytes = serializeQuicVarInt(props.objectId);
-  const extensionHeadersLengthBytes = serializeQuicVarInt(props.extensionHeaders.length);
   const extensionHeaderBytes = props.extensionHeaders.map(serializeExtensionHeader);
+  const extensionHeadersLengthBytes = serializeQuicVarInt(extensionHeaderBytes.length);
   const payloadLengthBytes = serializeQuicVarInt(props.payload.byteLength);
   let objectStatusBytes = new Uint8Array(0);
   if (props.payload.byteLength === 0) {
@@ -18,10 +18,12 @@ export const serializeSubgroupObject = (props: SubgroupObject) => {
 export const deserializeSubgroupObjectHeader = async (readableStream: ReadableStream): Promise<SubgroupObject> => {
   const ret: SubgroupObject = {} as SubgroupObject;
   ret.objectId = await deserializeQuicVarInt(readableStream);
-  const extensionHeadersLength = await deserializeQuicVarInt(readableStream);
+  let extensionHeadersLength = await deserializeQuicVarInt(readableStream);
   ret.extensionHeaders = [];
-  for (let i = 0; i < extensionHeadersLength; i++) {
-    ret.extensionHeaders.push(await deserializeExtensionHeader(readableStream));
+  while (extensionHeadersLength > 0) {
+    const v = await deserializeExtensionHeader(readableStream);
+    ret.extensionHeaders.push(v.value);
+    extensionHeadersLength -= v.byteLength;
   }
   const payloadLength = await deserializeQuicVarInt(readableStream);
   if (payloadLength === 0) {
