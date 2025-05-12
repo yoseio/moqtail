@@ -10,6 +10,7 @@ export const PARAMETER = {
   SETUP: {
     PATH: { KEY: 0x01 },
     MAX_SUBSCRIBE_ID: { KEY: 0x2 },
+    MAX_AUTH_TOKEN_CACHE_SIZE: { KEY: 0x4 }
   }
 } as const;
 export type PARAMETER = ObjectValueList<typeof PARAMETER>;
