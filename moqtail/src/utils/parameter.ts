@@ -1,5 +1,5 @@
 import { CONTROL_MESSAGE, PARAMETER } from "../constants";
-import { concatBuffer, getNumberLength, serializeQuicVarInt, stringToVarBytes, varBytesToString, deserializeQuicVarInt } from "./bytes"
+import { concatBuffer, getQuicVarIntLength, serializeQuicVarInt, stringToVarBytes, varBytesToString, deserializeQuicVarInt } from "./bytes"
 
 export interface Parameter {
   type: number,
@@ -14,7 +14,7 @@ export const serializeParams = (params: Parameter[]): Uint8Array => {
     if (typeof param.value === 'string') {
       value = stringToVarBytes(param.value);
     } else {
-      len = serializeQuicVarInt(getNumberLength(param.value));
+      len = serializeQuicVarInt(getQuicVarIntLength(param.value));
       value = serializeQuicVarInt(param.value);
     }
     return concatBuffer([type, len, value]);
@@ -37,6 +37,8 @@ export const deserializeParams = async (messageType: number, controlReader: Read
           await deserializeQuicVarInt(controlReader); // length
           ret.push({ type: PARAMETER.SETUP.MAX_SUBSCRIBE_ID.KEY, value: await deserializeQuicVarInt(controlReader) });
           break
+        case PARAMETER.SETUP.MAX_AUTH_TOKEN_CACHE_SIZE.KEY:
+          break;
         default:
           throw new Error(`unexpected setup parameter ${paramId}`); // TODO: ProtocolViolation
       }
