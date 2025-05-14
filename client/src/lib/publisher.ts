@@ -23,7 +23,7 @@ export class Publisher {
   private videoEncoders: { [key: string]: Worker } = {};
   private audioEncoder: { [key: string]: Worker } = {};
   private trackManager: TrackManager = new TrackManager();
-  private supportedVersions = [MOQT_DRAFT08_VERSION, MOQT_DRAFT09_VERSION, MOQT_DRAFT10_VERSION];
+  private supportedVersions = [MOQT_DRAFT08_VERSION];
   private selectedVersion = 0;
   private maxSubscribeId = 1000;
   constructor(props: PublisherInitProps) {
