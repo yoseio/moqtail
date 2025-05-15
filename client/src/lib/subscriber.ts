@@ -96,7 +96,7 @@ export class Subscriber {
     source.buffer = audioBuffer;
     source.connect(this.audioCtx.destination);
     if (this.audioNextPlaybackTime === 0) this.audioNextPlaybackTime = this.audioCtx.currentTime;
-    source.start(this.audioNextPlaybackTime);
+    source.start(this.audioNextPlaybackTime, 0, audioBuffer.duration);
     this.audioNextPlaybackTime += audioBuffer.duration;
   }
   communicatorMessageHandler(message: MessageEvent) {
