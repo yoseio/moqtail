@@ -67,7 +67,7 @@
   };
 
   onMount(() => {
-    audioContext = new AudioContext();
+    audioContext = new AudioContext({ latencyHint: 'interactive' });
   });
 </script>
 
