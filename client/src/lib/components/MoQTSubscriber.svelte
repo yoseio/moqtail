@@ -1,10 +1,8 @@
 <script lang="ts">
   import { Subscriber } from '$lib/subscriber';
-  import { onMount } from 'svelte';
   import { GROUP_ORDER, type Subscribe, SUBSCRIBE_FILTER } from 'moqtail';
 
   let canvasEl: HTMLCanvasElement;
-  let audioContext: AudioContext;
   let moqIsPlaying = false;
   let subscriberInit = false;
   let subscriber: Subscriber;
@@ -28,7 +26,7 @@
     });
     subscriberInit = true;
     subscriber.setCanvasElement(canvasEl);
-    subscriber.setAudioContext(audioContext);
+    subscriber.setAudioContext();
   };
   const setup = () => {
     if (!subscriber || setupSent) return;
@@ -65,10 +63,6 @@
   const canvasGoFullscreen = () => {
     canvasEl.requestFullscreen();
   };
-
-  onMount(() => {
-    audioContext = new AudioContext({ latencyHint: 'interactive' });
-  });
 </script>
 
 <div class="sub">
