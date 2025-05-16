@@ -1,5 +1,5 @@
 <script>
-  import { moqVideoTransmissionLatencyStore } from '$lib/store';
+  import { moqVideoTransmissionLatencyStore } from '$lib/utils/store';
   import { Mogger } from '$lib/utils/mogger';
 
   let cpuLoad = 'Compute Pressure API not supported';
