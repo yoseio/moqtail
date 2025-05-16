@@ -1,5 +1,4 @@
 import { AUDIO_DECODER_DEFAULT_CONFIG } from '$lib/config';
-import { Mogger } from '$lib/utils/mogger';
 import type { Subscribe } from 'moqtail';
 
 class MoQTAudioDecoder {
@@ -22,7 +21,7 @@ class MoQTAudioDecoder {
     this.subscribe = subscribe;
     this.decoder = new AudioDecoder({
       output: this.handleAudioData.bind(this),
-      error: (error: DOMException) => Mogger.error('AudioDecoder error', error.message)
+      error: (error: DOMException) => postMessage({ type: 'error', data: `AudioDecoder error: ${error.message}` }),
     });
     this.decoder.configure(AUDIO_DECODER_DEFAULT_CONFIG);
   }

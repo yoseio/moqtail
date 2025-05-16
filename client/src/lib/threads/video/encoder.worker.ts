@@ -1,6 +1,3 @@
-import { Mogger } from '$lib/utils/mogger';
-
-// should rename this to capturer and encoder
 class MoQTVideoEncoder {
   private reader: ReadableStreamDefaultReader<VideoFrame>;
   private track: Track;
@@ -31,7 +28,7 @@ class MoQTVideoEncoder {
     this.state = 'encoding';
     const encoder = new VideoEncoder({
       output: (chunk: EncodedVideoChunk, metadata: EncodedVideoChunkMetadata) => this.handleChunk(chunk, metadata),
-      error: (error: DOMException) => Mogger.error('VideoEncoder error', error.message)
+      error: (error: DOMException) => postMessage({ type: 'error', data: `VideoEncoder error: ${error.message}` }),
     });
     const encoderConfig: MyEncoderConfig = this.track.encoderConfig as MyEncoderConfig;
     encoder.configure(encoderConfig.encoderConfig as VideoEncoderConfig);
