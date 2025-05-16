@@ -22,21 +22,17 @@ class MoQTVideoDecoder {
     this.subscribe = subscribe;
     this.decoder = new VideoDecoder({
       output: (frame: VideoFrame) => postMessage({ type: 'videoFrame', data: { subscribeId: this.subscribe.subscribeId, frame } }, [frame]),
-      error: (error: DOMException) => Mogger.error('VideoDecoder error', error.message)
+      error: (error: DOMException) => postMessage({ type: 'error', data: `VideoDecoder error: ${error.message}` }),
     });
     this.decoder.configure(VIDEO_DECODER_DEFAULT_CONFIG);
   }
   decode({ encodedVideoChunk, config }: { encodedVideoChunk: EncodedVideoChunk, config?: VideoDecoderConfig }) {
-    try {
-      if (config) {
-        const isSupported = VideoDecoder.isConfigSupported(config);
-        if (!isSupported) throw new Error(`Unsupported video decoder configuration: ${config}`);
-        this.decoder.configure(config);
-      }
-      this.decoder.decode(encodedVideoChunk);
-    } catch (error) {
-      Mogger.error('VideoDecoder error', error.message);
+    if (config) {
+      const isSupported = VideoDecoder.isConfigSupported(config);
+      if (!isSupported) throw new Error(`Unsupported video decoder configuration: ${config}`);
+      this.decoder.configure(config);
     }
+    this.decoder.decode(encodedVideoChunk);
   }
 }
 
