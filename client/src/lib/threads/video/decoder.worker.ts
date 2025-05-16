@@ -1,6 +1,5 @@
 import { VIDEO_DECODER_DEFAULT_CONFIG } from '$lib/config';
-import { Mogger } from '$lib/utils/mogger';
-import type { SubgroupObject, Subscribe } from 'moqtail';
+import type { Subscribe } from 'moqtail';
 
 class MoQTVideoDecoder {
   private subscribe: Subscribe;
