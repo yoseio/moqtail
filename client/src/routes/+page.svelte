@@ -16,10 +16,6 @@
 <!-- svelte-ignore a11y-media-has-caption -->
 <div class="container">
   <h1>Webcam Streaming Demo</h1>
-  <div class="description">
-    <p>possibly sends: CLIENT_SETUP, ANNOUNCE, UNANNOUNCE, SUBSCRIBE and UNSUBSCRIBE</p>
-    <p>handles incoming: SERVER_SETUP, ANNOUNCE_OK, ANNOUNCE_ERROR, SUBSCRIBE_OK</p>
-  </div>
   <div class="relay-server">
     <GenericInput key="Relay Server" bind:defaultVal={moqtServerUrl} />
   </div>
