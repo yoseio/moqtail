@@ -1,6 +1,7 @@
 import { Mogger } from './utils/mogger';
 import { CONTROL_MESSAGE, deserializeVideoDecoderConfig, LOC_EXTENSION_HEADER_TYPE, MOQT_DRAFT08_VERSION, MOQT_DRAFT09_VERSION, MOQT_DRAFT10_VERSION, serializeClientSetup, serializeSubscribe, STREAM, deserializeAudioDecoderConfig, serializeUnsubscribe, OBJECT_STATUS } from 'moqtail';
 import type { Subscribe, ServerSetup, SubscribeOk, SubgroupHeader, SubgroupObject, SubscribeError, Datagram } from 'moqtail';
+import { moqVideoTransmissionLatencyStore } from './store';
 
 // @ts-ignore
 import CommunicatorWorker from './threads/communicator.worker?worker';
@@ -8,21 +9,21 @@ import CommunicatorWorker from './threads/communicator.worker?worker';
 import VideoDecoderWorker from './threads/video/decoder.worker?worker';
 // @ts-ignore
 import AudioDecoderWorker from './threads/audio/decoder.worker?worker';
-import { moqVideoTransmissionLatencyStore } from './store';
+// @ts-ignore
+import VideoRendererWorker from './threads/video/renderer.worker?worker';
 
 type RegisteredSubscription = { subscribe: Subscribe, subscribeOk: boolean, decoder: Worker };
 
 export class Subscriber {
-  private communicator: Worker;
   private supportedVersions = [MOQT_DRAFT08_VERSION, MOQT_DRAFT09_VERSION, MOQT_DRAFT10_VERSION];
   private selectedVersion = 0;
   private subscription: RegisteredSubscription[] = [];
   private videoWaitingForKeyFrame = true;
   private audioWaitingForKeyFrame = true;
-  private canvasElement: HTMLCanvasElement;
-  private videoCtx: CanvasRenderingContext2D;
   private audioCtx: AudioContext;
   private audioNextPlaybackTime = 0;
+  private communicator: Worker;
+  private videoRenderer: Worker = new VideoRendererWorker();
   constructor(props: SubscriberInitProps) {
     this.communicator = new CommunicatorWorker();
     this.communicator.onmessage = this.communicatorMessageHandler.bind(this);
@@ -47,8 +48,8 @@ export class Subscriber {
     this.communicator.postMessage({ type: 'sendControlMessage', data: msg });
   }
   setCanvasElement(canvasElement: HTMLCanvasElement) {
-    this.canvasElement = canvasElement;
-    this.videoCtx = this.canvasElement.getContext('2d');
+    const offscreen = canvasElement.transferControlToOffscreen();
+    this.videoRenderer.postMessage({ type: 'init', data: { canvas: offscreen } }, [offscreen]);
   }
   setAudioContext(audioCtx: AudioContext) {
     this.audioCtx = audioCtx;
@@ -189,11 +190,7 @@ export class Subscriber {
     switch (message.data.type) {
     case 'videoFrame':
       const vfData = message.data.data as { subscribeId: number, frame: VideoFrame };
-      // this.canvasElement.width = vfData.frame.codedWidth;
-      // this.canvasElement.height = vfData.frame.codedHeight;
-      this.videoCtx.clearRect(0, 0, this.canvasElement.width, this.canvasElement.height);
-      this.videoCtx.drawImage(vfData.frame, 0, 0, this.canvasElement.width, this.canvasElement.height);
-      vfData.frame.close();
+      this.videoRenderer.postMessage({ type: 'frame', data: vfData.frame }, [vfData.frame]);
       break;
     case 'audioData':
       const ad = message.data.data.audioData as AudioData;
