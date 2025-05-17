@@ -1,6 +1,7 @@
 <script>
   import { moqVideoTransmissionLatencyStore } from '$lib/utils/store';
   import { Mogger } from '$lib/utils/mogger';
+  import RingBufferVisualizer from './RingBufferVisualizer.svelte';
 
   let cpuLoad = 'Compute Pressure API not supported';
 
@@ -10,7 +11,8 @@
   };
 
   try {
-    const observer = new PressureObserver(pressureObserverCallback); // ts might be salty but let it be
+    // @ts-ignore PressureObserver is not defined yet
+    const observer = new PressureObserver(pressureObserverCallback);
     observer.observe('cpu', { sampleInterval: 1000, });
   } catch (error) {
     Mogger.error('PressureObserver not supported:', error);
@@ -19,11 +21,16 @@
 
 <div class="statistics">
   <h3>Statistics</h3>
-  <div class="stat-item">
-    <span class="stat-label">Transmission Latency:</span> {$moqVideoTransmissionLatencyStore}ms
+  <div class="stat-text">
+    <div class="stat-item">
+      <span class="stat-label">Transmission Latency:</span> {$moqVideoTransmissionLatencyStore}ms
+    </div>
+    <div class="stat-item">
+      <span class="stat-label">CPU Load:</span> {cpuLoad}
+    </div>
   </div>
-  <div class="stat-item">
-    <span class="stat-label">CPU Load:</span> {cpuLoad}
+  <div class="stat-ring">
+    <RingBufferVisualizer />
   </div>
 </div>
 

@@ -35,10 +35,8 @@ class AudioPlaybackProcessor extends AudioWorkletProcessor {
     for (let i = framesToCopy; i < channelOut.length; i++) {
       channelOut[i] = 0;
     }
-    this.port.postMessage({
-      type: 'stats',
-      stats: this.buffer.getStats(),
-    })
+    const stats = this.buffer.getStats();
+    this.port.postMessage({ type: 'stats', stats });
     return true;
   }
 }

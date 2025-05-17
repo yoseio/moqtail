@@ -1,7 +1,7 @@
 import { Mogger } from './utils/mogger';
 import { CONTROL_MESSAGE, deserializeVideoDecoderConfig, LOC_EXTENSION_HEADER_TYPE, MOQT_DRAFT08_VERSION, MOQT_DRAFT09_VERSION, MOQT_DRAFT10_VERSION, serializeClientSetup, serializeSubscribe, STREAM, deserializeAudioDecoderConfig, serializeUnsubscribe, OBJECT_STATUS } from 'moqtail';
 import type { Subscribe, ServerSetup, SubscribeOk, SubgroupHeader, SubgroupObject, SubscribeError, Datagram } from 'moqtail';
-import { moqVideoTransmissionLatencyStore } from './utils/store';
+import { moqVideoTransmissionLatencyStore, ringStats } from './utils/store';
 
 // @ts-ignore
 import CommunicatorWorker from './threads/communicator.worker?worker';
@@ -48,6 +48,12 @@ export class Subscriber {
     const msg = serializeUnsubscribe(sub.subscribe.subscribeId);
     this.communicator.postMessage({ type: 'sendControlMessage', data: msg });
   }
+  stopAudio() {
+    if (this.audioNode) {
+      this.audioNode.disconnect();
+      this.audioNode = null;
+    }
+  }
   setCanvasElement(canvasElement: HTMLCanvasElement) {
     const offscreen = canvasElement.transferControlToOffscreen();
     this.videoRenderer.postMessage({ type: 'init', data: { canvas: offscreen } }, [offscreen]);
@@ -60,6 +66,7 @@ export class Subscriber {
     });
     this.audioNode = new AudioWorkletNode(audioCtx, 'audio-playback-processor');
     this.audioNode.port.postMessage({ type: 'init', sampleRate: audioCtx.sampleRate });
+    this.audioNode.port.onmessage = this.audioProcessorMessageHandler.bind(this);
     this.audioNode.connect(audioCtx.destination);
   }
   private getSubscriptionByTrackAlias(trackAlias: number): RegisteredSubscription {
@@ -192,8 +199,8 @@ export class Subscriber {
   audioProcessorMessageHandler(message: MessageEvent) {
     switch (message.data.type) {
     case 'stats':
-      const stats = message.data.stats as { write: number, read: number };
-      Mogger.debug(`Audio processor stats: ${JSON.stringify(stats)}`);
+      const stats = message.data.stats as { capacity: number, readPos: number, writePos: number };
+      ringStats.set(stats);
       break;
     case 'error':
       Mogger.error(`Audio processor error: ${message.data.data}`);

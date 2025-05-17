@@ -32,6 +32,11 @@ declare global {
     type: string,
     data: any,
   }
+  interface RingBufferStats {
+    capacity: number;
+    writePos: number;
+    readPos: number;
+  }
 }
 
 export {};

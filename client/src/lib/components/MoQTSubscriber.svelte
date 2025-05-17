@@ -59,6 +59,7 @@
   const stopStream = () => {
     subscriber.unsubscribe(videoTrackName);
     subscriber.unsubscribe(audioTrackName);
+    subscriber.stopAudio();
   };
   const canvasGoFullscreen = () => {
     canvasEl.requestFullscreen();
@@ -98,17 +99,6 @@
   <button on:click={setup}>Setup</button>
   <button on:click={playStream}>Start playback</button>
   <button on:click={stopStream}>Stop playback</button>
-  <!-- <div>
-    <fieldset>
-      <legend>Video Quality</legend>
-      <input type="radio" name="sub-video-quality" on:change={qualityOnChange} value="low" checked />
-      <label for="sub-video-quality">Low</label>
-      <input type="radio" name="sub-video-quality" on:change={qualityOnChange} value="medium" />
-      <label for="sub-video-quality">Medium</label>
-      <input type="radio" name="sub-video-quality" on:change={qualityOnChange} value="high" />
-      <label for="sub-video-quality">High</label>
-    </fieldset>
-  </div> -->
 </div>
 
 <style>
