@@ -53,12 +53,13 @@ export class Subscriber {
     this.videoRenderer.postMessage({ type: 'init', data: { canvas: offscreen } }, [offscreen]);
   }
   async setAudioContext() {
-    const audioCtx = new AudioContext({ sampleRate: 48000 });
+    const audioCtx = new AudioContext({ sampleRate: 48000 }); // TODO: use the sample rate from the server
     await audioCtx.audioWorklet.addModule(AudioWorkletURL).catch((e) => {
       Mogger.error(`Failed to load audio worklet module: ${e}`);
       this.communicator.postMessage({ type: 'closeSession', data: null });
     });
     this.audioNode = new AudioWorkletNode(audioCtx, 'audio-playback-processor');
+    this.audioNode.port.postMessage({ type: 'init', sampleRate: audioCtx.sampleRate });
     this.audioNode.connect(audioCtx.destination);
   }
   private getSubscriptionByTrackAlias(trackAlias: number): RegisteredSubscription {
@@ -185,6 +186,17 @@ export class Subscriber {
         type: 'audioData',
         buffer: audioBuffer.buffer,
       }, [audioBuffer.buffer]);
+      break;
+    }
+  }
+  audioProcessorMessageHandler(message: MessageEvent) {
+    switch (message.data.type) {
+    case 'stats':
+      const stats = message.data.stats as { write: number, read: number };
+      Mogger.debug(`Audio processor stats: ${JSON.stringify(stats)}`);
+      break;
+    case 'error':
+      Mogger.error(`Audio processor error: ${message.data.data}`);
       break;
     }
   }

@@ -1,6 +1,8 @@
+import { Float32RingBuffer } from "$lib/utils/ringBuffer";
+
 // Audio Worklet processor for the audio thread
 class AudioPlaybackProcessor extends AudioWorkletProcessor {
-  private buffer: Float32Array[] = [];
+  private buffer: Float32RingBuffer;
 
   constructor() {
     super();
@@ -8,28 +10,35 @@ class AudioPlaybackProcessor extends AudioWorkletProcessor {
   }
 
   handleMessage(event) {
-    if (event.data.type === 'audioData') {
-      const ab = event.data.buffer as ArrayBufferLike;
-      this.buffer.push(new Float32Array(ab));
+    switch (event.data.type) {
+      case 'init':
+        this.buffer = new Float32RingBuffer(event.data.sampleRate); // 1 second buffer
+        break;
+      case 'audioData':
+        const ab = event.data.buffer as ArrayBufferLike;
+        this.buffer.write(new Float32Array(ab));
+        break;
+      default:
+        this.port.postMessage({ type: 'error', data: `Unknown message type: ${event.data.type}` });
     }
   }
 
-  process(inputs: Float32Array[][], outputs: Float32Array[][]) {
-    const output = outputs[0]; // Assuming stereo output
-    if (this.buffer.length > 0) {
-      const samples = this.buffer.shift();
-      for (let channel = 0; channel < output.length; channel++) {
-        const channelOut = output[channel];
-        for (let i = 0; i < channelOut.length; i++) {
-          channelOut[i] = samples ? samples[i] || 0 : 0;
-        }
-      }
-    } else {
-      // Fill with silence if no data
-      for (let channel = 0; channel < output.length; channel++) {
-        output[channel].fill(0);
-      }
+  process(_inputs: Float32Array[][], outputs: Float32Array[][]) {
+    const output = outputs[0]; // Assuming monoral
+    const channelOut = output[0];
+    const samples = this.buffer.read(channelOut.length);
+    const framesToCopy = Math.min(samples.length, channelOut.length);
+    for (let i = 0; i < framesToCopy; i++) {
+      channelOut[i] = samples[i];
     }
+    // in case the read size is truncated, fill the rest with 0
+    for (let i = framesToCopy; i < channelOut.length; i++) {
+      channelOut[i] = 0;
+    }
+    this.port.postMessage({
+      type: 'stats',
+      stats: this.buffer.getStats(),
+    })
     return true;
   }
 }
