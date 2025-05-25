@@ -23,10 +23,12 @@
   <h3>Statistics</h3>
   <div class="stat-text">
     <div class="stat-item">
-      <span class="stat-label">Transmission Latency:</span> {$moqVideoTransmissionLatencyStore}ms
+      <span class="stat-label">Transmission Latency:</span>
+      <span class="stat-value">{$moqVideoTransmissionLatencyStore}ms</span>
     </div>
     <div class="stat-item">
-      <span class="stat-label">CPU Load:</span> {cpuLoad}
+      <span class="stat-label">CPU Load:</span>
+      <span class="stat-value">{cpuLoad}</span>
     </div>
   </div>
   <div class="stat-ring">
@@ -43,6 +45,7 @@
 
   .stat-item {
     margin-bottom: 0.5rem;
+    min-width: 250px;
   }
 
   .stat-label {

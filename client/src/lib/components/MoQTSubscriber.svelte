@@ -85,14 +85,14 @@
     </div>
     <div>
       <label for="pub-track-jitter">Jitter Buffer {jitterBufferSize}ms</label>
-      <input
+      <!-- <input
         type="range"
         min="0"
         max="60"
         step="10"
         name="pub-track-jitter"
         bind:value={jitterBufferSize}
-      />
+      /> -->
     </div>
   </div>
   <button on:click={connectToServer}>Connect to server</button>
