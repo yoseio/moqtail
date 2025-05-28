@@ -32,31 +32,26 @@
   </div>
 </div>
 
-<style lang="scss">
+<style>
   .container {
     width: 100%;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    .description {
-      margin-bottom: 10px;
-      p {
-        margin: 5px 0;
-      }
-    }
-    .relay-server {
-      margin: 5px;
-      width: 100%;
-    }
-    &-videos {
-      margin: 10px 0 0 0;
-      display: flex;
-      justify-content: space-between;
-      & > div {
-        margin: 0 10px;
-        max-width: 480px;
-      }
-    }
+  }
+  .container-videos {
+    margin: 10px 0 0 0;
+    display: flex;
+    justify-content: space-between;
+  }
+  .container-videos > div {
+    margin: 0 10px;
+    max-width: 480px;
+  }
+
+  .relay-server {
+    margin: 5px;
+    width: 100%;
   }
 </style>

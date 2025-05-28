@@ -146,28 +146,29 @@
   <button on:click={async () => stopStreaming()}>Stop streaming</button>
 </div>
 
-<style lang="scss">
+<style>
   .pub {
     width: 100%;
     display: flex;
     flex-direction: column;
     justify-content: start;
     align-items: center;
-    &-video {
-      position: relative;
-      video {
-        object-fit: contain;
-      }
-      & > select {
-        position: absolute;
-        bottom: 10px;
-        left: 10px;
-        border: none;
-        padding: 5px 10px;
-      }
-    }
-    .track > div {
-      margin: 5px;
-    }
+  }
+  .pub-video {
+    position: relative;
+  }
+  .pub-video > video {
+    object-fit: contain;
+  }
+  .pub-video > select {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    border: none;
+    padding: 5px 10px;
+  }
+  
+  .track > div {
+    margin: 5px;
   }
 </style>
