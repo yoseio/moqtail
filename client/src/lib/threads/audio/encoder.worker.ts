@@ -1,6 +1,3 @@
-import { Mogger } from '$lib/utils/mogger';
-
-// should rename this to capturer and encoder
 class MoQTAudioEncoder {
   private reader: ReadableStreamDefaultReader<AudioData>;
   private track: Track;
@@ -25,14 +22,13 @@ class MoQTAudioEncoder {
   }
   capture(readable: ReadableStream<AudioData>) {
     this.state = 'capturing';
-    Mogger.info(`Capturing audio track: ${this.track.name}`);
     this.reader = readable.getReader();
   }
   async encode() {
     this.state = 'encoding';
     const encoder = new AudioEncoder({
       output: (chunk: EncodedAudioChunk, metadata: EncodedAudioChunkMetadata) => this.handleChunk(chunk, metadata),
-      error: (error: DOMException) => Mogger.error('VideoEncoder error', error.message)
+      error: (error: DOMException) => postMessage({ type: 'error', data: `AudioEncoder error: ${error.message}` }),
     });
     const encoderConfig: MyEncoderConfig = this.track.encoderConfig as MyEncoderConfig;
     encoder.configure(encoderConfig.encoderConfig as AudioEncoderConfig);

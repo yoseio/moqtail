@@ -1,5 +1,4 @@
 {
-  "plugins": ["stylelint-scss"],
   "rules": {
     "indentation": 2,
     "color-no-invalid-hex": [true],
