@@ -1,12 +1,11 @@
 // main thread for publisher
 // interaction with the component page: video/audio start, stop, pause, resume,
 import {
-  CONTROL_MESSAGE, MOQT_DRAFT08_VERSION, MOQT_DRAFT09_VERSION, MOQT_DRAFT10_VERSION, PARAMETER,
+  CONTROL_MESSAGE, MOQT_DRAFT10_VERSION, PARAMETER,
   serializeAnnounce, serializeClientSetup, serializeSubgroupHeader, serializeSubscribeError, serializeSubscribeOk,
   serializeUnannounce, SUBSCRIBE_ERROR_REASON, SUBSCRIBE_FILTER, serializeSubgroupObject, serializeEncodedChunk,
   videoDecoderConfigToExtensionHeader, OBJECT_STATUS, serializeDatagram, audioDecoderConfigToExtensionHeader,
   serializeSubscribeDone, SUBSCRIBE_DONE_REASON,
-  captureTimestampToExtensionHeader
 } from 'moqtail';
 import type { ServerSetup, AnnounceOk, Subscribe, Unsubscribe, ExtensionHeader } from 'moqtail';
 // @ts-ignore
@@ -23,7 +22,7 @@ export class Publisher {
   private videoEncoders: { [key: string]: Worker } = {};
   private audioEncoder: { [key: string]: Worker } = {};
   private trackManager: TrackManager = new TrackManager();
-  private supportedVersions = [MOQT_DRAFT08_VERSION];
+  private supportedVersions = [MOQT_DRAFT10_VERSION];
   private selectedVersion = 0;
   private maxSubscribeId = 1000;
   constructor(props: PublisherInitProps) {
@@ -256,9 +255,9 @@ export class Publisher {
       if (videoChunkMsg.metadata.decoderConfig) {
         extensionHeaders = [videoDecoderConfigToExtensionHeader(videoChunkMsg.metadata.decoderConfig)];
       };
-      if (videoChunkMsg.chunk.timestamp % 4 === 0) { // %4 is just a random number. I want the latency measurement to be less frequent
-        extensionHeaders.push(captureTimestampToExtensionHeader(Math.round(performance.timeOrigin) + (performance.now() | 0)));
-      }
+      // if (videoChunkMsg.chunk.timestamp % 4 === 0) { // %4 is just a random number. I want the latency measurement to be less frequent
+      //   extensionHeaders.push(captureTimestampToExtensionHeader(Math.round(performance.timeOrigin) + (performance.now() | 0)));
+      // }
       const subgroupObject = serializeSubgroupObject({
         objectId: targetTrack.largestObjectId,
         extensionHeaders,
