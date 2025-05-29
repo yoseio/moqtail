@@ -34,3 +34,14 @@ export const deserializeExtensionHeader = async (reader: ReadableStream): Promis
   }
   return { value: { id, value }, byteLength};
 }
+
+export const serializeExtensionHeaders = (headers: ExtensionHeader[]): Uint8Array => {
+  let totalLength = 0;
+  const serializedHeaders = headers.map(header => {
+    const serialized = serializeExtensionHeader(header);
+    totalLength += serialized.byteLength;
+    return serialized;
+  });
+  const headersLengthBytes = serializeQuicVarInt(totalLength);
+  return concatBuffer([headersLengthBytes, ...serializedHeaders]);
+}

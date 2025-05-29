@@ -1,18 +1,17 @@
 import type { OBJECT_STATUS } from "../constants";
 import { concatBuffer, serializeQuicVarInt, deserializeQuicVarInt } from "../utils/bytes";
-import { deserializeExtensionHeader, serializeExtensionHeader, type ExtensionHeader } from "./extensionHeader";
+import { deserializeExtensionHeader, serializeExtensionHeader, serializeExtensionHeaders, type ExtensionHeader } from "./extensionHeader";
 
 export const serializeSubgroupObject = (props: SubgroupObject) => {
   const objectIdBytes = serializeQuicVarInt(props.objectId);
-  const extensionHeaderBytes = props.extensionHeaders.map(serializeExtensionHeader);
-  const extensionHeadersLengthBytes = serializeQuicVarInt(extensionHeaderBytes.length);
+  const extensionHeaderBytes = serializeExtensionHeaders(props.extensionHeaders);
   const payloadLengthBytes = serializeQuicVarInt(props.payload.byteLength);
   let objectStatusBytes = new Uint8Array(0);
   if (props.payload.byteLength === 0) {
     if (props.objectStatus === undefined) throw new Error('objectStatus is required when payload is empty');
     objectStatusBytes = serializeQuicVarInt(props.objectStatus);
   }
-  return concatBuffer([objectIdBytes, extensionHeadersLengthBytes, ...extensionHeaderBytes, payloadLengthBytes, objectStatusBytes, props.payload]);
+  return concatBuffer([objectIdBytes, extensionHeaderBytes, payloadLengthBytes, objectStatusBytes, props.payload]);
 };
 
 export const deserializeSubgroupObjectHeader = async (readableStream: ReadableStream): Promise<SubgroupObject> => {

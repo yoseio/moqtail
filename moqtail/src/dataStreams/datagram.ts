@@ -1,6 +1,6 @@
 import { DATAGRAM } from "../constants";
 import { concatBuffer, getUint8, serializeQuicVarInt, setUint8, deserializeQuicVarInt, getQuicVarIntLength } from "../utils/bytes";
-import { deserializeExtensionHeader, serializeExtensionHeader } from "./extensionHeader";
+import { deserializeExtensionHeader, serializeExtensionHeader, serializeExtensionHeaders } from "./extensionHeader";
 import type { ExtensionHeader } from "./extensionHeader";
 
 export const deserializeDatagramType = async (readableStream: ReadableStream): Promise<number> => {
@@ -13,9 +13,8 @@ export const serializeDatagram = (props: Datagram) => {
   const groupIdBytes = serializeQuicVarInt(props.groupId);
   const objectIdBytes = serializeQuicVarInt(props.objectId);
   const publisherPriorityBytes = setUint8(props.publisherPriority);
-  const extensionHeaderBytes = props.extensionHeaders.map(serializeExtensionHeader);
-  const extensionHeadersLengthBytes = serializeQuicVarInt(extensionHeaderBytes.length);
-  const datagram = concatBuffer([typeBytes, trackAliasBytes, groupIdBytes, objectIdBytes, publisherPriorityBytes, extensionHeadersLengthBytes, ...extensionHeaderBytes, props.payload]);
+  const extensionHeaderBytes = serializeExtensionHeaders(props.extensionHeaders);
+  const datagram = concatBuffer([typeBytes, trackAliasBytes, groupIdBytes, objectIdBytes, publisherPriorityBytes, extensionHeaderBytes, props.payload]);
   return datagram;
 }
 
