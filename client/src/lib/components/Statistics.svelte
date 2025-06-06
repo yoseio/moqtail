@@ -1,7 +1,6 @@
 <script>
   import { moqVideoTransmissionLatencyStore } from '$lib/utils/store';
   import { Mogger } from '$lib/utils/mogger';
-  import RingBufferVisualizer from './RingBufferVisualizer.svelte';
 
   let cpuLoad = 'Compute Pressure API not supported';
 
@@ -30,9 +29,6 @@
       <span class="stat-label">CPU Load:</span>
       <span class="stat-value">{cpuLoad}</span>
     </div>
-  </div>
-  <div class="stat-ring">
-    <RingBufferVisualizer />
   </div>
 </div>
 
