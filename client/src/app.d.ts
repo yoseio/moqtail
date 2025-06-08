@@ -36,6 +36,9 @@ declare global {
     capacity: number;
     writePos: number;
     readPos: number;
+    size: number;
+    available: number;
+    free: number;
   }
 }
 
