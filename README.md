@@ -10,10 +10,10 @@ This is the root directory of moqtail projects. The core library lives under the
 ### Repository Structure
 
 - **bytes/**
-  - Utility code and helpers for handling low-level byte operations, encoding, and decoding. Used internally by other modules for efficient data manipulation.
+  - Utility code and helpers for handling low-level byte operations, encoding, and decoding. Used internally by client/ and moqtail-core/.
 
 - **client/**
-  - Contains a reference client implementation and example usage of moqtail. Useful for testing and demonstrating how to use the core library with real media streams.
+  - Contains a reference client implementation and example usage of moqtail.
 
 - **moqtail-core/**
-  - The main core library, providing serializers/deserializers for MOQT control messages, data streams, and packagers. This is the core logic powering the protocol functionality, designed with browser usages in mind.
+  - The main core library, providing serializers/deserializers for MOQT control messages, data streams, and packagers.
