@@ -349,6 +349,11 @@ export class Publisher {
         this.communicator.postMessage({ type: 'sendControlMessage', data: sub_err });
         break;
       }
+
+      // Return SUBSCRIBE_OK before starting the stream
+      const sub_ok = serializeSubscribeOk({ subscribeId: msg.subscribeId, expires: 0, groupOrder: msg.groupOrder || targetTrack.groupOrderPublisherPreference, contentExists: 0 });
+      this.communicator.postMessage({ type: 'sendControlMessage', data: sub_ok });
+
       if (targetTrack.subscribers.length == 0) {
         const targetEncoder = targetTrack.type === 'video' ? this.videoEncoders[targetTrack.name] : this.audioEncoder[targetTrack.name];
         targetEncoder.postMessage({ type: 'encode', data: null });
@@ -359,8 +364,6 @@ export class Publisher {
         trackAlias: msg.trackAlias,
         filterType: msg.filterType
       });
-      const sub_ok = serializeSubscribeOk({ subscribeId: msg.subscribeId, expires: 0, groupOrder: msg.groupOrder || targetTrack.groupOrderPublisherPreference, contentExists: 0 });
-      this.communicator.postMessage({ type: 'sendControlMessage', data: sub_ok });
       Mogger.info(`Initialized subscription for track ${msg.trackName} with subscribeId ${msg.subscribeId} and alias ${msg.trackAlias}`);
       break;
     case `ctrl-${CONTROL_MESSAGE.UNSUBSCRIBE}`:
