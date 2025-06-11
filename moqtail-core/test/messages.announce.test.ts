@@ -1,11 +1,11 @@
-import { serializeAnnounce } from './messages/announce';
-import { serializeAnnounceOk } from './messages/announceOk';
-import { serializeAnnounceError } from './messages/announceError';
-import { serializeAnnounceCancel } from './messages/announceCancel';
-import { serializeUnannounce } from './messages/unannounce';
-import { serializeTrackStatusRequest } from './messages/trackStatusRequest';
-import { serializeTrackStatus } from './messages/trackStatus';
-import { ANNOUNCE_ERROR_REASON, TRACK_STATUS_CODE } from './constants';
+import { serializeAnnounce } from '../src/messages/announce';
+import { serializeAnnounceOk } from '../src/messages/announceOk';
+import { serializeAnnounceError } from '../src/messages/announceError';
+import { serializeAnnounceCancel } from '../src/messages/announceCancel';
+import { serializeUnannounce } from '../src/messages/unannounce';
+import { serializeTrackStatusRequest } from '../src/messages/trackStatusRequest';
+import { serializeTrackStatus } from '../src/messages/trackStatus';
+import { ANNOUNCE_ERROR_REASON, TRACK_STATUS_CODE } from '../src/constants';
 
 describe('control messages announce', () => {
   test('serializeAnnounce', () => {

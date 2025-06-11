@@ -1,8 +1,8 @@
-import { serializeExtensionHeader, deserializeExtensionHeader, serializeExtensionHeaders } from './dataStreams/extensionHeader';
-import { serializeDatagram, deserializeDatagramHeader } from './dataStreams/datagram';
-import { serializeSubgroupHeader, deserializeSubgroupHeader } from './dataStreams/subgroupHeader';
-import { serializeSubgroupObject, deserializeSubgroupObjectHeader } from './dataStreams/subgroupObject';
-import { STREAM, DATAGRAM, OBJECT_STATUS } from './constants';
+import { serializeExtensionHeader, deserializeExtensionHeader, serializeExtensionHeaders } from '../src/dataStreams/extensionHeader';
+import { serializeDatagram, deserializeDatagramHeader } from '../src/dataStreams/datagram';
+import { serializeSubgroupHeader, deserializeSubgroupHeader } from '../src/dataStreams/subgroupHeader';
+import { serializeSubgroupObject, deserializeSubgroupObjectHeader } from '../src/dataStreams/subgroupObject';
+import { STREAM, DATAGRAM, OBJECT_STATUS } from '../src/constants';
 
 const streamFromArray = (arr: Uint8Array) => new ReadableStream<Uint8Array>({
   start(controller) {

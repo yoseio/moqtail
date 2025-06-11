@@ -1,8 +1,8 @@
-import { serializeFetch } from './messages/fetch';
-import { serializeFetchOk } from './messages/fetchOk';
-import { serializeFetchError } from './messages/fetchError';
-import { serializeFetchCancel } from './messages/fetchCancel';
-import { GROUP_ORDER, FETCH_TYPE, FETCH_ERROR_REASON } from './constants';
+import { serializeFetch } from '../src/messages/fetch';
+import { serializeFetchOk } from '../src/messages/fetchOk';
+import { serializeFetchError } from '../src/messages/fetchError';
+import { serializeFetchCancel } from '../src/messages/fetchCancel';
+import { GROUP_ORDER, FETCH_TYPE, FETCH_ERROR_REASON } from '../src/constants';
 
 describe('control messages fetch', () => {
   test('serializeFetch', () => {

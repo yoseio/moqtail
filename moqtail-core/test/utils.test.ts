@@ -1,7 +1,7 @@
-import { readStream } from './utils/stream';
-import { serializeParams, deserializeParams, Parameter } from './utils/parameter';
-import { deserializeNamespace } from './utils/namespace';
-import { CONTROL_MESSAGE, PARAMETER } from './constants';
+import { readStream } from '../src/utils/stream';
+import { serializeParams, deserializeParams, Parameter } from '../src/utils/parameter';
+import { deserializeNamespace } from '../src/utils/namespace';
+import { CONTROL_MESSAGE, PARAMETER } from '../src/constants';
 
 const streamFromArray = (arr: Uint8Array) =>
   new ReadableStream<Uint8Array>({

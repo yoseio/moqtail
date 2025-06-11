@@ -2,7 +2,7 @@
 export default {
   testEnvironment: "node",
   transform: {
-    "^.+\\.tsx?$": ["ts-jest", {}],
+    "^.+\\.tsx?$": ["ts-jest", {"tsconfig":"tsconfig.test.json"}],
   },
   moduleNameMapper: {
     "^bytes$": "<rootDir>/../bytes/src/index.ts"

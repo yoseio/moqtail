@@ -1,9 +1,9 @@
-import { serializeClientSetup } from './messages/clientSetup';
-import { serializeServerSetup } from './messages/serverSetup';
-import { serializeGoaway } from './messages/goaway';
-import { serializeMaxSubscribeId } from './messages/maxSubscribeId';
-import { serializeSubscribesBlocked } from './messages/subscribesBlocked';
-import { MOQT_DRAFT09_VERSION } from './constants';
+import { serializeClientSetup } from '../src/messages/clientSetup';
+import { serializeServerSetup } from '../src/messages/serverSetup';
+import { serializeGoaway } from '../src/messages/goaway';
+import { serializeMaxSubscribeId } from '../src/messages/maxSubscribeId';
+import { serializeSubscribesBlocked } from '../src/messages/subscribesBlocked';
+import { MOQT_DRAFT09_VERSION } from '../src/constants';
 
 describe('control messages setup', () => {
   test('serializeClientSetup', () => {

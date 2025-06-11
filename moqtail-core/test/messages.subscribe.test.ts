@@ -1,14 +1,14 @@
-import { serializeSubscribe } from './messages/subscribe';
-import { serializeUnsubscribe } from './messages/unsubscribe';
-import { serializeSubscribeOk } from './messages/subscribeOk';
-import { serializeSubscribeError } from './messages/subscribeError';
-import { serializeSubscribeDone } from './messages/subscribeDone';
-import { serializeSubscribeUpdate } from './messages/subscribeUpdate';
-import { serializeSubscribeAnnounces } from './messages/subscribeAnnounces';
-import { serializeSubscribeAnnouncesOk } from './messages/subscribeAnnouncesOk';
-import { serializeSubscribeAnnouncesError } from './messages/subscribeAnnouncesError';
-import { serializeUnsubscribeAnnounces } from './messages/unsubscribeAnnounces';
-import { GROUP_ORDER, SUBSCRIBE_FILTER, CONTENT_EXISTS, SUBSCRIBE_ERROR_REASON, SUBSCRIBE_DONE_REASON, SUBSCRIBE_ANNOUNCES_ERROR_REASON } from './constants';
+import { serializeSubscribe } from '../src/messages/subscribe';
+import { serializeUnsubscribe } from '../src/messages/unsubscribe';
+import { serializeSubscribeOk } from '../src/messages/subscribeOk';
+import { serializeSubscribeError } from '../src/messages/subscribeError';
+import { serializeSubscribeDone } from '../src/messages/subscribeDone';
+import { serializeSubscribeUpdate } from '../src/messages/subscribeUpdate';
+import { serializeSubscribeAnnounces } from '../src/messages/subscribeAnnounces';
+import { serializeSubscribeAnnouncesOk } from '../src/messages/subscribeAnnouncesOk';
+import { serializeSubscribeAnnouncesError } from '../src/messages/subscribeAnnouncesError';
+import { serializeUnsubscribeAnnounces } from '../src/messages/unsubscribeAnnounces';
+import { GROUP_ORDER, SUBSCRIBE_FILTER, CONTENT_EXISTS, SUBSCRIBE_ERROR_REASON, SUBSCRIBE_DONE_REASON, SUBSCRIBE_ANNOUNCES_ERROR_REASON } from '../src/constants';
 
 describe('control messages subscribe', () => {
   test('serializeSubscribe', () => {

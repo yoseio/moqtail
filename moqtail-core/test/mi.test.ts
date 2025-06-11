@@ -1,7 +1,7 @@
-import { H264AVCCMetadataToExtensionHeader, deserializeH264AVCCMetadata, H264AVCCExtraDataToExtensionHeader } from './packagers/mi/h264AVCC';
-import { opusBitstreamToExtensionHeader, deserializeOpusBitstream } from './packagers/mi/opus';
-import { AACLCBitstreamToExtensionHeader, deserializeAACLCBitstream } from './packagers/mi/AACLC';
-import { serializeUtf8Header, deserializeUtf8Header } from './packagers/mi/utf8';
+import { H264AVCCMetadataToExtensionHeader, deserializeH264AVCCMetadata, H264AVCCExtraDataToExtensionHeader } from '../src/packagers/mi/h264AVCC';
+import { opusBitstreamToExtensionHeader, deserializeOpusBitstream } from '../src/packagers/mi/opus';
+import { AACLCBitstreamToExtensionHeader, deserializeAACLCBitstream } from '../src/packagers/mi/AACLC';
+import { serializeUtf8Header, deserializeUtf8Header } from '../src/packagers/mi/utf8';
 
 const streamFromArray = (arr: Uint8Array) =>
   new ReadableStream<Uint8Array>({ start(c){ c.enqueue(arr); c.close(); }, type: 'bytes' } as any);

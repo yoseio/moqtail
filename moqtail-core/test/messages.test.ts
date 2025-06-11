@@ -1,7 +1,7 @@
-import { serializeSubscribe, deserializeSubscribe } from './messages/subscribe';
-import { serializeFetch, deserializeFetch } from './messages/fetch';
-import { GROUP_ORDER, SUBSCRIBE_FILTER, FETCH_TYPE, CONTROL_MESSAGE } from './constants';
-import { serializeParams } from './utils/parameter';
+import { serializeSubscribe, deserializeSubscribe } from '../src/messages/subscribe';
+import { serializeFetch, deserializeFetch } from '../src/messages/fetch';
+import { GROUP_ORDER, SUBSCRIBE_FILTER, FETCH_TYPE, CONTROL_MESSAGE } from '../src/constants';
+import { serializeParams } from '../src/utils/parameter';
 
 const streamFromArray = (arr: Uint8Array) =>
   new ReadableStream<Uint8Array>({ start(c){ c.enqueue(arr); c.close(); }, type: 'bytes' } as any);
