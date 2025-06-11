@@ -1,5 +1,5 @@
 import { Mogger } from '$lib/utils/mogger';
-import { CONTROL_MESSAGE, DATAGRAM, deserializeAnnounceError, deserializeAnnounceOk, deserializeDatagramHeader, deserializeDatagramType, deserializeEncodedChunk, deserializeServerSetup, deserializeSubgroupHeader, deserializeSubgroupObjectHeader, deserializeSubscribe, deserializeSubscribeDone, deserializeSubscribeError, deserializeSubscribeOk, deserializeUnsubscribe, OBJECT_STATUS, readControlMessageType, STREAM } from 'moqtail';
+import { CONTROL_MESSAGE, DATAGRAM, deserializeAnnounceError, deserializeAnnounceOk, deserializeDatagramHeader, deserializeDatagramType, deserializeEncodedChunk, deserializeServerSetup, deserializeSubgroupHeader, deserializeSubgroupObjectHeader, deserializeSubscribe, deserializeSubscribeDone, deserializeSubscribeError, deserializeSubscribeOk, deserializeUnsubscribe, OBJECT_STATUS, readControlMessageType, STREAM, readStream } from 'moqtail';
 
 export const COMMUNICATOR_STATE = {
   STOPPED: 0b0,
@@ -48,6 +48,7 @@ class MoQTCommunicator {
     this.datagramWriter = this.wt.datagrams.writable;
     this.datagramReader = this.wt.datagrams.readable.getReader();
     this.state = this.state | COMMUNICATOR_STATE.RUNNING;
+    postMessage({ type: 'datagramMaxSize', data: this.wt.datagrams.maxDatagramSize });
     Mogger.debug('Connection established');
   }
   async sendControlMessage(data: Uint8Array) {
@@ -115,7 +116,7 @@ class MoQTCommunicator {
     this.wt.close();
     Mogger.debug('Session closed');
   }
-  async readSubgroupObject(reader: ReadableStream, trackAlias: number, subgroupId: number) {
+  async readSubgroupObject(reader: ReadableStream, trackAlias: number, subgroupId: number, groupId: number) {
     try {
       let done = false;
       while (!done) {
@@ -123,7 +124,7 @@ class MoQTCommunicator {
         done = header.objectStatus && (header.objectStatus === OBJECT_STATUS.END_OF_GROUP || header.objectStatus === OBJECT_STATUS.END_OF_TRACK || header.objectStatus === OBJECT_STATUS.END_OF_TRACK_AND_GROUP);
         if (!done) {
           const encodedChunkInit = await deserializeEncodedChunk(reader);
-          postMessage({ type: 'subgroupObject', data: { header, encodedChunkInit, trackAlias, subgroupId } });
+          postMessage({ type: 'subgroupObject', data: { header, encodedChunkInit, trackAlias, subgroupId, groupId } });
         } else {
           postMessage({ type: 'subgroupObjectStatus', data: { header, subgroupId } });
         }
@@ -140,8 +141,8 @@ class MoQTCommunicator {
     const header = await deserializeDatagramHeader(reader);
     // done = type === DATAGRAM.OBJECT_DATAGRAM_STATUS;
     if (type === DATAGRAM.OBJECT_DATAGRAM) {
-      const encodedChunkInit = await deserializeEncodedChunk(reader);
-      postMessage({ type: 'datagramObject', data: { header, encodedChunkInit } });
+      const payload = await readStream(reader, 1024);
+      postMessage({ type: 'datagramObject', data: { header, payload } }, [payload.buffer]);
     } else {
       postMessage({ type: 'datagramObjectStatus', data: { header } });
     }
@@ -201,7 +202,7 @@ class MoQTCommunicator {
       case STREAM.SUBGROUP_HEADER:
         const subgroupHeader = await deserializeSubgroupHeader(readableStream);
         postMessage({ type: `stream-${streamType}`, data: subgroupHeader });
-        this.readSubgroupObject(readableStream, subgroupHeader.trackAlias, subgroupHeader.subgroupId);
+        this.readSubgroupObject(readableStream, subgroupHeader.trackAlias, subgroupHeader.subgroupId, subgroupHeader.groupId);
         break;
       }
       reader.releaseLock();

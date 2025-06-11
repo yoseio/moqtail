@@ -1,6 +1,6 @@
 // serializer/deserializer for Low Overhead Container (https://datatracker.ietf.org/doc/draft-mzanaty-moq-loc/)
 import type { ExtensionHeader } from "../dataStreams/extensionHeader";
-import { buffRead, concatBuffer, serializeQuicVarInt, stringToVarBytes, varBytesToString, deserializeQuicVarInt, varBytesToStringFromArray, deserializeQuicVarIntFromArray } from "../utils/bytes"
+import { buffRead, buffReadFromArray, concatBuffer, serializeQuicVarInt, stringToVarBytes, varBytesToString, deserializeQuicVarInt, varBytesToStringFromArray, deserializeQuicVarIntFromArray } from "../utils/bytes"
 
 export const serializeEncodedChunk = (obj: EncodedVideoChunk | EncodedAudioChunk): Uint8Array => {
   const typeBytes = stringToVarBytes(obj.type);
@@ -21,12 +21,33 @@ export const deserializeEncodedChunk = async (reader: ReadableStream): Promise<E
   return { type, timestamp, duration, data };
 }
 
+export const deserializeEncodedChunkFromArray = (
+  data: Uint8Array
+): EncodedVideoChunkInit | EncodedAudioChunkInit => {
+  let offset = 0;
+  let result: { value: any; byteLength: number } = varBytesToStringFromArray(data, offset);
+  const type = result.value as 'delta' | 'key';
+  offset += result.byteLength;
+  result = deserializeQuicVarIntFromArray(data, offset);
+  const timestamp = result.value;
+  offset += result.byteLength;
+  result = deserializeQuicVarIntFromArray(data, offset);
+  const duration = result.value;
+  offset += result.byteLength;
+  result = deserializeQuicVarIntFromArray(data, offset);
+  const byteLength = result.value;
+  offset += result.byteLength;
+  const payload = buffReadFromArray(data, byteLength, offset);
+  return { type, timestamp, duration, data: payload };
+};
+
 export const LOC_EXTENSION_HEADER_TYPE = {
   CAPTURE_TIMESTAMP: 2,
   VIDEO_CONFIG: 15, // 16
   AUDIO_CONFIG: 17,
   VIDEO_FRAME_MARKING: 4,
-  AUDIO_LEVEL: 6
+  AUDIO_LEVEL: 6,
+  DATAGRAM_FRAGMENT_INFO: 31
 } as const;
 
 export const videoDecoderConfigToExtensionHeader = (config: VideoDecoderConfig): ExtensionHeader => {
@@ -126,3 +147,25 @@ export const deserializeCaptureTimestamp = (buff: Uint8Array): number => {
   const timestamp = deserializeQuicVarIntFromArray(buff, 0);
   return timestamp.value;
 }
+
+export const datagramFragmentInfoToExtensionHeader = (
+  fragmentIndex: number,
+  totalFragments: number
+): ExtensionHeader => {
+  const indexBytes = serializeQuicVarInt(fragmentIndex);
+  const totalBytes = serializeQuicVarInt(totalFragments);
+  const data = concatBuffer([indexBytes, totalBytes]);
+  return { id: LOC_EXTENSION_HEADER_TYPE.DATAGRAM_FRAGMENT_INFO, value: data };
+};
+
+export const deserializeDatagramFragmentInfo = (
+  buff: Uint8Array
+): { fragmentIndex: number; totalFragments: number } => {
+  let offset = 0;
+  let result = deserializeQuicVarIntFromArray(buff, offset);
+  const fragmentIndex = result.value;
+  offset += result.byteLength;
+  result = deserializeQuicVarIntFromArray(buff, offset);
+  const totalFragments = result.value;
+  return { fragmentIndex, totalFragments };
+};

@@ -6,8 +6,9 @@ import {
   serializeUnannounce, SUBSCRIBE_ERROR_REASON, SUBSCRIBE_FILTER, serializeSubgroupObject, serializeEncodedChunk,
   videoDecoderConfigToExtensionHeader, OBJECT_STATUS, serializeDatagram, audioDecoderConfigToExtensionHeader,
   serializeSubscribeDone, SUBSCRIBE_DONE_REASON,
+  datagramFragmentInfoToExtensionHeader, serializeExtensionHeader,
 } from 'moqtail';
-import type { ServerSetup, AnnounceOk, Subscribe, Unsubscribe, ExtensionHeader } from 'moqtail';
+import type { ServerSetup, AnnounceOk, Subscribe, Unsubscribe, ExtensionHeader, Datagram } from 'moqtail';
 // @ts-ignore
 import CommunicatorWorker from './threads/communicator.worker?worker';
 // @ts-ignore
@@ -25,6 +26,7 @@ export class Publisher {
   private supportedVersions = [MOQT_DRAFT10_VERSION];
   private selectedVersion = 0;
   private maxSubscribeId = 1000;
+  private datagramMaxSize = Infinity;
   constructor(props: PublisherInitProps) {
     this.communicator = new CommunicatorWorker();
     this.communicator.onmessage = this.communicatorMessageHandler.bind(this);
@@ -143,6 +145,31 @@ export class Publisher {
     targetTrack.streamCount++;
   }
 
+  private sendDatagramWithFragmentation(datagram: Datagram) {
+    const baseSize = serializeDatagram({ ...datagram, payload: new Uint8Array(0) }).byteLength;
+    if (baseSize + datagram.payload.byteLength <= this.datagramMaxSize) {
+      const datagramBytes = serializeDatagram(datagram);
+      this.communicator.postMessage({ type: 'sendDatagram', data: datagramBytes });
+      return;
+    }
+    const sampleHeader = datagramFragmentInfoToExtensionHeader(0, 0);
+    const fragHeaderSize = serializeExtensionHeader(sampleHeader).byteLength;
+    const maxPayload = this.datagramMaxSize - baseSize - fragHeaderSize;
+    const totalFragments = Math.ceil(datagram.payload.byteLength / maxPayload);
+    let offset = 0;
+    for (let i = 0; i < totalFragments; i++) {
+      const fragmentPayload = datagram.payload.slice(offset, offset + maxPayload);
+      offset += maxPayload;
+      const header = datagramFragmentInfoToExtensionHeader(i, totalFragments);
+      const d = serializeDatagram({
+        ...datagram,
+        extensionHeaders: [...datagram.extensionHeaders, header],
+        payload: fragmentPayload,
+      });
+      this.communicator.postMessage({ type: 'sendDatagram', data: d });
+    }
+  }
+
   // Common method to prepare video chunk data
   private prepareVideoChunkData(
     videoChunkMsg: any,
@@ -184,17 +211,16 @@ export class Publisher {
     // Send to interested subscribers
     const interestedAliases = this.getAliasOfSubscribersWithLatestObjectFilter(targetTrack);
     for (const alias of interestedAliases) {
-      const datagramObject = serializeDatagram({
+      const datagram: Datagram = {
         trackAlias: alias,
         groupId: targetTrack.largestGroupId,
         objectId: targetTrack.largestObjectId,
         publisherPriority: this.getPublisherPriority(targetTrack.type),
         extensionHeaders,
         payload: videoChunkBytes,
-      });
-      Mogger.debug(`Sending datagram object for track ${targetTrack.name} with groupId ${targetTrack.largestGroupId} and objectId ${targetTrack.largestObjectId}`);
+      };
       Mogger.debug(`Datagram payload size: ${videoChunkBytes.byteLength} bytes`);
-      this.communicator.postMessage({ type: 'sendDatagram', data: datagramObject });
+      this.sendDatagramWithFragmentation(datagram);
     }
   }
 
@@ -240,10 +266,59 @@ export class Publisher {
     }
   }
 
+  private sendKeyFrameStream(videoChunkMsg: MoqtailVideoChunkMessage, targetTrack: Track) {
+    if (videoChunkMsg.metadata.frameType === 'key') {
+      // Start a new group and send key frame over stream
+      const subgroupId = (videoChunkMsg.metadata.temporalLayerId ?? 0) + ((targetTrack.largestGroupId ?? -1) + 1);
+      targetTrack.largestGroupId = (targetTrack.largestGroupId ?? -1) + 1;
+      targetTrack.largestObjectId = undefined;
+      targetTrack.groups.push({ groupId: targetTrack.largestGroupId, publishedSubgroupIds: [subgroupId] });
+      this.createSubgroupStream(subgroupId, targetTrack);
+
+      targetTrack.largestObjectId !== undefined ? targetTrack.largestObjectId++ : targetTrack.largestObjectId = 0;
+      const { videoChunkBytes, extensionHeaders } = this.prepareVideoChunkData(videoChunkMsg, targetTrack);
+
+      const subgroupObject = serializeSubgroupObject({
+        objectId: targetTrack.largestObjectId,
+        extensionHeaders,
+        payload: videoChunkBytes
+      });
+      this.communicator.postMessage({ type: 'sendSubgroupObject', data: { subgroupObject, subgroupId } });
+    } else {
+      // Delta frames are sent as datagram objects within the current group
+      if (targetTrack.largestGroupId === undefined) return; // drop until first key frame
+      targetTrack.largestObjectId !== undefined ? targetTrack.largestObjectId++ : targetTrack.largestObjectId = 0;
+      const { videoChunkBytes, extensionHeaders } = this.prepareVideoChunkData(videoChunkMsg, targetTrack);
+      const aliases = this.getAliasOfSubscribersWithLatestObjectFilter(targetTrack);
+      for (const alias of aliases) {
+        const datagram: Datagram = {
+          trackAlias: alias,
+          groupId: targetTrack.largestGroupId,
+          objectId: targetTrack.largestObjectId,
+          publisherPriority: this.getPublisherPriority(targetTrack.type),
+          extensionHeaders,
+          payload: videoChunkBytes
+        };
+        this.sendDatagramWithFragmentation(datagram);
+      }
+    }
+
+    // Send END_OF_GROUP if this is the last object of the group
+    if (targetTrack.largestObjectId !== undefined &&
+        targetTrack.encoderConfig &&
+        targetTrack.largestObjectId + 1 === targetTrack.encoderConfig.keyFrameDuration) {
+      this.sendEndOfGroup(targetTrack.largestGroupId, targetTrack.largestObjectId + 1);
+    }
+  }
+
   // ------- Message Handlers for workers -------
   private communicatorMessageHandler(message: MessageEvent) {
     let msg;
     switch (message.data.type) {
+    case 'datagramMaxSize':
+      this.datagramMaxSize = message.data.data as number;
+      Mogger.info(`Datagram max size set to ${this.datagramMaxSize}`);
+      break;
     case `ctrl-${CONTROL_MESSAGE.SERVER_SETUP}`:
       msg = message.data.data as ServerSetup;
       if (!this.supportedVersions.includes(msg.selectedVersion)) {
@@ -320,9 +395,11 @@ export class Publisher {
         return;
       }
 
-      // Check if we should send as datagram or stream
+      // Decide how to forward the object
       if (targetTrack.objectForwardingPrefereces === 'Datagram') {
         this.sendVideoAsDatagram(videoChunkMsg, targetTrack);
+      } else if (targetTrack.objectForwardingPrefereces === 'KeyFrameStream') {
+        this.sendKeyFrameStream(videoChunkMsg, targetTrack);
       } else {
         this.sendVideoAsStream(videoChunkMsg, targetTrack);
       }
@@ -350,15 +427,15 @@ export class Publisher {
       const audioChunkBytes = serializeEncodedChunk(audioChunkMsg.chunk);
       const interestedAliases = this.getAliasOfSubscribersWithLatestObjectFilter(audioTrack);
       for (const alias of interestedAliases) {
-        const datagramObject = serializeDatagram({
+        const datagram: Datagram = {
           trackAlias: alias,
           groupId: audioTrack.largestGroupId,
           objectId: audioTrack.largestObjectId,
           publisherPriority: this.getPublisherPriority(audioTrack.type),
           extensionHeaders: audioChunkMsg.metadata.decoderConfig ? [audioDecoderConfigToExtensionHeader(audioChunkMsg.metadata.decoderConfig)]: [],
           payload: audioChunkBytes,
-        });
-        this.communicator.postMessage({ type: 'sendDatagram', data: datagramObject });
+        };
+        this.sendDatagramWithFragmentation(datagram);
       }
       audioTrack.largestObjectId++;
       break;

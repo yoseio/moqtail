@@ -1,7 +1,21 @@
 import { Mogger } from './utils/mogger';
-import { CONTROL_MESSAGE, deserializeVideoDecoderConfig, LOC_EXTENSION_HEADER_TYPE, MOQT_DRAFT08_VERSION, MOQT_DRAFT09_VERSION, MOQT_DRAFT10_VERSION, serializeClientSetup, serializeSubscribe, STREAM, deserializeAudioDecoderConfig, serializeUnsubscribe, OBJECT_STATUS } from 'moqtail';
+import { CONTROL_MESSAGE, deserializeVideoDecoderConfig, LOC_EXTENSION_HEADER_TYPE, MOQT_DRAFT08_VERSION, MOQT_DRAFT09_VERSION, MOQT_DRAFT10_VERSION, serializeClientSetup, serializeSubscribe, STREAM, deserializeAudioDecoderConfig, serializeUnsubscribe, OBJECT_STATUS, deserializeDatagramFragmentInfo, deserializeEncodedChunkFromArray } from 'moqtail';
 import type { Subscribe, ServerSetup, SubscribeOk, SubgroupHeader, SubgroupObject, SubscribeError, Datagram } from 'moqtail';
 import { moqVideoTransmissionLatencyStore, ringStats } from './utils/store';
+
+import { DatagramBuffer, BufferedDatagram } from "./utils/datagramBuffer";
+
+// TODO: remove this
+const concatUint8Array = (arr: Uint8Array[]) => {
+  const total = arr.reduce((acc, v) => acc + v.byteLength, 0);
+  const ret = new Uint8Array(total);
+  let offset = 0;
+  for (const a of arr) {
+    ret.set(a, offset);
+    offset += a.byteLength;
+  }
+  return ret;
+};
 
 // @ts-ignore
 import CommunicatorWorker from './threads/communicator.worker?worker';
@@ -20,6 +34,11 @@ export class Subscriber {
   private subscription: RegisteredSubscription[] = [];
   private videoWaitingForKeyFrame = true;
   private audioWaitingForKeyFrame = true;
+  private currentVideoGroupId: number | null = null;
+  private subgroupToGroup: Map<number, number> = new Map();
+  private datagramBuffer = new DatagramBuffer();
+  private datagramFragments: Map<string, { total: number; payloads: Uint8Array[]; header: Datagram }> = new Map();
+  private videoTimestampOffset: number | null = null;
   private audioNode: AudioWorkletNode;
   private communicator: Worker;
   private videoRenderer: Worker = new VideoRendererWorker();
@@ -134,14 +153,27 @@ export class Subscriber {
       const subgroupHeader: SubgroupHeader = message.data.data;
       sub = this.getSubscriptionByTrackAlias(subgroupHeader.trackAlias);
       Mogger.info(`Subgroup stream with trackAlias:${subgroupHeader.trackAlias} received`);
+      if (sub.type === 'video') {
+        this.subgroupToGroup.set(subgroupHeader.subgroupId, subgroupHeader.groupId);
+        if (this.currentVideoGroupId === null || this.currentVideoGroupId !== subgroupHeader.groupId) {
+          this.videoWaitingForKeyFrame = true;
+        }
+      }
       break;
     case 'subgroupObject':
       const encodedChunkInit = message.data.data.encodedChunkInit as EncodedVideoChunkInit;
+      const subgroupId = message.data.data.subgroupId as number;
+      const groupId = this.subgroupToGroup.get(subgroupId);
       if (this.videoWaitingForKeyFrame && encodedChunkInit.type !== 'key') {
         Mogger.debug('Waiting for video key frame...');
         break;
       }
       this.videoWaitingForKeyFrame = false;
+      this.currentVideoGroupId = groupId ?? null;
+      if (this.videoTimestampOffset === null) {
+        this.videoTimestampOffset = performance.now() - (encodedChunkInit.timestamp ?? 0) / 1000;
+        this.datagramBuffer.setTimestampOffset(this.videoTimestampOffset);
+      }
       const videoTrackAlias: number = message.data.data.trackAlias;
       sub = this.subscription.find(s => s.subscribe.trackAlias === videoTrackAlias);
       const header = message.data.data.header as SubgroupObject;
@@ -157,32 +189,56 @@ export class Subscriber {
       });
       const chunk = new EncodedVideoChunk(encodedChunkInit);
       sub.decoder.postMessage({ type: 'decode', data: { encodedVideoChunk: chunk, config: videoDecoderConfig } });
+
+      if (groupId !== undefined) {
+        this.datagramBuffer.releaseGroup(groupId);
+        const ready = this.datagramBuffer.dequeueReady(performance.now());
+        this.decodeDatagramQueue(ready, sub);
+      }
       break;
     case 'subgroupObjectStatus':
       this.communicator.postMessage({ type: 'closeStream', data: { subgroupId: message.data.data.subgroupId } });
       break;
     case 'datagramObject':
-      const datagramObject = message.data.data as { header: Datagram, encodedChunkInit: EncodedAudioChunkInit | EncodedVideoChunkInit };
-      
+      const datagramObject = message.data.data as { header: Datagram, payload: Uint8Array, encodedChunkInit: EncodedVideoChunkInit | EncodedAudioChunkInit };
+
       sub = this.getSubscriptionByTrackAlias(datagramObject.header.trackAlias);
-      
-      if (sub.type === 'video') {
-        Mogger.debug(`Datagram video object with groupId ${datagramObject.header.groupId} and objectId ${datagramObject.header.objectId} received`);
-        if (this.videoWaitingForKeyFrame && datagramObject.encodedChunkInit.type !== 'key') {
-          Mogger.debug('Waiting for video key frame...');
+
+      const fragIndex = datagramObject.header.extensionHeaders.findIndex(h => h.id === LOC_EXTENSION_HEADER_TYPE.DATAGRAM_FRAGMENT_INFO);
+      if (fragIndex !== -1) {
+        const info = deserializeDatagramFragmentInfo(datagramObject.header.extensionHeaders[fragIndex].value as Uint8Array);
+        datagramObject.header.extensionHeaders.splice(fragIndex, 1);
+        const key = `${datagramObject.header.trackAlias}-${datagramObject.header.groupId}-${datagramObject.header.objectId}`;
+        let entry = this.datagramFragments.get(key);
+        if (!entry) {
+          entry = { total: info.totalFragments, payloads: new Array(info.totalFragments), header: datagramObject.header };
+          this.datagramFragments.set(key, entry);
+        }
+        entry.payloads[info.fragmentIndex] = datagramObject.payload;
+        if (entry.payloads.filter(p => p).length === entry.total) {
+          const payload = concatUint8Array(entry.payloads as Uint8Array[]);
+          const encodedChunkInit = deserializeEncodedChunkFromArray(payload);
+          Mogger.debug(`Datagram object id ${datagramObject.header.objectId} received with all fragments`);
+          const combined: BufferedDatagram = { header: entry.header, encodedChunkInit };
+          this.datagramFragments.delete(key);
+          datagramObject.header = combined.header;
+          datagramObject.encodedChunkInit = encodedChunkInit;
+        } else {
           break;
         }
-        this.videoWaitingForKeyFrame = false;
-        
-        let videoDecoderConfig = null;
-        datagramObject.header.extensionHeaders.map(h => {
-          if (h.id === LOC_EXTENSION_HEADER_TYPE.VIDEO_CONFIG) {
-            videoDecoderConfig = deserializeVideoDecoderConfig(h.value as Uint8Array);
-          }
-        });
-        
-        const videoChunk = new EncodedVideoChunk(datagramObject.encodedChunkInit as EncodedVideoChunkInit);
-        sub.decoder.postMessage({ type: 'decode', data: { encodedVideoChunk: videoChunk, config: videoDecoderConfig } });
+      } else {
+        datagramObject.encodedChunkInit = deserializeEncodedChunkFromArray(datagramObject.payload);
+      }
+      
+      if (sub.type === 'video') {
+        const buffered: BufferedDatagram = { header: datagramObject.header, encodedChunkInit: datagramObject.encodedChunkInit };
+        this.datagramBuffer.enqueue(buffered);
+
+        if (!this.videoWaitingForKeyFrame) {
+          this.datagramBuffer.releaseGroup(datagramObject.header.groupId);
+          const ready = this.datagramBuffer.dequeueReady(performance.now());
+          this.decodeDatagramQueue(ready, sub);
+        }
       } else {
         if (this.audioWaitingForKeyFrame && datagramObject.encodedChunkInit.type !== 'key') {
           Mogger.debug('Waiting for audio key frame...');
@@ -229,12 +285,25 @@ export class Subscriber {
   audioProcessorMessageHandler(message: MessageEvent) {
     switch (message.data.type) {
     case 'stats':
-      const stats = message.data.stats as { capacity: number, readPos: number, writePos: number };
+      const stats = message.data.stats as RingBufferStats;
       ringStats.set(stats);
       break;
     case 'error':
       Mogger.error(`Audio processor error: ${message.data.data}`);
       break;
+    }
+  }
+
+  private decodeDatagramQueue(queue: BufferedDatagram[], sub: RegisteredSubscription) {
+    for (const d of queue) {
+      let vConfig: VideoDecoderConfig | null = null;
+      d.header.extensionHeaders.map(h => {
+        if (h.id === LOC_EXTENSION_HEADER_TYPE.VIDEO_CONFIG) {
+          vConfig = deserializeVideoDecoderConfig(h.value as Uint8Array);
+        }
+      });
+      const vChunk = new EncodedVideoChunk(d.encodedChunkInit as EncodedVideoChunkInit);
+      sub.decoder.postMessage({ type: 'decode', data: { encodedVideoChunk: vChunk, config: vConfig } });
     }
   }
 }
