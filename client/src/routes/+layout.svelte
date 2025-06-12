@@ -33,5 +33,8 @@
     flex-direction: column;
     justify-content: center;
     align-items: center;
+    padding: 1rem 0;
+    background-color: #e5e5e5;
+    font-size: 0.9rem;
   }
 </style>
