@@ -104,6 +104,7 @@
     Mogger.info(`Streaming ${vt.label}`);
     publisher.startStream({ track: videoTrack, mediaTrack: vt });
     const at = stream.getAudioTracks()[0];
+    console.log(at);
     Mogger.info(`Streaming ${at.label}`);
     publisher.startStream({ track: audioTrack, mediaTrack: at });
   };
@@ -116,7 +117,7 @@
   };
 
   onMount(async () => {
-    stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true }).catch(() => {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { width: 1920, height: 1080 }, audio: true }).catch(() => {
       throw new Error('Error accessing media devices:');
     });
     camera.inputDevices = (await navigator.mediaDevices.enumerateDevices()).filter(
@@ -129,7 +130,7 @@
 <div class="pub">
   <h3>Publisher (Webcam capture)</h3>
   <div class="pub-video">
-    <video autoplay muted playsinline bind:this={liveEl} />
+    <video autoplay muted playsinline bind:this={liveEl}></video>
     {#if camera.inputDevices}
       <select on:change={changeDevice}>
         {#each camera.inputDevices as device}
@@ -169,6 +170,7 @@
       <select name="pub-track-video-encoder-option" bind:value={videoEncoderChoice}>
         <option value="h264">H.264 (moq-mi)</option>
         <option value="vp8">VP8</option>
+      </select>
     </div>
   </div>
   <button on:click={async () => await connectToServer()}>Connect to server</button>
