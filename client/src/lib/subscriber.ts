@@ -265,8 +265,9 @@ export class Subscriber {
         const height = vfData.frame.displayHeight || vfData.frame.codedHeight;
         this.videoRenderer.postMessage({ type: 'resize', data: { width, height } });
         if (this.canvasElement) {
-          this.canvasElement.width = width;
-          this.canvasElement.height = height;
+          const cssWidth = this.canvasElement.clientWidth || width;
+          const ratio = height / width;
+          this.canvasElement.style.height = `${cssWidth * ratio}px`;
         }
         this.canvasAdjusted = true;
       }

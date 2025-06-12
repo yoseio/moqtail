@@ -33,7 +33,6 @@ class MoQTVideoRenderer {
       try {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         this.ctx.drawImage(videoFrame, 0, 0, this.canvas.width, this.canvas.height);
-        videoFrame.close();
       } catch (e) {
         postMessage({ type: 'error', data: `Failed to draw frame: ${(e as Error).message}` });
       } finally {
