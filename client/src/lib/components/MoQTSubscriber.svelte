@@ -84,7 +84,7 @@
       <input type="text" name="pub-track-audio" bind:value={audioTrackName} />
     </div>
     <div>
-      <label for="pub-track-jitter">Jitter Buffer {jitterBufferSize}ms</label>
+      <!-- <label for="pub-track-jitter">Jitter Buffer {jitterBufferSize}ms</label> -->
       <!-- <input
         type="range"
         min="0"
@@ -108,9 +108,6 @@
     flex-direction: column;
     justify-content: start;
     align-items: center;
-  }
-  .track > div {
-    margin: 5px;
   }
   canvas {
     background-color: #333;

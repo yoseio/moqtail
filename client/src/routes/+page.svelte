@@ -35,7 +35,6 @@
 <style>
   .container {
     width: 100%;
-    max-width: 960px;
     margin: 0 auto;
     padding: 1rem;
     display: flex;
@@ -52,7 +51,7 @@
   .container-videos > div {
     flex: 1;
     min-width: 300px;
-    max-width: 480px;
+    max-width: 500px;
   }
 
   .relay-server {

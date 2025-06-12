@@ -199,10 +199,6 @@
     padding: 5px 10px;
   }
   .file-upload {
-    margin-top: 10px;
-  }
-  
-  .track > div {
-    margin: 5px;
+    margin: 10px 0;
   }
 </style>
