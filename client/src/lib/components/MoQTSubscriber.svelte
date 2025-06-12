@@ -68,7 +68,7 @@
 
 <div class="sub">
   <h3>Subscriber</h3>
-  <canvas bind:this={canvasEl} style="width: {canvasWidth}px; height: {canvasHeight}px" />
+  <canvas width={canvasWidth} height={canvasHeight} bind:this={canvasEl} />
   <button on:click={canvasGoFullscreen}>Go Fullscreen</button>
   <div class="track">
     <div>
