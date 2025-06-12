@@ -35,19 +35,23 @@
 <style>
   .container {
     width: 100%;
+    margin: 0 auto;
+    padding: 1rem;
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
   }
   .container-videos {
-    margin: 10px 0 0 0;
+    margin-top: 1rem;
     display: flex;
-    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 20px;
+    justify-content: center;
   }
   .container-videos > div {
-    margin: 0 10px;
-    max-width: 480px;
+    flex: 1;
+    min-width: 300px;
+    max-width: 500px;
   }
 
   .relay-server {

@@ -13,6 +13,7 @@
     width: 100%;
     display: flex;
     justify-content: center;
+    align-items: center;
   }
   div > input {
     margin-left: 5px;
