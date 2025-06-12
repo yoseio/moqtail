@@ -137,8 +137,8 @@
         {/each}
       </select>
     {/if}
-    <input type="file" accept="video/*" on:change={handleVideoUpload} />
   </div>
+  <input class="file-upload" type="file" accept="video/*" on:change={handleVideoUpload} />
   <div class="track">
     <div>
       <label for="pub-track-namespace">Track Namespace</label>
@@ -198,12 +198,8 @@
     border: none;
     padding: 5px 10px;
   }
-  .pub-video > input[type='file'] {
-    position: absolute;
-    bottom: 10px;
-    right: 10px;
-    border: none;
-    padding: 5px 10px;
+  .file-upload {
+    margin-top: 10px;
   }
   
   .track > div {

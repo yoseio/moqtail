@@ -6,6 +6,7 @@ class MoQTVideoRenderer {
     const handlers: { [key: string]: (data: any) => void } = {
       init: this.init.bind(this),
       frame: this.frame.bind(this),
+      resize: this.resize.bind(this),
     };
     const handler = handlers[data.type];
     if (!handler) {
@@ -19,6 +20,12 @@ class MoQTVideoRenderer {
     this.ctx = this.canvas.getContext('2d');
     if (!this.ctx) {
       postMessage({ type: 'error', data: 'Failed to get 2D context from OffscreenCanvas.' });
+    }
+  }
+  resize({ width, height }: { width: number; height: number }) {
+    if (this.canvas) {
+      this.canvas.width = width;
+      this.canvas.height = height;
     }
   }
   frame(videoFrame: VideoFrame) {

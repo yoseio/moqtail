@@ -31,6 +31,8 @@ export class Subscriber {
   private audioNode: AudioWorkletNode;
   private communicator: Worker;
   private videoRenderer: Worker = new VideoRendererWorker();
+  private canvasElement?: HTMLCanvasElement;
+  private canvasAdjusted = false;
   constructor(props: SubscriberInitProps) {
     this.communicator = new CommunicatorWorker();
     this.communicator.onmessage = this.communicatorMessageHandler.bind(this);
@@ -61,6 +63,7 @@ export class Subscriber {
     }
   }
   setCanvasElement(canvasElement: HTMLCanvasElement) {
+    this.canvasElement = canvasElement;
     const offscreen = canvasElement.transferControlToOffscreen();
     this.videoRenderer.postMessage({ type: 'init', data: { canvas: offscreen } }, [offscreen]);
   }
@@ -257,6 +260,16 @@ export class Subscriber {
     switch (message.data.type) {
     case 'videoFrame':
       const vfData = message.data.data as { subscribeId: number, frame: VideoFrame };
+      if (!this.canvasAdjusted) {
+        const width = vfData.frame.displayWidth || vfData.frame.codedWidth;
+        const height = vfData.frame.displayHeight || vfData.frame.codedHeight;
+        this.videoRenderer.postMessage({ type: 'resize', data: { width, height } });
+        if (this.canvasElement) {
+          this.canvasElement.width = width;
+          this.canvasElement.height = height;
+        }
+        this.canvasAdjusted = true;
+      }
       this.videoRenderer.postMessage({ type: 'frame', data: vfData.frame }, [vfData.frame]);
       break;
     case 'audioData':
