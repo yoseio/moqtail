@@ -45,6 +45,26 @@
     videoEl.srcObject = stream;
     return stream;
   };
+
+  const handleVideoUpload = async (e: Event) => {
+    const input = e.target as HTMLInputElement;
+    if (!input.files || input.files.length === 0) return;
+    const file = input.files[0];
+    const url = URL.createObjectURL(file);
+    liveEl.srcObject = null;
+    liveEl.src = url;
+    liveEl.muted = false; // ensure audio track is available
+    await liveEl.play();
+    let capture = liveEl.captureStream();
+    // Firefox sometimes omits audio tracks when the element is muted
+    if (capture.getAudioTracks().length === 0) {
+      const audio = new Audio(url);
+      audio.muted = true;
+      await audio.play();
+      capture.addTrack(audio.captureStream().getAudioTracks()[0]);
+    }
+    stream = capture;
+  };
   const connectToServer = async () => {
     if (publisherInit) return;
     publisher = new Publisher({ serverUrl: moqtServerUrl });
@@ -118,6 +138,7 @@
       </select>
     {/if}
   </div>
+  <input class="file-upload" type="file" accept="video/*" on:change={handleVideoUpload} />
   <div class="track">
     <div>
       <label for="pub-track-namespace">Track Namespace</label>
@@ -176,6 +197,9 @@
     left: 10px;
     border: none;
     padding: 5px 10px;
+  }
+  .file-upload {
+    margin-top: 10px;
   }
   
   .track > div {
