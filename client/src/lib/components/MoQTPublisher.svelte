@@ -53,7 +53,8 @@
     const url = URL.createObjectURL(file);
     liveEl.srcObject = null;
     liveEl.src = url;
-    liveEl.muted = false; // ensure audio track is available
+    // unmute temporarily to ensure the audio track is captured
+    liveEl.muted = false;
     await liveEl.play();
     let capture = liveEl.captureStream();
     // Firefox sometimes omits audio tracks when the element is muted
@@ -64,6 +65,8 @@
       capture.addTrack(audio.captureStream().getAudioTracks()[0]);
     }
     stream = capture;
+    // do not play the source audio locally
+    liveEl.muted = true;
   };
   const connectToServer = async () => {
     if (publisherInit) return;
@@ -88,12 +91,19 @@
       subscribers: [],
       groups: [],
     };
+    const at = stream.getAudioTracks()[0];
+    const settings = at.getSettings ? at.getSettings() : {};
+    const audioEncoderConfig = {
+      ...AUDIO_ENCODER_DEFAULT_CONFIG,
+      ...(settings.sampleRate ? { sampleRate: settings.sampleRate } : {}),
+      ...(settings.channelCount ? { numberOfChannels: settings.channelCount } : {}),
+    } as AudioEncoderConfig;
     const audioTrack: Track = {
       namespace,
       name: audioTrackName,
       type: 'audio',
       objectForwardingPrefereces: 'Datagram',
-      encoderConfig: { encoderConfig: AUDIO_ENCODER_DEFAULT_CONFIG, keyFrameDuration },
+      encoderConfig: { encoderConfig: audioEncoderConfig, keyFrameDuration },
       groupOrderPublisherPreference: GROUP_ORDER.ASCENDING,
       subscribers: [],
       groups: [],
@@ -103,7 +113,6 @@
     const vt = stream.getVideoTracks()[0];
     Mogger.info(`Streaming ${vt.label}`);
     publisher.startStream({ track: videoTrack, mediaTrack: vt });
-    const at = stream.getAudioTracks()[0];
     Mogger.info(`Streaming ${at.label}`);
     publisher.startStream({ track: audioTrack, mediaTrack: at });
   };
