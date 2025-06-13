@@ -11,7 +11,7 @@ This is the root directory of the moqtail projects. The core library lives under
   - Utility code and helpers for handling low-level byte operations, encoding, and decoding. Used internally by client/ and moqtail-core/.
 
 - **client/**
-  - Contains a reference client implementation and example usage of moqtail.
+  - Contains a live streaming application as a reference client implementation of MoQT.
 
 - **moqtail-core/**
   - The main core library, providing serializers/deserializers for MOQT control messages, data streams, and packagers.
