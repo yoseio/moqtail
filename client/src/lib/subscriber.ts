@@ -29,7 +29,7 @@ export class Subscriber {
   private datagramFragments: Map<string, { total: number; payloads: Uint8Array[]; header: Datagram }> = new Map();
   private videoTimestampOffset: number | null = null;
   private receivedBytes = 0;
-  private bitrateInterval: number;
+  private bitrateInterval: NodeJS.Timeout;
   private audioNode: AudioWorkletNode;
   private communicator: Worker;
   private videoRenderer: Worker = new VideoRendererWorker();
