@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { AUDIO_ENCODER_DEFAULT_CONFIG, VIDEO_ENCODER_DEFAULT_CONFIG, VIDEO_ENCODER_MOQMI_CONFIG } from '$lib/config';
+  import { AUDIO_ENCODER_DEFAULT_CONFIG, VIDEO_ENCODER_DEFAULT_CONFIG, VIDEO_ENCODER_MOQMI_CONFIG, VIDEO_RESOLUTION_OPTIONS } from '$lib/config';
   import { Publisher } from '$lib/publisher';
   import { Mogger } from '$lib/utils/mogger';
   import { GROUP_ORDER } from 'moqtail';
@@ -17,6 +17,9 @@
   };
 
   let videoEncoderChoice = 'vp8';
+
+  const videoResolutions = VIDEO_RESOLUTION_OPTIONS;
+  let videoResolutionChoice: keyof typeof videoResolutions = 'FullHD';
 
   let videoForwardingPreference: 'Subgroup' | 'Datagram' | 'KeyFrameStream' = 'Subgroup';
 
@@ -44,6 +47,18 @@
     if (!stream) throw new Error('Failed retrieving media devices');
     videoEl.srcObject = stream;
     return stream;
+  };
+
+  const changeResolution = async () => {
+    if (stream) {
+      stream.getTracks().forEach((t) => t.stop());
+    }
+    stream = await navigator.mediaDevices
+      .getUserMedia({ video: videoResolutions[videoResolutionChoice], audio: true })
+      .catch(() => {
+        throw new Error('Error accessing media devices:');
+      });
+    setLiveVideo(stream, liveEl);
   };
 
   const handleVideoUpload = async (e: Event) => {
@@ -81,12 +96,16 @@
   const startStreaming = () => {
     if (!publisherInit) return;
     publisher.announce(namespace);
+    const videoEncoderConfig = {
+      ...videoEncoders[videoEncoderChoice],
+      ...videoResolutions[videoResolutionChoice],
+    };
     const videoTrack: Track = {
       namespace,
       name: videoTrackName,
       type: 'video',
       objectForwardingPrefereces: videoForwardingPreference,
-      encoderConfig: { encoderConfig: videoEncoders[videoEncoderChoice], keyFrameDuration },
+      encoderConfig: { encoderConfig: videoEncoderConfig, keyFrameDuration },
       groupOrderPublisherPreference: GROUP_ORDER.ASCENDING,
       subscribers: [],
       groups: [],
@@ -125,13 +144,10 @@
   };
 
   onMount(async () => {
-    stream = await navigator.mediaDevices.getUserMedia({ video: { width: 1920, height: 1080 }, audio: true }).catch(() => {
-      throw new Error('Error accessing media devices:');
-    });
+    await changeResolution();
     camera.inputDevices = (await navigator.mediaDevices.enumerateDevices()).filter(
       (device) => device.kind === 'videoinput'
     );
-    setLiveVideo(stream, liveEl);
   });
 </script>
 
@@ -171,6 +187,18 @@
         <option value="Subgroup">Stream (Subgroup)</option>
         <option value="Datagram">Datagram</option>
         <option value="KeyFrameStream">Key Frame Stream</option>
+      </select>
+    </div>
+    <div>
+      <label for="pub-track-video-resolution">Video Resolution</label>
+      <select
+        name="pub-track-video-resolution"
+        bind:value={videoResolutionChoice}
+        on:change={async () => await changeResolution()}
+      >
+        <option value="HD">HD (1280x720)</option>
+        <option value="FullHD">Full HD (1920x1080)</option>
+        <option value="4K">4K (3840x2160)</option>
       </select>
     </div>
     <div>
