@@ -24,7 +24,7 @@
       <MoQtPublisher {moqtServerUrl} />
     </div>
     <div class="right">
-      <MoQTSubscriber {moqtServerUrl} canvasWidth={480} canvasHeight={360} />
+      <MoQTSubscriber {moqtServerUrl} videoWidth={480} videoHeight={360} />
     </div>
   </div>
   <div class="container-statistics">
