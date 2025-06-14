@@ -13,7 +13,6 @@ import VideoDecoderWorker from './threads/video/decoder.worker?worker';
 // @ts-ignore
 import AudioDecoderWorker from './threads/audio/decoder.worker?worker';
 // @ts-ignore
-import VideoRendererWorker from './threads/video/renderer.worker?worker';
 // @ts-ignore
 import AudioWorkletURL from './threads/audio/processor.worker?worker&url';
 
@@ -32,7 +31,6 @@ export class Subscriber {
   private bitrateInterval: NodeJS.Timeout;
   private audioNode: AudioWorkletNode;
   private communicator: Worker;
-  private videoRenderer: Worker = new VideoRendererWorker();
   private videoGenerator?: MediaStreamTrackGenerator;
   private videoWriter?: WritableStreamDefaultWriter<VideoFrame>;
   constructor(props: SubscriberInitProps) {
@@ -67,10 +65,6 @@ export class Subscriber {
       this.audioNode.disconnect();
       this.audioNode = null;
     }
-  }
-  setCanvasElement(canvasElement: HTMLCanvasElement) {
-    const offscreen = canvasElement.transferControlToOffscreen();
-    this.videoRenderer.postMessage({ type: 'init', data: { canvas: offscreen } }, [offscreen]);
   }
   setVideoElement(videoElement: HTMLVideoElement) {
     this.videoGenerator = new MediaStreamTrackGenerator({ kind: 'video' });
@@ -275,8 +269,6 @@ export class Subscriber {
       const vfData = message.data.data as { subscribeId: number, frame: VideoFrame };
       if (this.videoWriter) {
         this.videoWriter.write(vfData.frame).then(() => vfData.frame.close());
-      } else {
-        this.videoRenderer.postMessage({ type: 'frame', data: vfData.frame }, [vfData.frame]);
       }
       break;
     case 'audioData':
