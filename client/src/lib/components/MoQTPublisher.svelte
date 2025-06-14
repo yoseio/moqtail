@@ -19,7 +19,7 @@
   let videoEncoderChoice = 'vp8';
 
   const videoResolutions = VIDEO_RESOLUTION_OPTIONS;
-  let videoResolutionChoice: keyof typeof videoResolutions = 'FullHD';
+  let videoResolutionChoice: keyof typeof videoResolutions = 'HD';
 
   let videoForwardingPreference: 'Subgroup' | 'KeyFrameStream' = 'Subgroup';
 
