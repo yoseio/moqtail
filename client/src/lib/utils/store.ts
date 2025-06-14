@@ -7,3 +7,5 @@ export const ringStats = writable<RingBufferStats>({
   writePos: 0,
   readPos: 0
 });
+
+export const bitrateStore = writable<number>(0);
