@@ -7,8 +7,7 @@ export const serializeSubscribeDone = (props: { subscribeId: number, statusCode:
   const statusCodeBytes = serializeQuicVarInt(props.statusCode);
   const streamCountBytes = serializeQuicVarInt(props.streamCount);
   const reasonPhraseBytes = stringToVarBytes(props.reasonPhrase);
-  const contentExists = setUint8(0);
-  const body = concatUint8Arrays([subscribeIdBytes, statusCodeBytes, streamCountBytes, reasonPhraseBytes, contentExists]);
+  const body = concatUint8Arrays([subscribeIdBytes, statusCodeBytes, streamCountBytes, reasonPhraseBytes]);
   const length = serializeQuicVarInt(body.byteLength);
   return concatUint8Arrays([messageTypeBytes, length, body]);
 }
