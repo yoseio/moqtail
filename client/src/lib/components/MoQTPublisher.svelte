@@ -21,7 +21,7 @@
   const videoResolutions = VIDEO_RESOLUTION_OPTIONS;
   let videoResolutionChoice: keyof typeof videoResolutions = 'FullHD';
 
-  let videoForwardingPreference: 'Subgroup' | 'Datagram' | 'KeyFrameStream' = 'Subgroup';
+  let videoForwardingPreference: 'Subgroup' | 'KeyFrameStream' = 'Subgroup';
 
   export let moqtServerUrl: string;
   let namespace = ['moqtail'];
