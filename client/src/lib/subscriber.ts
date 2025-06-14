@@ -33,6 +33,8 @@ export class Subscriber {
   private audioNode: AudioWorkletNode;
   private communicator: Worker;
   private videoRenderer: Worker = new VideoRendererWorker();
+  private videoGenerator?: MediaStreamTrackGenerator;
+  private videoWriter?: WritableStreamDefaultWriter<VideoFrame>;
   constructor(props: SubscriberInitProps) {
     this.communicator = new CommunicatorWorker();
     this.communicator.onmessage = this.communicatorMessageHandler.bind(this);
@@ -69,6 +71,12 @@ export class Subscriber {
   setCanvasElement(canvasElement: HTMLCanvasElement) {
     const offscreen = canvasElement.transferControlToOffscreen();
     this.videoRenderer.postMessage({ type: 'init', data: { canvas: offscreen } }, [offscreen]);
+  }
+  setVideoElement(videoElement: HTMLVideoElement) {
+    this.videoGenerator = new MediaStreamTrackGenerator({ kind: 'video' });
+    const stream = new MediaStream([this.videoGenerator]);
+    videoElement.srcObject = stream;
+    this.videoWriter = this.videoGenerator.writable.getWriter();
   }
   async setAudioContext() {
     const audioCtx = new AudioContext({ sampleRate: 48000 }); // TODO: use the sample rate from the server
@@ -265,7 +273,11 @@ export class Subscriber {
     switch (message.data.type) {
     case 'videoFrame':
       const vfData = message.data.data as { subscribeId: number, frame: VideoFrame };
-      this.videoRenderer.postMessage({ type: 'frame', data: vfData.frame }, [vfData.frame]);
+      if (this.videoWriter) {
+        this.videoWriter.write(vfData.frame).then(() => vfData.frame.close());
+      } else {
+        this.videoRenderer.postMessage({ type: 'frame', data: vfData.frame }, [vfData.frame]);
+      }
       break;
     case 'audioData':
       const ad = message.data.data.audioData as AudioData;

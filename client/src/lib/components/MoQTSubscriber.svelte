@@ -2,15 +2,15 @@
   import { Subscriber } from '$lib/subscriber';
   import { GROUP_ORDER, type Subscribe, SUBSCRIBE_FILTER } from 'moqtail';
 
-  let canvasEl: HTMLCanvasElement;
+  let videoEl: HTMLVideoElement;
   let moqIsPlaying = false;
   let subscriberInit = false;
   let subscriber: Subscriber;
   let setupSent = false;
 
   export let moqtServerUrl;
-  export let canvasWidth = 480;
-  export let canvasHeight = 360;
+  export let videoWidth = 480;
+  export let videoHeight = 360;
   let namespace = ['moqtail'];
   let videoTrackName = 'video0';
   let audioTrackName = 'audio0';
@@ -25,7 +25,7 @@
       jitterBufferFrameSize: jitterBufferSize,
     });
     subscriberInit = true;
-    subscriber.setCanvasElement(canvasEl);
+    subscriber.setVideoElement(videoEl);
     subscriber.setAudioContext();
   };
   const setup = () => {
@@ -61,15 +61,15 @@
     subscriber.unsubscribe(audioTrackName);
     subscriber.stopAudio();
   };
-  const canvasGoFullscreen = () => {
-    canvasEl.requestFullscreen();
+  const videoGoFullscreen = () => {
+    videoEl.requestFullscreen();
   };
 </script>
 
 <div class="sub">
   <h3>Subscriber</h3>
-  <canvas width={canvasWidth} height={canvasHeight} bind:this={canvasEl} />
-  <button on:click={canvasGoFullscreen}>Go Fullscreen</button>
+  <video width={videoWidth} height={videoHeight} autoplay bind:this={videoEl}></video>
+  <button on:click={videoGoFullscreen}>Go Fullscreen</button>
   <div class="track">
     <div>
       <label for="pub-track-namespace">Track Namespace</label>
@@ -109,7 +109,7 @@
     justify-content: start;
     align-items: center;
   }
-  canvas {
+  video {
     background-color: #333;
   }
   fieldset {
