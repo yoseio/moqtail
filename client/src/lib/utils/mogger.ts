@@ -13,20 +13,13 @@ export class Mogger {
     [LogLevel.ERROR]: 'ERROR',
   };
   private static currentLogLevel: LogLevel = LogLevel.DEBUG;
-  private static colors: Record<LogLevel, string> = {
-    [LogLevel.DEBUG]: 'gray',
-    [LogLevel.INFO]: 'green',
-    [LogLevel.WARN]: 'orange',
-    [LogLevel.ERROR]: 'red',
-  };
   private static getCurrentTimestamp(): string {
     return new Date().toISOString();
   }
   private static log(level: LogLevel, message: string, functionName?: string) {
     const logLevelsOrder = [LogLevel.DEBUG, LogLevel.INFO, LogLevel.WARN, LogLevel.ERROR];
     if (logLevelsOrder.indexOf(level) < logLevelsOrder.indexOf(Mogger.currentLogLevel)) return;
-    const color = Mogger.colors[level];
-    console.log(`%c[${Mogger.getCurrentTimestamp()}] [${level}] ${functionName ? '[' + functionName + ']' : ''} - ${message}`, color);
+    console.log(`${Mogger.getCurrentTimestamp()} [${level}] ${functionName ? '[' + functionName + ']' : ''} - ${message}`);
   }
   public static debug(message: string, functionName?: string): void {
     Mogger.log(LogLevel.DEBUG, message, functionName);
