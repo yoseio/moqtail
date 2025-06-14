@@ -31,7 +31,7 @@ export class Subscriber {
   private bitrateInterval: NodeJS.Timeout;
   private audioNode: AudioWorkletNode;
   private communicator: Worker;
-  private videoGenerator?: MediaStreamTrackGenerator;
+  private videoGenerator?: MediaStreamTrackGenerator<VideoFrame>;
   private videoWriter?: WritableStreamDefaultWriter<VideoFrame>;
   constructor(props: SubscriberInitProps) {
     this.communicator = new CommunicatorWorker();
