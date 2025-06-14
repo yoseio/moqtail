@@ -21,12 +21,12 @@ import { Mogger } from './utils/mogger';
 export class Publisher {
   private communicator: Worker;
   private videoEncoders: { [key: string]: Worker } = {};
-  private audioEncoder: { [key: string]: Worker } = {};
+  private audioEncoders: { [key: string]: Worker } = {};
   private trackManager: TrackManager = new TrackManager();
   private supportedVersions = [MOQT_DRAFT10_VERSION];
   private selectedVersion = 0;
   private maxSubscribeId = 1000;
-  private datagramMaxSize = Infinity;
+  private datagramMaxSize = 1024;
   constructor(props: PublisherInitProps) {
     this.communicator = new CommunicatorWorker();
     this.communicator.onmessage = this.communicatorMessageHandler.bind(this);
@@ -39,9 +39,9 @@ export class Publisher {
       this.videoEncoders[track.name].onmessage = this.videoEncoderMessageHandler.bind(this);
       this.videoEncoders[track.name].postMessage({ type: 'init', data: track });
     } else if (track.type === 'audio') {
-      this.audioEncoder[track.name] = new AudioEncoderWorker();
-      this.audioEncoder[track.name].onmessage = this.audioEncoderMessageHandler.bind(this);
-      this.audioEncoder[track.name].postMessage({ type: 'init', data: track });
+      this.audioEncoders[track.name] = new AudioEncoderWorker();
+      this.audioEncoders[track.name].onmessage = this.audioEncoderMessageHandler.bind(this);
+      this.audioEncoders[track.name].postMessage({ type: 'init', data: track });
     }
   }
   startStream({ track, mediaTrack }: { track: Track, mediaTrack: MediaStreamTrack }) {
@@ -58,11 +58,11 @@ export class Publisher {
       this.videoEncoders[track.name].postMessage({ type: 'capture', data: processor.readable }, [processor.readable]);
     } else if (track.type === 'audio') {
       const processor = new MediaStreamTrackProcessor({ track: mediaTrack as MediaStreamAudioTrack });
-      if (!this.audioEncoder[track.name]) {
+      if (!this.audioEncoders[track.name]) {
         Mogger.error(`Audio encoder for track ${track.name} not found`);
         return;
       }
-      this.audioEncoder[track.name].postMessage({ type: 'capture', data: processor.readable }, [processor.readable]);
+      this.audioEncoders[track.name].postMessage({ type: 'capture', data: processor.readable }, [processor.readable]);
     }
   }
   stopStream(trackName: string) {
@@ -75,9 +75,8 @@ export class Publisher {
       // this.closeStreamsGracefully(sub.subscribeId, )
       this.subscribeDone(sub.subscribeId, track);
     });
-    const encoder = track.type === 'video' ? this.videoEncoders[track.name] : this.audioEncoder[track.name];
+    const encoder = track.type === 'video' ? this.videoEncoders[track.name] : this.audioEncoders[track.name];
     encoder.postMessage({ type: 'stop', data: null });
-    // encoder.terminate();
   }
   setup() {
     this.communicator.postMessage({ type: 'startReadLoop', data: null });
@@ -355,7 +354,7 @@ export class Publisher {
       this.communicator.postMessage({ type: 'sendControlMessage', data: sub_ok });
 
       if (targetTrack.subscribers.length == 0) {
-        const targetEncoder = targetTrack.type === 'video' ? this.videoEncoders[targetTrack.name] : this.audioEncoder[targetTrack.name];
+        const targetEncoder = targetTrack.type === 'video' ? this.videoEncoders[targetTrack.name] : this.audioEncoders[targetTrack.name];
         targetEncoder.postMessage({ type: 'encode', data: null });
       }
       this.trackManager.addSubscriber({
@@ -372,7 +371,7 @@ export class Publisher {
       Mogger.debug(`Unsubscribe with subscribeId ${msg.subscribeId} successful`);
       if (emptyTracks.length > 0) {
         emptyTracks.forEach(track => {
-          const targetEncoder = track.type === 'video' ? this.videoEncoders[track.name] : this.audioEncoder[track.name];
+          const targetEncoder = track.type === 'video' ? this.videoEncoders[track.name] : this.audioEncoders[track.name];
           targetEncoder.postMessage({ type: 'stop', data: null });
           targetEncoder.terminate();
           Mogger.debug(`Stopping encoder for track ${track.name}`);
@@ -385,9 +384,11 @@ export class Publisher {
     case 'sessionClosed':
       this.communicator.terminate();
       for (const encoder of Object.values(this.videoEncoders)) {
+        encoder.postMessage({ type: 'stop', data: null });
         encoder.terminate();
       }
-      for (const encoder of Object.values(this.audioEncoder)) {
+      for (const encoder of Object.values(this.audioEncoders)) {
+        encoder.postMessage({ type: 'stop', data: null });
         encoder.terminate();
       }
       break;

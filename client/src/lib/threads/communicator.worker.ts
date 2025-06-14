@@ -13,9 +13,9 @@ class MoQTCommunicator {
   private controlStream: WebTransportBidirectionalStream;
   private controlWriter: WritableStream;
   private controlReader: ReadableStream;
-  private datagramWriter: WritableStream;
+  private datagramWriter: WritableStreamDefaultWriter;
   private datagramReader: ReadableStreamDefaultReader;
-  private streams: Map<number, WritableStream> = new Map();
+  private streams: Map<number, WritableStreamDefaultWriter> = new Map();
   private state = 0;
   onMessage(message: MessageEvent) {
     const data = message.data as ThreadMessage;
@@ -42,23 +42,26 @@ class MoQTCommunicator {
   async startConnection(url: string) {
     this.wt = new WebTransport(url, { congestionControl: 'throughput' });
     await this.wt.ready;
-    this.controlStream = await this.wt.createBidirectionalStream();
+    this.controlStream = await this.wt.createBidirectionalStream({ sendOrder: 100 });
     this.controlWriter = this.controlStream.writable;
     this.controlReader = this.controlStream.readable;
-    this.datagramWriter = this.wt.datagrams.writable;
+    this.datagramWriter = this.wt.datagrams.writable.getWriter();
     this.datagramReader = this.wt.datagrams.readable.getReader();
     this.state = this.state | COMMUNICATOR_STATE.RUNNING;
     postMessage({ type: 'datagramMaxSize', data: this.wt.datagrams.maxDatagramSize });
-    Mogger.debug('Connection established');
   }
   async sendControlMessage(data: Uint8Array) {
     if (this.state === COMMUNICATOR_STATE.STOPPED) {
       Mogger.error('Cannot send control messages as the session is already closed');
       return;
     }
-    const writer = this.controlWriter.getWriter();
-    await writer.write(data);
-    writer.releaseLock();
+    try {
+      const writer = this.controlWriter.getWriter();
+      await writer.write(data);
+      writer.releaseLock();
+    } catch (err) {
+      postMessage({ type: 'error', data: `Error sending control message: ${err}` });
+    }
     Mogger.debug('Control message sent');
   }
   async closeSubgroupStreams(subgroupIds: number[]) {
@@ -71,11 +74,15 @@ class MoQTCommunicator {
       Mogger.error('Cannot create subgroup streams as the session is already closed');
       return;
     }
-    this.streams.set(subgroupId, await this.wt.createUnidirectionalStream());
-    const writer = this.streams.get(subgroupId).getWriter();
-    await writer.write(subgroupHeader);
-    writer.releaseLock();
-    Mogger.debug('Stream created');
+    try {
+      this.streams.set(subgroupId, (await this.wt.createUnidirectionalStream()).getWriter());
+      const writer = this.streams.get(subgroupId);
+      await writer.write(subgroupHeader);
+      Mogger.debug('Stream created');
+    } catch (err) {
+      postMessage({ type: 'error', data: `Error creating subgroup stream: ${err}` });
+      return;
+    }
   }
   closeSubgroupStream({ subgroupId }: { subgroupId: number }) {
     const stream = this.streams.get(subgroupId);
@@ -92,29 +99,29 @@ class MoQTCommunicator {
       await new Promise((resolve) => setTimeout(resolve, 0.1));
     };
     try {
-      const writer = this.streams.get(subgroupId).getWriter();
+      const writer = this.streams.get(subgroupId);
       await writer.write(subgroupObject);
-      writer.releaseLock();
     } catch (err) {
-      Mogger.error(`Error sending object: ${err}. Closing session...`);
+      postMessage({ type: 'error', data: `Error sending subgroup object: ${err}` });
       this.closeSession();
     }
   }
   async sendDatagram(data: Uint8Array) {
     if (this.state === COMMUNICATOR_STATE.STOPPED) {
-      Mogger.error('Cannot send datagrams as the session is already closed');
-      this.datagramWriter.close();
+      postMessage({ type: 'error', data: 'Cannot send datagram as the session is already closed' });
       return;
     }
-    const writer = this.datagramWriter.getWriter();
-    writer.write(data);
-    writer.releaseLock();
+    try {
+      await this.datagramWriter.write(data);
+    } catch (err) {
+      postMessage({ type: 'error', data: `Error sending datagram: ${err}` });
+      this.closeSession();
+    }
   }
   closeSession() {
     this.state = COMMUNICATOR_STATE.STOPPED;
-    this.controlStream.writable.getWriter().close();
     this.wt.close();
-    Mogger.debug('Session closed');
+    postMessage({ type: 'sessionClosed' });
   }
   async readSubgroupObject(reader: ReadableStream, trackAlias: number, subgroupId: number, groupId: number) {
     try {
@@ -131,7 +138,7 @@ class MoQTCommunicator {
       }
       await reader.cancel();
     } catch (err) {
-      Mogger.error(`Error reading subgroup object: ${err}`);
+      postMessage({ type: 'error', data: `Error reading subgroup object: ${err}` });
     }
   }
   async readDatagramObject(reader: ReadableStream) {
@@ -152,7 +159,6 @@ class MoQTCommunicator {
       const msgType = await readControlMessageType(this.controlReader);
       let message;
       let error = '';
-      // TODO: make it look cool
       switch (msgType) {
       case CONTROL_MESSAGE.SERVER_SETUP:
         message = await deserializeServerSetup(this.controlReader);
