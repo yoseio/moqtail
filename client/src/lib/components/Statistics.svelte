@@ -31,7 +31,7 @@
     </div>
     <div class="stat-item">
       <span class="stat-label">Bitrate:</span>
-      <span class="stat-value">{$bitrateStore} bps</span>
+      <span class="stat-value">{($bitrateStore / 1_000_000).toFixed(2)} Mbps</span>
     </div>
   </div>
 </div>
