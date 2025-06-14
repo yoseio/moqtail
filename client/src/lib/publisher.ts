@@ -9,6 +9,7 @@ import {
   datagramFragmentInfoToExtensionHeader, serializeExtensionHeader,
   getMiExtensionHeaders,
   MI_MEDIA_TYPE,
+  captureTimestampToExtensionHeader,
 } from 'moqtail';
 import type { ServerSetup, AnnounceOk, Subscribe, Unsubscribe, ExtensionHeader, Datagram } from 'moqtail';
 // @ts-ignore
@@ -187,9 +188,9 @@ export class Publisher {
     }
     
     // Add capture timestamp for latency measurement (less frequent)
-    // if (videoChunkMsg.chunk.timestamp % 4 === 0) { // %4 is just a random number. I want the latency measurement to be less frequent
-    //   extensionHeaders.push(captureTimestampToExtensionHeader(Math.round(performance.timeOrigin) + (performance.now() | 0)));
-    // }
+    if (videoChunkMsg.chunk.timestamp % 4 === 0) { // %4 is just a random number. I want the latency measurement to be less frequent
+      extensionHeaders.push(captureTimestampToExtensionHeader(Math.round(performance.timeOrigin) + (performance.now() | 0)));
+    }
     
     return { videoChunkBytes, extensionHeaders };
   }
