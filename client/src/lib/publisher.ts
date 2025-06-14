@@ -7,6 +7,8 @@ import {
   videoDecoderConfigToExtensionHeader, OBJECT_STATUS, serializeDatagram, audioDecoderConfigToExtensionHeader,
   serializeSubscribeDone, SUBSCRIBE_DONE_REASON,
   datagramFragmentInfoToExtensionHeader, serializeExtensionHeader,
+  getMiExtensionHeaders,
+  MI_MEDIA_TYPE,
 } from 'moqtail';
 import type { ServerSetup, AnnounceOk, Subscribe, Unsubscribe, ExtensionHeader, Datagram } from 'moqtail';
 // @ts-ignore
@@ -178,12 +180,9 @@ export class Publisher {
     
     let extensionHeaders: ExtensionHeader[] = [];
     
-    // if (videoChunkMsg.metadata.decoderConfig.codec === 'avc1.42001e') {
-    //   extensionHeaders = getMiExtensionHeaders(MI_MEDIA_TYPE.H264AVCC, videoChunkMsg.metadata.decoderConfig, videoChunkMsg.chunk, videoChunkMsg.metadata.totalChunkCount);
-    // } else if (videoChunkMsg.metadata.decoderConfig) {
-    //   extensionHeaders = [videoDecoderConfigToExtensionHeader(videoChunkMsg.metadata.decoderConfig)];
-    // }
-    if (videoChunkMsg.metadata.decoderConfig) {
+    if (videoChunkMsg.metadata.decoderConfig?.codec === 'avc1.42001e') {
+      extensionHeaders = getMiExtensionHeaders(MI_MEDIA_TYPE.H264AVCC, videoChunkMsg.metadata.decoderConfig, videoChunkMsg.chunk, videoChunkMsg.metadata.totalChunkCount);
+    } else if (videoChunkMsg.metadata.decoderConfig) {
       extensionHeaders = [videoDecoderConfigToExtensionHeader(videoChunkMsg.metadata.decoderConfig)];
     }
     
