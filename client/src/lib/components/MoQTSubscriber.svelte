@@ -61,15 +61,11 @@
     subscriber.unsubscribe(audioTrackName);
     subscriber.stopAudio();
   };
-  const videoGoFullscreen = () => {
-    videoEl.requestFullscreen();
-  };
 </script>
 
 <div class="sub">
   <h3>Subscriber</h3>
-  <video width={videoWidth} height={videoHeight} autoplay bind:this={videoEl}></video>
-  <button on:click={videoGoFullscreen}>Go Fullscreen</button>
+  <video width={videoWidth} height={videoHeight} autoplay controls bind:this={videoEl}></video>
   <div class="track">
     <div>
       <label for="pub-track-namespace">Track Namespace</label>
@@ -111,8 +107,5 @@
   }
   video {
     background-color: #333;
-  }
-  fieldset {
-    margin: 10px 0;
   }
 </style>
