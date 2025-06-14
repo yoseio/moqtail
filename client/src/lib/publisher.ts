@@ -174,7 +174,6 @@ export class Publisher {
   // Common method to prepare video chunk data
   private prepareVideoChunkData(
     videoChunkMsg: any,
-    targetTrack: Track
   ): { videoChunkBytes: Uint8Array; extensionHeaders: ExtensionHeader[] } {
     const videoChunkBytes = serializeEncodedChunk(videoChunkMsg.chunk);
     
@@ -204,7 +203,7 @@ export class Publisher {
     targetTrack.largestGroupId !== undefined ? targetTrack.largestGroupId++ : targetTrack.largestGroupId = 0;
     targetTrack.largestObjectId = 0;
 
-    const { videoChunkBytes, extensionHeaders } = this.prepareVideoChunkData(videoChunkMsg, targetTrack);
+    const { videoChunkBytes, extensionHeaders } = this.prepareVideoChunkData(videoChunkMsg);
     
     // Send to interested subscribers
     const interestedAliases = this.getAliasOfSubscribersWithLatestObjectFilter(targetTrack);
@@ -248,7 +247,7 @@ export class Publisher {
       }
     }
     targetTrack.largestObjectId !== undefined ? targetTrack.largestObjectId++ : targetTrack.largestObjectId = 0;
-    const { videoChunkBytes, extensionHeaders } = this.prepareVideoChunkData(videoChunkMsg, targetTrack);
+    const { videoChunkBytes, extensionHeaders } = this.prepareVideoChunkData(videoChunkMsg);
     
     const subgroupObject = serializeSubgroupObject({
       objectId: targetTrack.largestObjectId,
@@ -274,7 +273,7 @@ export class Publisher {
       this.createSubgroupStream(subgroupId, targetTrack);
 
       targetTrack.largestObjectId !== undefined ? targetTrack.largestObjectId++ : targetTrack.largestObjectId = 0;
-      const { videoChunkBytes, extensionHeaders } = this.prepareVideoChunkData(videoChunkMsg, targetTrack);
+      const { videoChunkBytes, extensionHeaders } = this.prepareVideoChunkData(videoChunkMsg);
 
       const subgroupObject = serializeSubgroupObject({
         objectId: targetTrack.largestObjectId,
@@ -286,7 +285,7 @@ export class Publisher {
       // Delta frames are sent as datagram objects within the current group
       if (targetTrack.largestGroupId === undefined) return; // drop until first key frame
       targetTrack.largestObjectId !== undefined ? targetTrack.largestObjectId++ : targetTrack.largestObjectId = 0;
-      const { videoChunkBytes, extensionHeaders } = this.prepareVideoChunkData(videoChunkMsg, targetTrack);
+      const { videoChunkBytes, extensionHeaders } = this.prepareVideoChunkData(videoChunkMsg);
       const aliases = this.getAliasOfSubscribersWithLatestObjectFilter(targetTrack);
       for (const alias of aliases) {
         const datagram: Datagram = {
