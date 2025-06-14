@@ -73,12 +73,13 @@ export class Publisher {
       Mogger.error(`Track ${trackName} not found`);
       return;
     }
-    track.subscribers.forEach(sub => {
-      // this.closeStreamsGracefully(sub.subscribeId, )
-      this.subscribeDone(sub.subscribeId, track);
-    });
     const encoder = track.type === 'video' ? this.videoEncoders[track.name] : this.audioEncoders[track.name];
     encoder.postMessage({ type: 'stop', data: null });
+    encoder.terminate();
+    track.subscribers.forEach(sub => {
+      this.subscribeDone(sub.subscribeId, track);
+      this.trackManager.removeSubscriber(sub.subscribeId);
+    });
   }
   setup() {
     this.communicator.postMessage({ type: 'startReadLoop', data: null });
