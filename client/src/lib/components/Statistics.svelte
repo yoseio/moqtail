@@ -1,5 +1,5 @@
 <script>
-  import { moqVideoTransmissionLatencyStore } from '$lib/utils/store';
+  import { moqVideoTransmissionLatencyStore, bitrateStore } from '$lib/utils/store';
   import { Mogger } from '$lib/utils/mogger';
 
   let cpuLoad = 'Compute Pressure API not supported';
@@ -28,6 +28,10 @@
     <div class="stat-item">
       <span class="stat-label">CPU Load:</span>
       <span class="stat-value">{cpuLoad}</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-label">Bitrate:</span>
+      <span class="stat-value">{($bitrateStore / 1_000_000).toFixed(2)} Mbps</span>
     </div>
   </div>
 </div>

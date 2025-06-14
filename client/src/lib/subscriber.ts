@@ -1,7 +1,7 @@
 import { Mogger } from './utils/mogger';
 import { CONTROL_MESSAGE, deserializeVideoDecoderConfig, LOC_EXTENSION_HEADER_TYPE, MOQT_DRAFT08_VERSION, MOQT_DRAFT09_VERSION, MOQT_DRAFT10_VERSION, serializeClientSetup, serializeSubscribe, STREAM, deserializeAudioDecoderConfig, serializeUnsubscribe, OBJECT_STATUS, deserializeDatagramFragmentInfo, deserializeEncodedChunkFromArray } from 'moqtail';
 import type { Subscribe, ServerSetup, SubscribeOk, SubgroupHeader, SubgroupObject, SubscribeError, Datagram } from 'moqtail';
-import { moqVideoTransmissionLatencyStore, ringStats } from './utils/store';
+import { moqVideoTransmissionLatencyStore, ringStats, bitrateStore } from './utils/store';
 
 import { DatagramBuffer, BufferedDatagram } from "./utils/datagramBuffer";
 import { concatUint8Arrays } from "bytes";
@@ -28,6 +28,8 @@ export class Subscriber {
   private datagramBuffer = new DatagramBuffer();
   private datagramFragments: Map<string, { total: number; payloads: Uint8Array[]; header: Datagram }> = new Map();
   private videoTimestampOffset: number | null = null;
+  private receivedBytes = 0;
+  private bitrateInterval: number;
   private audioNode: AudioWorkletNode;
   private communicator: Worker;
   private videoRenderer: Worker = new VideoRendererWorker();
@@ -35,6 +37,10 @@ export class Subscriber {
     this.communicator = new CommunicatorWorker();
     this.communicator.onmessage = this.communicatorMessageHandler.bind(this);
     this.communicator.postMessage({ type: 'startConnection', data: props.serverUrl });
+    this.bitrateInterval = setInterval(() => {
+      bitrateStore.set(this.receivedBytes * 8);
+      this.receivedBytes = 0;
+    }, 1000);
   }
   setup() {
     this.communicator.postMessage({ type: 'startReadLoop', data: null });
@@ -177,6 +183,7 @@ export class Subscriber {
         }
       });
       const chunk = new EncodedVideoChunk(encodedChunkInit);
+      this.receivedBytes += encodedChunkInit.data.byteLength;
       sub.decoder.postMessage({ type: 'decode', data: { encodedVideoChunk: chunk, config: videoDecoderConfig } });
 
       if (groupId !== undefined) {
@@ -245,6 +252,7 @@ export class Subscriber {
         });
         
         const audioChunk = new EncodedAudioChunk(datagramObject.encodedChunkInit as EncodedAudioChunkInit);
+        this.receivedBytes += (datagramObject.encodedChunkInit as EncodedAudioChunkInit).data.byteLength;
         sub.decoder.postMessage({ type: 'decode', data: { encodedAudioChunk: audioChunk, config: audioDecoderConfig } });
       }
       break;
@@ -292,6 +300,7 @@ export class Subscriber {
         }
       });
       const vChunk = new EncodedVideoChunk(d.encodedChunkInit as EncodedVideoChunkInit);
+      this.receivedBytes += (d.encodedChunkInit as EncodedVideoChunkInit).data.byteLength;
       sub.decoder.postMessage({ type: 'decode', data: { encodedVideoChunk: vChunk, config: vConfig } });
     }
   }
