@@ -12,6 +12,12 @@ export const VIDEO_ENCODER_DEFAULT_CONFIG: VideoEncoderConfig = {
   framerate: 30,
   latencyMode: 'realtime'
 };
+
+export const VIDEO_RESOLUTION_OPTIONS = {
+  HD: { width: 1280, height: 720 },
+  FullHD: { width: 1920, height: 1080 },
+  '4K': { width: 3840, height: 2160 },
+} as const;
 export const AUDIO_ENCODER_DEFAULT_CONFIG: AudioEncoderConfig = {
   codec: 'opus',
   sampleRate: 48000,
