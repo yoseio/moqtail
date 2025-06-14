@@ -89,8 +89,9 @@ export class Subscriber {
       throw new Error(err);
     } else if (!sub.subscribeOk) {
       const err = `Subgroup Objcet with alias:${trackAlias} received before subscribeOk`;
-      this.communicator.postMessage({ type: 'closeSession', data: null });
-      throw new Error(err);
+      // Receiving objects before subscribeOk is not an explicit protocol violation,
+      // so we log it instead of throwing an error
+      Mogger.error(err);
     }
     return sub;
   }
