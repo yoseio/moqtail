@@ -185,7 +185,6 @@
       <label for="pub-track-video-forwarding">Video Forwarding</label>
       <select name="pub-track-video-forwarding" bind:value={videoForwardingPreference}>
         <option value="Subgroup">Stream (Subgroup)</option>
-        <option value="Datagram">Datagram</option>
         <option value="KeyFrameStream">Key Frame Stream</option>
       </select>
     </div>
