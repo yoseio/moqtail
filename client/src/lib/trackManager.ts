@@ -2,8 +2,12 @@ import type { SUBSCRIBE_FILTER } from 'moqtail';
 
 export class TrackManager {
   private tracks: Track[] = [];
-  public addTrack(track: Track) {
-    this.tracks.push(track);
+  public upsertTrack(track: Track) {
+    if (this.getTrack({ name: track.name })) {
+      this.tracks[this.tracks.findIndex(t => t.name === track.name)] = track;
+    } else {
+      this.tracks.push(track);
+    }
   }
   public addTracks(tracks: Track[]) {
     this.tracks.push(...tracks);

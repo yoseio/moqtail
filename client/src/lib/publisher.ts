@@ -35,16 +35,18 @@ export class Publisher {
     this.communicator.onmessage = this.communicatorMessageHandler.bind(this);
     this.communicator.postMessage({ type: 'startConnection', data: props.serverUrl });
   }
-  registerTrack(track: Track) {
-    this.trackManager.addTrack(track);
+  registerTrack(track: Track): VideoEncoderWorker | AudioEncoderWorker {
+    this.trackManager.upsertTrack(track);
     if (track.type === 'video') {
       this.videoEncoders[track.name] = new VideoEncoderWorker();
       this.videoEncoders[track.name].onmessage = this.videoEncoderMessageHandler.bind(this);
       this.videoEncoders[track.name].postMessage({ type: 'init', data: track });
-    } else if (track.type === 'audio') {
+      return this.videoEncoders[track.name];
+    } else {
       this.audioEncoders[track.name] = new AudioEncoderWorker();
       this.audioEncoders[track.name].onmessage = this.audioEncoderMessageHandler.bind(this);
       this.audioEncoders[track.name].postMessage({ type: 'init', data: track });
+      return this.audioEncoders[track.name];
     }
   }
   startStream({ track, mediaTrack }: { track: Track, mediaTrack: MediaStreamTrack }) {
