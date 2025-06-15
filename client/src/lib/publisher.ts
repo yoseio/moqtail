@@ -75,7 +75,17 @@ export class Publisher {
       Mogger.error(`Track ${trackName} not found`);
       return;
     }
+
+    const settings = mediaTrack.getSettings ? mediaTrack.getSettings() : {} as MediaTrackSettings;
+
     if (track.type === 'video') {
+      if (track.encoderConfig) {
+        const cfg = track.encoderConfig.encoderConfig as VideoEncoderConfig;
+        if (settings.width) cfg.width = settings.width;
+        if (settings.height) cfg.height = settings.height;
+        if (settings.frameRate) cfg.framerate = settings.frameRate;
+      }
+
       if (this.videoEncoders[track.name]) {
         this.videoEncoders[track.name].postMessage({ type: 'stop', data: null });
         this.videoEncoders[track.name].terminate();
@@ -89,6 +99,12 @@ export class Publisher {
         this.videoEncoders[track.name].postMessage({ type: 'encode', data: null });
       }
     } else if (track.type === 'audio') {
+      if (track.encoderConfig) {
+        const cfg = track.encoderConfig.encoderConfig as AudioEncoderConfig;
+        if (settings.sampleRate) cfg.sampleRate = settings.sampleRate;
+        if ((settings as any).channelCount) cfg.numberOfChannels = (settings as any).channelCount;
+      }
+
       if (this.audioEncoders[track.name]) {
         this.audioEncoders[track.name].postMessage({ type: 'stop', data: null });
         this.audioEncoders[track.name].terminate();
