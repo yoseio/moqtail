@@ -19,6 +19,9 @@
   <div class="relay-server">
     <GenericInput key="Relay Server" bind:defaultVal={moqtServerUrl} />
   </div>
+  <div class="container-statistics">
+    <Statistics />
+  </div>
   <div class="container-videos">
     <div class="left">
       <MoQtPublisher {moqtServerUrl} />
@@ -26,9 +29,6 @@
     <div class="right">
       <MoQTSubscriber {moqtServerUrl} videoWidth={480} videoHeight={360} />
     </div>
-  </div>
-  <div class="container-statistics">
-    <Statistics />
   </div>
 </div>
 
@@ -42,7 +42,6 @@
     align-items: center;
   }
   .container-videos {
-    margin-top: 1rem;
     display: flex;
     flex-wrap: wrap;
     gap: 20px;

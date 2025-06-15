@@ -19,7 +19,7 @@
 </script>
 
 <div class="statistics">
-  <h3>Statistics</h3>
+  <!-- <h3>Statistics</h3> -->
   <div class="stat-text">
     <div class="stat-item">
       <span class="stat-label">Transmission Latency:</span>
