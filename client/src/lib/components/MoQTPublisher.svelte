@@ -80,6 +80,12 @@
       capture.addTrack(audio.captureStream().getAudioTracks()[0]);
     }
     stream = capture;
+    if (publisherInit) {
+      const vt = stream.getVideoTracks()[0];
+      if (vt) publisher.replaceMediaTrack(videoTrackName, vt);
+      const at = stream.getAudioTracks()[0];
+      if (at) publisher.replaceMediaTrack(audioTrackName, at);
+    }
     // do not play the source audio locally
     liveEl.muted = true;
   };
