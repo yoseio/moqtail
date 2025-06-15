@@ -23,7 +23,6 @@ export const AUDIO_ENCODER_DEFAULT_CONFIG: AudioEncoderConfig = {
   codec: 'opus',
   sampleRate: 48000,
   numberOfChannels: 1,
-  bitrate: 32000,
 };
 
 export const VIDEO_DECODER_DEFAULT_CONFIG: VideoDecoderConfig = {
