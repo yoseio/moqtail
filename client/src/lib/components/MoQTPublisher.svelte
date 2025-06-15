@@ -154,7 +154,7 @@
 <div class="pub">
   <h3>Publisher (Webcam capture)</h3>
   <div class="pub-video">
-    <video autoplay muted playsinline bind:this={liveEl}></video>
+    <video autoplay muted playsinline controls bind:this={liveEl}></video>
     {#if camera.inputDevices}
       <select on:change={changeDevice}>
         {#each camera.inputDevices as device}
