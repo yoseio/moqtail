@@ -196,7 +196,7 @@ export class Subscriber {
       }
       break;
     case 'subgroupObjectStatus':
-      this.communicator.postMessage({ type: 'closeStream', data: { subgroupId: message.data.data.subgroupId } });
+      // This indicates the end of the unistream
       break;
     case 'datagramObject':
       const datagramObject = message.data.data as { header: Datagram, payload: Uint8Array, encodedChunkInit: EncodedVideoChunkInit | EncodedAudioChunkInit };

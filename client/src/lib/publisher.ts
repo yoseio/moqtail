@@ -125,9 +125,7 @@ export class Publisher {
       objectStatus: OBJECT_STATUS.END_OF_GROUP,
       payload: new Uint8Array(0)
     });
-    this.communicator.postMessage({ type: 'sendSubgroupObject', data: { subgroupObject, subgroupId: lastSubgroupId } });
-    // instead of closing from the publisher, the subscriber close the stream after receiving the last object
-    // that way, 'short buffer' error in the subscriber can be avoided
+    this.communicator.postMessage({ type: 'sendSubgroupObject', data: { subgroupObject, subgroupId: lastSubgroupId, isLast: true } });
   }
   // find all track aliases of subscribers that are interested in the latest object
   private getAliasOfSubscribersWithLatestObjectFilter(track: Track) {

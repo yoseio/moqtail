@@ -23,10 +23,8 @@ class MoQTCommunicator {
       startConnection: this.startConnection.bind(this),
       sendControlMessage: this.sendControlMessage.bind(this),
       createSubgroupStream: this.createSubgroupStream.bind(this),
-      closeSubgroupStreams: this.closeSubgroupStreams.bind(this),
       sendSubgroupObject: this.sendObject.bind(this),
       sendDatagram: this.sendDatagram.bind(this),
-      closeStream: this.closeSubgroupStream.bind(this),
       closeSession: this.closeSession.bind(this),
       startReadLoop: this.startReadLoop.bind(this),
       startStreamReadLoop: this.startStreamReadLoop.bind(this),
@@ -64,11 +62,6 @@ class MoQTCommunicator {
     }
     Mogger.debug('Control message sent');
   }
-  async closeSubgroupStreams(subgroupIds: number[]) {
-    subgroupIds.map(id => {
-      this.closeSubgroupStream({ subgroupId: id });
-    });
-  }
   async createSubgroupStream({ subgroupId, subgroupHeader }: { subgroupId: number, subgroupHeader: Uint8Array }) {
     if (this.state === COMMUNICATOR_STATE.STOPPED) {
       Mogger.error('Cannot create subgroup streams as the session is already closed');
@@ -84,13 +77,7 @@ class MoQTCommunicator {
       return;
     }
   }
-  closeSubgroupStream({ subgroupId }: { subgroupId: number }) {
-    const stream = this.streams.get(subgroupId);
-    if (stream) stream.close();
-    this.streams.delete(subgroupId);
-    Mogger.debug(`Stream with subgroupId: ${subgroupId} closed`);
-  }
-  async sendObject({ subgroupObject, subgroupId }: { subgroupObject: Uint8Array, subgroupId: number }) {
+  async sendObject({ subgroupObject, subgroupId, isLast }: { subgroupObject: Uint8Array, subgroupId: number, isLast?: boolean }) {
     // if (!this.streams.has(subgroupId)) {
     //   postMessage({ type: 'error', data: `Stream ${subgroupId} not found` });
     //   return;
@@ -101,6 +88,11 @@ class MoQTCommunicator {
     try {
       const writer = this.streams.get(subgroupId);
       await writer.write(subgroupObject);
+      if (isLast) {
+        await writer.close();
+        this.streams.delete(subgroupId);
+        Mogger.debug(`Stream ${subgroupId} closed`);
+      }
     } catch (err) {
       postMessage({ type: 'error', data: `Error sending subgroup object: ${err}` });
       this.closeSession();
