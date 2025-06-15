@@ -195,6 +195,7 @@
         bind:value={videoResolutionChoice}
         on:change={async () => await changeResolution()}
       >
+        <option value="SD">SD (853x480)</option>
         <option value="HD">HD (1280x720)</option>
         <option value="FullHD">Full HD (1920x1080)</option>
         <option value="4K">4K (3840x2160)</option>
