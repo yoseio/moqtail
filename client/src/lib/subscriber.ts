@@ -27,7 +27,7 @@ export class Subscriber {
   private datagramBuffer = new DatagramBuffer();
   private datagramFragments: Map<string, { total: number; payloads: Uint8Array[]; header: Datagram }> = new Map();
   private videoTimestampOffset: number | null = null;
-  private receivedBytes = 0;
+  private receivedBytes = 0; // for bitrate calculation
   private bitrateInterval: NodeJS.Timeout;
   private audioNode: AudioWorkletNode;
   private communicator: Worker;

@@ -80,6 +80,13 @@
       capture.addTrack(audio.captureStream().getAudioTracks()[0]);
     }
     stream = capture;
+    // replace the video and audio tracks in the publisher
+    if (publisherInit) {
+      const vt = stream.getVideoTracks()[0];
+      if (vt) publisher.replaceMediaTrack(videoTrackName, vt);
+      const at = stream.getAudioTracks()[0];
+      if (at) publisher.replaceMediaTrack(audioTrackName, at);
+    }
     // do not play the source audio locally
     liveEl.muted = true;
   };
@@ -96,6 +103,7 @@
   const startStreaming = () => {
     if (!publisherInit) return;
     publisher.announce(namespace);
+    const vt = stream.getVideoTracks()[0];
     const videoEncoderConfig = {
       ...videoEncoders[videoEncoderChoice],
       ...videoResolutions[videoResolutionChoice],
@@ -129,7 +137,6 @@
       largestGroupId: -1,
       largestObjectId: -1,
     };
-    const vt = stream.getVideoTracks()[0];
     Mogger.info(`Streaming ${vt.label}`);
     publisher.startStream({ track: videoTrack, mediaTrack: vt });
     Mogger.info(`Streaming ${at.label}`);

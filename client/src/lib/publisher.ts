@@ -35,16 +35,18 @@ export class Publisher {
     this.communicator.onmessage = this.communicatorMessageHandler.bind(this);
     this.communicator.postMessage({ type: 'startConnection', data: props.serverUrl });
   }
-  registerTrack(track: Track) {
-    this.trackManager.addTrack(track);
+  registerTrack(track: Track): VideoEncoderWorker | AudioEncoderWorker {
+    this.trackManager.upsertTrack(track);
     if (track.type === 'video') {
       this.videoEncoders[track.name] = new VideoEncoderWorker();
       this.videoEncoders[track.name].onmessage = this.videoEncoderMessageHandler.bind(this);
       this.videoEncoders[track.name].postMessage({ type: 'init', data: track });
-    } else if (track.type === 'audio') {
+      return this.videoEncoders[track.name];
+    } else {
       this.audioEncoders[track.name] = new AudioEncoderWorker();
       this.audioEncoders[track.name].onmessage = this.audioEncoderMessageHandler.bind(this);
       this.audioEncoders[track.name].postMessage({ type: 'init', data: track });
+      return this.audioEncoders[track.name];
     }
   }
   startStream({ track, mediaTrack }: { track: Track, mediaTrack: MediaStreamTrack }) {
@@ -66,6 +68,33 @@ export class Publisher {
         return;
       }
       this.audioEncoders[track.name].postMessage({ type: 'capture', data: processor.readable }, [processor.readable]);
+    }
+  }
+
+  replaceMediaTrack(trackName: string, mediaTrack: MediaStreamTrack) {
+    const track = this.trackManager.getTrack({ name: trackName });
+    if (!track) {
+      Mogger.error(`Track ${trackName} not found`);
+      return;
+    }
+    let encoder: Worker;
+    if (track.type === 'video') {
+      encoder = this.videoEncoders[track.name];
+      delete this.videoEncoders[track.name];
+    } else if (track.type === 'audio') {
+      encoder = this.audioEncoders[track.name];
+      delete this.audioEncoders[track.name];
+    }
+    if (!encoder) {
+      Mogger.error(`Encoder for track ${track.name} not found`);
+      return;
+    }
+    encoder.postMessage({ type: 'stop', data: null });
+    encoder.terminate();
+    const newEncoder = this.registerTrack(track);
+    this.startStream({ track, mediaTrack });
+    if (track.subscribers.length > 0) {
+      newEncoder.postMessage({ type: 'encode', data: null });
     }
   }
   stopStream(trackName: string) {
@@ -451,7 +480,7 @@ export class Publisher {
       audioTrack.largestObjectId++;
       break;
     case 'error':
-      Mogger.error(`Error from video encoder: ${message.data.data}`);
+      Mogger.error(`Error from audio encoder: ${message.data.data}`);
       break;
     }
   }
