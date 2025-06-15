@@ -77,48 +77,24 @@ export class Publisher {
       Mogger.error(`Track ${trackName} not found`);
       return;
     }
-
-    const settings = mediaTrack.getSettings ? mediaTrack.getSettings() : {} as MediaTrackSettings;
-
+    let encoder: Worker;
     if (track.type === 'video') {
-      if (track.encoderConfig) {
-        const cfg = track.encoderConfig.encoderConfig as VideoEncoderConfig;
-        if (settings.width) cfg.width = settings.width;
-        if (settings.height) cfg.height = settings.height;
-        if (settings.frameRate) cfg.framerate = settings.frameRate;
-      }
-
-      if (this.videoEncoders[track.name]) {
-        this.videoEncoders[track.name].postMessage({ type: 'stop', data: null });
-        this.videoEncoders[track.name].terminate();
-      }
-      this.videoEncoders[track.name] = new VideoEncoderWorker();
-      this.videoEncoders[track.name].onmessage = this.videoEncoderMessageHandler.bind(this);
-      this.videoEncoders[track.name].postMessage({ type: 'init', data: track });
-      const processor = new MediaStreamTrackProcessor({ track: mediaTrack as MediaStreamVideoTrack });
-      this.videoEncoders[track.name].postMessage({ type: 'capture', data: processor.readable }, [processor.readable]);
-      if (track.subscribers.length > 0) {
-        this.videoEncoders[track.name].postMessage({ type: 'encode', data: null });
-      }
+      encoder = this.videoEncoders[track.name];
+      delete this.videoEncoders[track.name];
     } else if (track.type === 'audio') {
-      if (track.encoderConfig) {
-        const cfg = track.encoderConfig.encoderConfig as AudioEncoderConfig;
-        if (settings.sampleRate) cfg.sampleRate = settings.sampleRate;
-        if ((settings as any).channelCount) cfg.numberOfChannels = (settings as any).channelCount;
-      }
-
-      if (this.audioEncoders[track.name]) {
-        this.audioEncoders[track.name].postMessage({ type: 'stop', data: null });
-        this.audioEncoders[track.name].terminate();
-      }
-      this.audioEncoders[track.name] = new AudioEncoderWorker();
-      this.audioEncoders[track.name].onmessage = this.audioEncoderMessageHandler.bind(this);
-      this.audioEncoders[track.name].postMessage({ type: 'init', data: track });
-      const processor = new MediaStreamTrackProcessor({ track: mediaTrack as MediaStreamAudioTrack });
-      this.audioEncoders[track.name].postMessage({ type: 'capture', data: processor.readable }, [processor.readable]);
-      if (track.subscribers.length > 0) {
-        this.audioEncoders[track.name].postMessage({ type: 'encode', data: null });
-      }
+      encoder = this.audioEncoders[track.name];
+      delete this.audioEncoders[track.name];
+    }
+    if (!encoder) {
+      Mogger.error(`Encoder for track ${track.name} not found`);
+      return;
+    }
+    encoder.postMessage({ type: 'stop', data: null });
+    encoder.terminate();
+    const newEncoder = this.registerTrack(track);
+    this.startStream({ track, mediaTrack });
+    if (track.subscribers.length > 0) {
+      newEncoder.postMessage({ type: 'encode', data: null });
     }
   }
   stopStream(trackName: string) {
