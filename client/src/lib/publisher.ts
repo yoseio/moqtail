@@ -504,7 +504,7 @@ export class Publisher {
       audioTrack.largestObjectId++;
       break;
     case 'error':
-      Mogger.error(`Error from video encoder: ${message.data.data}`);
+      Mogger.error(`Error from audio encoder: ${message.data.data}`);
       break;
     }
   }
