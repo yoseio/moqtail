@@ -38,6 +38,10 @@ select {
   border-radius: 3px;
 }
 
+.p-small {
+  font-size: 0.8rem;
+}
+
 .track > div {
   margin: 10px;
   display: flex;

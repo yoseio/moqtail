@@ -19,6 +19,7 @@
   <div class="relay-server">
     <GenericInput key="Relay Server" bind:defaultVal={moqtServerUrl} />
   </div>
+  <p class="p-small">Note that the default server URL does not always work because I turn the process up only when I need to.<br>If it happens to work, you have a nice day.</p>
   <div class="container-statistics">
     <Statistics />
   </div>
