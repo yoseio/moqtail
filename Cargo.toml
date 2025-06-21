@@ -1,8 +1,14 @@
-[package]
-name = "moqtail"
-version = "0.1.0"
-authors = ["Kousuke Takaki <kousuke.takaki@shodohq.com>"]
-edition = "2024"
-description = "Live A/V streaming application compatible with Media over QUIC Transport draft-10."
+[workspace]
+resolver = "2"
+members = [
+  "packages/moqtail-core",
+  "packages/moqtail-transport",
+  "packages/moqtail-native",
+  "packages/moqtail-wasm",
+]
 
-[dependencies]
+[workspace.package]
+authors = ["Kousuke Takaki <kousuke.takaki@shodohq.com>"]
+description = "Live A/V streaming application compatible with Media over QUIC Transport draft-10."
+edition = "2024"
+version = "0.1.0"

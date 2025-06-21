@@ -3,5 +3,17 @@
 version = 4
 
 [[package]]
-name = "moqtail"
+name = "moqtail-core"
+version = "0.1.0"
+
+[[package]]
+name = "moqtail-native"
+version = "0.1.0"
+
+[[package]]
+name = "moqtail-transport"
+version = "0.1.0"
+
+[[package]]
+name = "moqtail-wasm"
 version = "0.1.0"
