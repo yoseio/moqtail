@@ -1,0 +1,8 @@
+[package]
+name = "moqtail"
+version = "0.1.0"
+authors = ["Kousuke Takaki <kousuke.takaki@shodohq.com>"]
+edition = "2024"
+description = "Live A/V streaming application compatible with Media over QUIC Transport draft-10."
+
+[dependencies]
