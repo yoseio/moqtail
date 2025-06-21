@@ -2,9 +2,6 @@
 resolver = "2"
 members = [
   "packages/moqtail-core",
-  "packages/moqtail-transport",
-  "packages/moqtail-native",
-  "packages/moqtail-wasm",
 ]
 
 [workspace.package]
@@ -12,3 +9,10 @@ authors = ["Kousuke Takaki <kousuke.takaki@shodohq.com>"]
 description = "Live A/V streaming application compatible with Media over QUIC Transport draft-10."
 edition = "2024"
 version = "0.1.0"
+
+[workspace.dependencies]
+async-trait = "0.1"
+bytes = "1.10"
+futures = "0.3"
+log = "0.4"
+thiserror = "2.0"

@@ -1,8 +1,0 @@
-[package]
-name = "moqtail-native"
-authors.workspace = true
-description.workspace = true
-edition.workspace = true
-version.workspace = true
-
-[dependencies]
