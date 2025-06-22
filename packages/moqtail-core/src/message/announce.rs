@@ -1,5 +1,5 @@
 use crate::coding::{Decode, Encode, VarInt};
-use crate::model::{decode_track_namespace, encode_track_namespace, Parameter, TrackNamespace};
+use crate::model::{Parameter, TrackNamespace, decode_track_namespace, encode_track_namespace};
 use bytes::{Buf, BufMut};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -42,7 +42,10 @@ mod tests {
     #[test]
     fn encode_decode_roundtrip() {
         let msg = Announce {
-            track_namespace: vec![bytes::Bytes::from_static(b"ns1"), bytes::Bytes::from_static(b"ns2")],
+            track_namespace: vec![
+                bytes::Bytes::from_static(b"ns1"),
+                bytes::Bytes::from_static(b"ns2"),
+            ],
             parameters: vec![Parameter::AuthorizationInfo("auth".into())],
         };
 

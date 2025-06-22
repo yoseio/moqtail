@@ -39,10 +39,7 @@ impl<T: MoqConnection> Session<T> {
     ///
     /// This opens the control stream, sends a [`ClientSetup`] message and waits
     /// for the corresponding [`ServerSetup`].
-    pub async fn new_client(
-        mut conn: T,
-        path: Option<String>,
-    ) -> Result<Self, T::Error> {
+    pub async fn new_client(mut conn: T, path: Option<String>) -> Result<Self, T::Error> {
         let mut control_stream = conn.open_bi().await?;
 
         // advertise support for version 1 with optional path parameter
@@ -66,17 +63,23 @@ impl<T: MoqConnection> Session<T> {
         let mut read_bytes = bytes::Bytes::copy_from_slice(&read_buf[..n]);
 
         let version = match ControlMessage::decode(&mut read_bytes) {
-            Ok(ControlMessage::ServerSetup(ServerSetup { selected_version, .. })) => {
+            Ok(ControlMessage::ServerSetup(ServerSetup {
+                selected_version, ..
+            })) => {
                 log::info!("Session established using version {}", selected_version.0);
                 selected_version
             }
             Ok(_other) => {
                 log::error!("Unexpected control message during setup");
-                return Err(std::io::Error::new(std::io::ErrorKind::Other, "protocol error").into());
+                return Err(
+                    std::io::Error::new(std::io::ErrorKind::Other, "protocol error").into(),
+                );
             }
             Err(_) => {
                 log::error!("Failed to decode SERVER_SETUP");
-                return Err(std::io::Error::new(std::io::ErrorKind::Other, "protocol error").into());
+                return Err(
+                    std::io::Error::new(std::io::ErrorKind::Other, "protocol error").into(),
+                );
             }
         };
 
@@ -323,14 +326,18 @@ mod tests {
                 written: written.clone(),
             };
 
-            let _ = Session::new_client(conn, Some("/foo".to_string())).await.unwrap();
+            let _ = Session::new_client(conn, Some("/foo".to_string()))
+                .await
+                .unwrap();
 
             let data = written.lock().unwrap();
             let mut bytes = bytes::Bytes::copy_from_slice(&data);
             match ControlMessage::decode(&mut bytes).unwrap() {
                 ControlMessage::ClientSetup(cs) => {
                     assert_eq!(cs.versions, vec![VarInt(1)]);
-                    assert!(matches!(cs.parameters.get(0), Some(SetupParameter::Path(p)) if p == "/foo"));
+                    assert!(
+                        matches!(cs.parameters.get(0), Some(SetupParameter::Path(p)) if p == "/foo")
+                    );
                 }
                 _ => panic!("unexpected message"),
             }

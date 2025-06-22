@@ -1,6 +1,6 @@
 use crate::coding::{Decode, Encode, VarInt};
-use bytes::{Buf, BufMut};
 use crate::model::SetupParameter;
+use bytes::{Buf, BufMut};
 
 #[derive(Debug, Clone)]
 pub struct ServerSetup {

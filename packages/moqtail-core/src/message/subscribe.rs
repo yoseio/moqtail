@@ -1,7 +1,7 @@
 use crate::coding::{Decode, Encode, VarInt};
 use crate::model::{
-    decode_track_name, decode_track_namespace, encode_track_name, encode_track_namespace,
     GroupOrder, Parameter, SubscribeFilter, TrackAlias, TrackName, TrackNamespace,
+    decode_track_name, decode_track_namespace, encode_track_name, encode_track_namespace,
 };
 use bytes::{Buf, BufMut};
 
@@ -29,7 +29,10 @@ impl Encode for Subscribe {
         buf.put_u8(self.subscriber_priority);
         buf.put_u8(self.group_order.into());
         VarInt::from(self.filter_type).encode(buf);
-        if matches!(self.filter_type, SubscribeFilter::AbsoluteStart | SubscribeFilter::AbsoluteRange) {
+        if matches!(
+            self.filter_type,
+            SubscribeFilter::AbsoluteStart | SubscribeFilter::AbsoluteRange
+        ) {
             if let Some(g) = self.start_group {
                 g.encode(buf);
             } else {
@@ -76,7 +79,10 @@ impl<'a> Decode<'a> for Subscribe {
 
         let filter_type = SubscribeFilter::from(VarInt::decode(buf)?);
 
-        let (start_group, start_object) = if matches!(filter_type, SubscribeFilter::AbsoluteStart | SubscribeFilter::AbsoluteRange) {
+        let (start_group, start_object) = if matches!(
+            filter_type,
+            SubscribeFilter::AbsoluteStart | SubscribeFilter::AbsoluteRange
+        ) {
             (Some(VarInt::decode(buf)?), Some(VarInt::decode(buf)?))
         } else {
             (None, None)

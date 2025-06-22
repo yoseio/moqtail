@@ -1,6 +1,6 @@
 use crate::coding::{Decode, Encode, VarInt};
-use bytes::{Buf, BufMut};
 use crate::model::SetupParameter;
+use bytes::{Buf, BufMut};
 
 #[derive(Debug, Clone)]
 pub struct ClientSetup {
@@ -35,6 +35,9 @@ impl<'a> Decode<'a> for ClientSetup {
             parameters.push(SetupParameter::decode(buf)?);
         }
 
-        Ok(ClientSetup { versions, parameters })
+        Ok(ClientSetup {
+            versions,
+            parameters,
+        })
     }
 }

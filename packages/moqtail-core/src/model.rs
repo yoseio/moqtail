@@ -15,9 +15,7 @@ pub fn encode_track_namespace<B: BufMut>(ns: &TrackNamespace, buf: &mut B) {
     }
 }
 
-pub fn decode_track_namespace<B: Buf>(
-    buf: &mut B,
-) -> Result<TrackNamespace, Error> {
+pub fn decode_track_namespace<B: Buf>(buf: &mut B) -> Result<TrackNamespace, Error> {
     let len = VarInt::decode(buf)?.into_inner() as usize;
     if len == 0 || len > 32 {
         return Err(Error::InvalidTrackNamespaceLength(len as u64));
@@ -122,7 +120,7 @@ impl<'a> crate::coding::Decode<'a> for SetupParameter {
                 let val = match VarInt::decode(&mut tmp) {
                     Ok(v) => v,
                     Err(crate::coding::Error::UnexpectedEnd) => {
-                        return Err(crate::coding::Error::ParameterLengthMismatch)
+                        return Err(crate::coding::Error::ParameterLengthMismatch);
                     }
                     Err(e) => return Err(e),
                 };
@@ -206,7 +204,7 @@ impl<'a> crate::coding::Decode<'a> for Parameter {
                 let v = match VarInt::decode(&mut tmp) {
                     Ok(v) => v,
                     Err(crate::coding::Error::UnexpectedEnd) => {
-                        return Err(crate::coding::Error::ParameterLengthMismatch)
+                        return Err(crate::coding::Error::ParameterLengthMismatch);
                     }
                     Err(e) => return Err(e),
                 };
@@ -224,7 +222,7 @@ impl<'a> crate::coding::Decode<'a> for Parameter {
                 let v = match VarInt::decode(&mut tmp) {
                     Ok(v) => v,
                     Err(crate::coding::Error::UnexpectedEnd) => {
-                        return Err(crate::coding::Error::ParameterLengthMismatch)
+                        return Err(crate::coding::Error::ParameterLengthMismatch);
                     }
                     Err(e) => return Err(e),
                 };
@@ -298,7 +296,10 @@ mod tests {
 
     #[test]
     fn track_namespace_roundtrip() {
-        let ns = vec![bytes::Bytes::from_static(b"foo"), bytes::Bytes::from_static(b"bar")];
+        let ns = vec![
+            bytes::Bytes::from_static(b"foo"),
+            bytes::Bytes::from_static(b"bar"),
+        ];
         let mut buf = bytes::BytesMut::new();
         encode_track_namespace(&ns, &mut buf);
         let mut bytes = buf.freeze();

@@ -1,7 +1,7 @@
 use crate::coding::{Decode, Encode, VarInt};
 use crate::model::{
-    decode_track_name, decode_track_namespace, encode_track_name, encode_track_namespace,
-    GroupOrder, Parameter, TrackName, TrackNamespace,
+    GroupOrder, Parameter, TrackName, TrackNamespace, decode_track_name, decode_track_namespace,
+    encode_track_name, encode_track_namespace,
 };
 use bytes::{Buf, BufMut};
 

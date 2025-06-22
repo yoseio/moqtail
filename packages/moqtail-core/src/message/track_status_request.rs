@@ -1,7 +1,7 @@
 use crate::coding::{Decode, Encode, VarInt};
 use crate::model::{
-    decode_track_name, decode_track_namespace, encode_track_name, encode_track_namespace,
-    TrackName, TrackNamespace,
+    TrackName, TrackNamespace, decode_track_name, decode_track_namespace, encode_track_name,
+    encode_track_namespace,
 };
 use bytes::{Buf, BufMut};
 
@@ -38,7 +38,10 @@ mod tests {
     #[test]
     fn encode_decode_roundtrip() {
         let msg = TrackStatusRequest {
-            track_namespace: vec![bytes::Bytes::from_static(b"ns1"), bytes::Bytes::from_static(b"ns2")],
+            track_namespace: vec![
+                bytes::Bytes::from_static(b"ns1"),
+                bytes::Bytes::from_static(b"ns2"),
+            ],
             track_name: bytes::Bytes::from_static(b"track"),
         };
 

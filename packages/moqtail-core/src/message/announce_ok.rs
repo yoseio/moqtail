@@ -1,5 +1,5 @@
 use crate::coding::{Decode, Encode, VarInt};
-use crate::model::{decode_track_namespace, encode_track_namespace, TrackNamespace};
+use crate::model::{TrackNamespace, decode_track_namespace, encode_track_namespace};
 use bytes::{Buf, BufMut};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -28,7 +28,10 @@ mod tests {
     #[test]
     fn encode_decode_roundtrip() {
         let msg = AnnounceOk {
-            track_namespace: vec![bytes::Bytes::from_static(b"live"), bytes::Bytes::from_static(b"video")],
+            track_namespace: vec![
+                bytes::Bytes::from_static(b"live"),
+                bytes::Bytes::from_static(b"video"),
+            ],
         };
 
         let mut buf = bytes::BytesMut::new();

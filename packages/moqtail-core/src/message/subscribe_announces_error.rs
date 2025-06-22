@@ -1,5 +1,5 @@
 use crate::coding::{Decode, Encode, VarInt};
-use crate::model::{decode_track_namespace, encode_track_namespace, TrackNamespace};
+use crate::model::{TrackNamespace, decode_track_namespace, encode_track_namespace};
 use bytes::{Buf, BufMut};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -48,7 +48,10 @@ mod tests {
     #[test]
     fn encode_decode_roundtrip() {
         let msg = SubscribeAnnouncesError {
-            track_namespace_prefix: vec![bytes::Bytes::from_static(b"a"), bytes::Bytes::from_static(b"b")],
+            track_namespace_prefix: vec![
+                bytes::Bytes::from_static(b"a"),
+                bytes::Bytes::from_static(b"b"),
+            ],
             error_code: VarInt(1),
             reason_phrase: "err".to_string(),
         };
