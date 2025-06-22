@@ -1,46 +1,82 @@
 use crate::coding::{Decode, Encode, VarInt};
-use crate::message::{ClientSetup, ControlMessage, Subscribe};
+use crate::message::{
+    ClientSetup, ControlMessage, ServerSetup, Subscribe, SubscribeError, SubscribeOk,
+};
 use crate::model::*;
 use async_trait::async_trait;
 use futures::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
+/// Error codes used when closing a session.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SessionCloseCode {
+    NoError = 0x0,
+    InternalError = 0x1,
+    Unauthorized = 0x2,
+    ProtocolViolation = 0x3,
+    DuplicateTrackAlias = 0x4,
+    ParameterLengthMismatch = 0x5,
+    TooManySubscribes = 0x6,
+    GoawayTimeout = 0x10,
+    ControlMessageTimeout = 0x11,
+    DataStreamTimeout = 0x12,
+}
+
+impl From<SessionCloseCode> for VarInt {
+    fn from(v: SessionCloseCode) -> Self {
+        VarInt(v as u64)
+    }
+}
+
 pub struct Session<T: MoqConnection> {
     conn: T,
     control_stream: T::BiStream,
+    version: VarInt,
     next_subscribe_id: u64,
 }
 
 impl<T: MoqConnection> Session<T> {
+    /// Establish a new session as a client.
+    ///
+    /// This opens the control stream, sends a [`ClientSetup`] message and waits
+    /// for the corresponding [`ServerSetup`].
     pub async fn new_client(mut conn: T) -> Result<Self, T::Error> {
         let mut control_stream = conn.open_bi().await?;
 
+        // advertise support for version 1 with no additional parameters
         let setup = ClientSetup {
             versions: vec![VarInt(1)],
             parameters: Vec::new(),
         };
+
         let mut buf = bytes::BytesMut::new();
         ControlMessage::ClientSetup(setup).encode(&mut buf);
-        control_stream.write_all(&buf).await.map_err(|e| todo!())?;
+        control_stream.write_all(&buf).await?;
 
-        let mut read_buf = [0; 1024];
-        let n = control_stream
-            .read(&mut read_buf)
-            .await
-            .map_err(|e| todo!())?;
+        // Read the SERVER_SETUP message. For simplicity we allocate a buffer
+        // large enough for typical handshake messages.
+        let mut read_buf = [0u8; 1024];
+        let n = control_stream.read(&mut read_buf).await?;
         let mut read_bytes = bytes::Bytes::copy_from_slice(&read_buf[..n]);
 
-        match ControlMessage::decode(&mut read_bytes) {
-            Ok(ControlMessage::ServerSetup(_server_setup)) => {
-                log::info!("Session established!");
+        let version = match ControlMessage::decode(&mut read_bytes) {
+            Ok(ControlMessage::ServerSetup(ServerSetup { selected_version, .. })) => {
+                log::info!("Session established using version {}", selected_version.0);
+                selected_version
             }
-            _ => {
-                log::error!("Failed to receive SERVER_SETUP");
+            Ok(_other) => {
+                log::error!("Unexpected control message during setup");
+                return Err(std::io::Error::new(std::io::ErrorKind::Other, "protocol error").into());
             }
-        }
+            Err(_) => {
+                log::error!("Failed to decode SERVER_SETUP");
+                return Err(std::io::Error::new(std::io::ErrorKind::Other, "protocol error").into());
+            }
+        };
 
         Ok(Self {
             conn,
             control_stream,
+            version,
             next_subscribe_id: 0,
         })
     }
@@ -69,13 +105,52 @@ impl<T: MoqConnection> Session<T> {
 
         let mut buf = bytes::BytesMut::new();
         ControlMessage::Subscribe(msg).encode(&mut buf);
-        self.control_stream
-            .write_all(&buf)
-            .await
-            .map_err(|e| todo!())?;
+        self.control_stream.write_all(&buf).await?;
 
-        // ここでSUBSCRIBE_OK/ERRORを待つロジックが必要
+        // Wait for a response on the control stream. In a fully fledged
+        // implementation we would handle interleaved messages, but for now we
+        // simply expect the next message to correspond to this subscribe.
+        let mut read_buf = [0u8; 1024];
+        let n = self.control_stream.read(&mut read_buf).await?;
+        let mut bytes = bytes::Bytes::copy_from_slice(&read_buf[..n]);
 
+        match ControlMessage::decode(&mut bytes) {
+            Ok(ControlMessage::SubscribeOk(SubscribeOk { subscribe_id, .. }))
+                if subscribe_id.0 == sub_id =>
+            {
+                Ok(())
+            }
+            Ok(ControlMessage::SubscribeError(SubscribeError { reason_phrase, .. })) => {
+                log::error!("subscribe failed: {}", reason_phrase);
+                Err(std::io::Error::new(std::io::ErrorKind::Other, reason_phrase).into())
+            }
+            Ok(_other) => {
+                log::error!("unexpected control message");
+                Err(std::io::Error::new(std::io::ErrorKind::Other, "protocol error").into())
+            }
+            Err(_) => Err(std::io::Error::new(std::io::ErrorKind::Other, "decode error").into()),
+        }
+    }
+
+    /// Simple event loop that polls the underlying transport for new events.
+    /// The current implementation only drains events and logs unexpected ones.
+    pub async fn run(&mut self) -> Result<(), T::Error> {
+        loop {
+            match T::poll_event(&mut self.conn).await? {
+                TransportEvent::BiStream(_) => {
+                    // Only one bidirectional stream (the control stream) is used
+                    // in the current draft. Receiving another is a protocol violation.
+                    log::warn!("unexpected bidirectional stream received");
+                }
+                TransportEvent::UniStream(mut _s) => {
+                    // Handling of data streams is out of scope for this example.
+                }
+                TransportEvent::Datagram(_d) => {
+                    // Datagram support is optional; ignore for now.
+                }
+                TransportEvent::ConnectionClosed => break,
+            }
+        }
         Ok(())
     }
 
