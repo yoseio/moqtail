@@ -61,10 +61,13 @@ impl Relay {
         if let Some(subs) = self.subscriptions.get(track) {
             for s in subs {
                 if let Some(list) = self.subscribers.get_mut(s) {
+                    // Use a middle value (128) as the default publisher
+                    // priority so that individual objects can raise or
+                    // lower their priority if needed.
                     list.push(Object {
                         track_alias: VarInt(*s as u64),
                         id,
-                        publisher_priority: 0,
+                        publisher_priority: 128,
                         payload: payload.clone(),
                     });
                 }
