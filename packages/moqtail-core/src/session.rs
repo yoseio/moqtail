@@ -39,13 +39,20 @@ impl<T: MoqConnection> Session<T> {
     ///
     /// This opens the control stream, sends a [`ClientSetup`] message and waits
     /// for the corresponding [`ServerSetup`].
-    pub async fn new_client(mut conn: T) -> Result<Self, T::Error> {
+    pub async fn new_client(
+        mut conn: T,
+        path: Option<String>,
+    ) -> Result<Self, T::Error> {
         let mut control_stream = conn.open_bi().await?;
 
-        // advertise support for version 1 with no additional parameters
+        // advertise support for version 1 with optional path parameter
+        let mut parameters = Vec::new();
+        if let Some(p) = path {
+            parameters.push(SetupParameter::Path(p));
+        }
         let setup = ClientSetup {
             versions: vec![VarInt(1)],
-            parameters: Vec::new(),
+            parameters,
         };
 
         let mut buf = bytes::BytesMut::new();
@@ -185,4 +192,148 @@ pub trait MoqConnection {
     async fn poll_event(
         &mut self,
     ) -> Result<TransportEvent<Self::BiStream, Self::UniStream, Self::Datagram>, Self::Error>;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use futures::{executor::block_on, io::Cursor};
+    use std::io;
+    use std::sync::{Arc, Mutex};
+
+    struct DummyBiStream {
+        read: Cursor<Vec<u8>>,
+        written: Arc<Mutex<Vec<u8>>>,
+    }
+
+    impl AsyncRead for DummyBiStream {
+        fn poll_read(
+            mut self: std::pin::Pin<&mut Self>,
+            cx: &mut std::task::Context<'_>,
+            buf: &mut [u8],
+        ) -> std::task::Poll<Result<usize, io::Error>> {
+            std::pin::Pin::new(&mut self.read).poll_read(cx, buf)
+        }
+    }
+
+    impl AsyncWrite for DummyBiStream {
+        fn poll_write(
+            self: std::pin::Pin<&mut Self>,
+            _cx: &mut std::task::Context<'_>,
+            buf: &[u8],
+        ) -> std::task::Poll<Result<usize, io::Error>> {
+            let mut data = self.written.lock().unwrap();
+            data.extend_from_slice(buf);
+            std::task::Poll::Ready(Ok(buf.len()))
+        }
+
+        fn poll_flush(
+            self: std::pin::Pin<&mut Self>,
+            _cx: &mut std::task::Context<'_>,
+        ) -> std::task::Poll<Result<(), io::Error>> {
+            std::task::Poll::Ready(Ok(()))
+        }
+
+        fn poll_close(
+            self: std::pin::Pin<&mut Self>,
+            _cx: &mut std::task::Context<'_>,
+        ) -> std::task::Poll<Result<(), io::Error>> {
+            std::task::Poll::Ready(Ok(()))
+        }
+    }
+
+    impl Unpin for DummyBiStream {}
+
+    struct DummyUniStream;
+
+    impl AsyncWrite for DummyUniStream {
+        fn poll_write(
+            self: std::pin::Pin<&mut Self>,
+            _cx: &mut std::task::Context<'_>,
+            _buf: &[u8],
+        ) -> std::task::Poll<Result<usize, io::Error>> {
+            std::task::Poll::Ready(Ok(0))
+        }
+
+        fn poll_flush(
+            self: std::pin::Pin<&mut Self>,
+            _cx: &mut std::task::Context<'_>,
+        ) -> std::task::Poll<Result<(), io::Error>> {
+            std::task::Poll::Ready(Ok(()))
+        }
+
+        fn poll_close(
+            self: std::pin::Pin<&mut Self>,
+            _cx: &mut std::task::Context<'_>,
+        ) -> std::task::Poll<Result<(), io::Error>> {
+            std::task::Poll::Ready(Ok(()))
+        }
+    }
+
+    impl Unpin for DummyUniStream {}
+
+    struct MockConnection {
+        read: Vec<u8>,
+        written: Arc<Mutex<Vec<u8>>>,
+    }
+
+    #[async_trait]
+    impl MoqConnection for MockConnection {
+        type BiStream = DummyBiStream;
+        type UniStream = DummyUniStream;
+        type Datagram = Vec<u8>;
+        type Error = io::Error;
+
+        async fn open_bi(&mut self) -> Result<Self::BiStream, Self::Error> {
+            Ok(DummyBiStream {
+                read: Cursor::new(std::mem::take(&mut self.read)),
+                written: self.written.clone(),
+            })
+        }
+
+        async fn open_uni(&mut self) -> Result<Self::UniStream, Self::Error> {
+            Ok(DummyUniStream)
+        }
+
+        async fn send_datagram(&mut self, _data: &[u8]) -> Result<(), Self::Error> {
+            Ok(())
+        }
+
+        async fn poll_event(
+            &mut self,
+        ) -> Result<TransportEvent<Self::BiStream, Self::UniStream, Self::Datagram>, Self::Error>
+        {
+            Ok(TransportEvent::ConnectionClosed)
+        }
+    }
+
+    #[test]
+    fn client_setup_includes_path() {
+        block_on(async {
+            let server_setup = ServerSetup {
+                selected_version: VarInt(1),
+                parameters: Vec::new(),
+            };
+            let mut resp = bytes::BytesMut::new();
+            ControlMessage::ServerSetup(server_setup).encode(&mut resp);
+
+            let written = Arc::new(Mutex::new(Vec::new()));
+            let conn = MockConnection {
+                read: resp.to_vec(),
+                written: written.clone(),
+            };
+
+            let _ = Session::new_client(conn, Some("/foo".to_string())).await.unwrap();
+
+            let data = written.lock().unwrap();
+            let mut bytes = bytes::Bytes::copy_from_slice(&data);
+            match ControlMessage::decode(&mut bytes).unwrap() {
+                ControlMessage::ClientSetup(cs) => {
+                    assert_eq!(cs.versions, vec![VarInt(1)]);
+                    assert!(matches!(cs.parameters.get(0), Some(SetupParameter::Path(p)) if p == "/foo"));
+                }
+                _ => panic!("unexpected message"),
+            }
+        });
+    }
 }
