@@ -114,8 +114,15 @@ impl<'a> crate::coding::Decode<'a> for SetupParameter {
                 Ok(SetupParameter::Path(path))
             }
             0x02 => {
-                let _len = VarInt::decode(buf)?;
-                let val = VarInt::decode(buf)?;
+                let len = VarInt::decode(buf)?.into_inner() as usize;
+                if buf.remaining() < len {
+                    return Err(crate::coding::Error::UnexpectedEnd);
+                }
+                let mut bytes = buf.copy_to_bytes(len);
+                let val = VarInt::decode(&mut bytes)?;
+                if bytes.has_remaining() {
+                    return Err(crate::coding::Error::ParameterLengthMismatch);
+                }
                 Ok(SetupParameter::MaxSubscribeId(val))
             }
             _ => {
@@ -185,13 +192,27 @@ impl<'a> crate::coding::Decode<'a> for Parameter {
                 Ok(Parameter::AuthorizationInfo(info))
             }
             0x03 => {
-                let _len = VarInt::decode(buf)?;
-                let v = VarInt::decode(buf)?;
+                let len = VarInt::decode(buf)?.into_inner() as usize;
+                if buf.remaining() < len {
+                    return Err(crate::coding::Error::UnexpectedEnd);
+                }
+                let mut bytes = buf.copy_to_bytes(len);
+                let v = VarInt::decode(&mut bytes)?;
+                if bytes.has_remaining() {
+                    return Err(crate::coding::Error::ParameterLengthMismatch);
+                }
                 Ok(Parameter::DeliveryTimeout(v))
             }
             0x04 => {
-                let _len = VarInt::decode(buf)?;
-                let v = VarInt::decode(buf)?;
+                let len = VarInt::decode(buf)?.into_inner() as usize;
+                if buf.remaining() < len {
+                    return Err(crate::coding::Error::UnexpectedEnd);
+                }
+                let mut bytes = buf.copy_to_bytes(len);
+                let v = VarInt::decode(&mut bytes)?;
+                if bytes.has_remaining() {
+                    return Err(crate::coding::Error::ParameterLengthMismatch);
+                }
                 Ok(Parameter::MaxCacheDuration(v))
             }
             _ => {
@@ -249,5 +270,43 @@ impl From<VarInt> for SubscribeFilter {
 impl From<SubscribeFilter> for VarInt {
     fn from(f: SubscribeFilter) -> Self {
         VarInt(f as u64)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bytes::BufMut;
+
+    #[test]
+    fn setup_parameter_length_mismatch() {
+        // encode MaxSubscribeId with length larger than actual
+        let mut buf = bytes::BytesMut::new();
+        VarInt(0x02).encode(&mut buf); // type
+        let mut tmp = bytes::BytesMut::new();
+        VarInt(300).encode(&mut tmp); // encoded varint uses 2 bytes
+        VarInt(tmp.len() as u64 + 1).encode(&mut buf); // declare length 3
+        buf.extend_from_slice(&tmp);
+        buf.put_u8(0); // extra padding
+
+        let mut bytes = buf.freeze();
+        let res = SetupParameter::decode(&mut bytes);
+        assert!(matches!(res, Err(crate::coding::Error::ParameterLengthMismatch)));
+    }
+
+    #[test]
+    fn parameter_length_mismatch() {
+        // encode DeliveryTimeout with length larger than actual
+        let mut buf = bytes::BytesMut::new();
+        VarInt(0x03).encode(&mut buf); // type
+        let mut tmp = bytes::BytesMut::new();
+        VarInt(150).encode(&mut tmp); // encoded varint uses 2 bytes
+        VarInt(tmp.len() as u64 + 1).encode(&mut buf); // declare length 3
+        buf.extend_from_slice(&tmp);
+        buf.put_u8(0);
+
+        let mut bytes = buf.freeze();
+        let res = Parameter::decode(&mut bytes);
+        assert!(matches!(res, Err(crate::coding::Error::ParameterLengthMismatch)));
     }
 }

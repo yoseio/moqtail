@@ -11,6 +11,8 @@ pub enum Error {
     MessageLengthMismatch,
     #[error("invalid track namespace length: {0}")]
     InvalidTrackNamespaceLength(u64),
+    #[error("parameter length mismatch")]
+    ParameterLengthMismatch,
 }
 
 /// [Variable-Length Integer Encoding](https://datatracker.ietf.org/doc/html/rfc9000#name-variable-length-integer-enc)
