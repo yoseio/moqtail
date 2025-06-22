@@ -26,7 +26,7 @@ pub struct Object {
     pub payload: bytes::Bytes,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SetupParameter {
     Path(String),
     MaxSubscribeId(VarInt),
