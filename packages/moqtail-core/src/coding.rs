@@ -7,6 +7,8 @@ pub enum Error {
     UnexpectedEnd,
     #[error("unknown message type: {0}")]
     UnknownMessageType(VarInt),
+    #[error("message length mismatch")]
+    MessageLengthMismatch,
 }
 
 /// [Variable-Length Integer Encoding](https://datatracker.ietf.org/doc/html/rfc9000#name-variable-length-integer-enc)

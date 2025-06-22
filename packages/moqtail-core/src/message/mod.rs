@@ -53,6 +53,7 @@ pub use unsubscribe::*;
 pub use unsubscribe_announces::*;
 
 use crate::coding::{Decode, Encode, VarInt};
+use bytes::Buf;
 
 /// [Control Messages](https://datatracker.ietf.org/doc/html/draft-ietf-moq-transport-10#section-8)
 pub enum ControlMessage {
@@ -305,88 +306,146 @@ impl Encode for ControlMessage {
 impl<'a> Decode<'a> for ControlMessage {
     fn decode<B: bytes::Buf>(buf: &mut B) -> Result<Self, crate::coding::Error> {
         let msg_type = VarInt::decode(buf)?;
-        let _len = VarInt::decode(buf)?.into_inner() as usize;
+        let len = VarInt::decode(buf)?.into_inner() as usize;
 
-        match msg_type.into_inner() {
+        if buf.remaining() < len {
+            return Err(crate::coding::Error::UnexpectedEnd);
+        }
+
+        let mut data = buf.copy_to_bytes(len);
+
+        let msg = match msg_type.into_inner() {
             val if val == ControlMessageType::ClientSetup as u64 => {
-                Ok(ControlMessage::ClientSetup(ClientSetup::decode(buf)?))
+                ControlMessage::ClientSetup(ClientSetup::decode(&mut data)?)
             }
             val if val == ControlMessageType::ServerSetup as u64 => {
-                Ok(ControlMessage::ServerSetup(ServerSetup::decode(buf)?))
+                ControlMessage::ServerSetup(ServerSetup::decode(&mut data)?)
             }
             val if val == ControlMessageType::GoAway as u64 => {
-                Ok(ControlMessage::GoAway(GoAway::decode(buf)?))
+                ControlMessage::GoAway(GoAway::decode(&mut data)?)
             }
             val if val == ControlMessageType::MaxSubscribeId as u64 => {
-                Ok(ControlMessage::MaxSubscribeId(MaxSubscribeId::decode(buf)?))
+                ControlMessage::MaxSubscribeId(MaxSubscribeId::decode(&mut data)?)
             }
-            val if val == ControlMessageType::SubscribesBlocked as u64 => Ok(
-                ControlMessage::SubscribesBlocked(SubscribesBlocked::decode(buf)?),
-            ),
+            val if val == ControlMessageType::SubscribesBlocked as u64 => {
+                ControlMessage::SubscribesBlocked(SubscribesBlocked::decode(&mut data)?)
+            }
             val if val == ControlMessageType::Subscribe as u64 => {
-                Ok(ControlMessage::Subscribe(Subscribe::decode(buf)?))
+                ControlMessage::Subscribe(Subscribe::decode(&mut data)?)
             }
             val if val == ControlMessageType::SubscribeOk as u64 => {
-                Ok(ControlMessage::SubscribeOk(SubscribeOk::decode(buf)?))
+                ControlMessage::SubscribeOk(SubscribeOk::decode(&mut data)?)
             }
             val if val == ControlMessageType::SubscribeError as u64 => {
-                Ok(ControlMessage::SubscribeError(SubscribeError::decode(buf)?))
+                ControlMessage::SubscribeError(SubscribeError::decode(&mut data)?)
             }
             val if val == ControlMessageType::Unsubscribe as u64 => {
-                Ok(ControlMessage::Unsubscribe(Unsubscribe::decode(buf)?))
+                ControlMessage::Unsubscribe(Unsubscribe::decode(&mut data)?)
             }
-            val if val == ControlMessageType::SubscribeUpdate as u64 => Ok(
-                ControlMessage::SubscribeUpdate(SubscribeUpdate::decode(buf)?),
-            ),
+            val if val == ControlMessageType::SubscribeUpdate as u64 => {
+                ControlMessage::SubscribeUpdate(SubscribeUpdate::decode(&mut data)?)
+            }
             val if val == ControlMessageType::SubscribeDone as u64 => {
-                Ok(ControlMessage::SubscribeDone(SubscribeDone::decode(buf)?))
+                ControlMessage::SubscribeDone(SubscribeDone::decode(&mut data)?)
             }
             val if val == ControlMessageType::Fetch as u64 => {
-                Ok(ControlMessage::Fetch(Fetch::decode(buf)?))
+                ControlMessage::Fetch(Fetch::decode(&mut data)?)
             }
             val if val == ControlMessageType::FetchOk as u64 => {
-                Ok(ControlMessage::FetchOk(FetchOk::decode(buf)?))
+                ControlMessage::FetchOk(FetchOk::decode(&mut data)?)
             }
             val if val == ControlMessageType::FetchError as u64 => {
-                Ok(ControlMessage::FetchError(FetchError::decode(buf)?))
+                ControlMessage::FetchError(FetchError::decode(&mut data)?)
             }
             val if val == ControlMessageType::FetchCancel as u64 => {
-                Ok(ControlMessage::FetchCancel(FetchCancel::decode(buf)?))
+                ControlMessage::FetchCancel(FetchCancel::decode(&mut data)?)
             }
-            val if val == ControlMessageType::TrackStatusRequest as u64 => Ok(
-                ControlMessage::TrackStatusRequest(TrackStatusRequest::decode(buf)?),
-            ),
+            val if val == ControlMessageType::TrackStatusRequest as u64 => {
+                ControlMessage::TrackStatusRequest(TrackStatusRequest::decode(&mut data)?)
+            }
             val if val == ControlMessageType::TrackStatus as u64 => {
-                Ok(ControlMessage::TrackStatus(TrackStatus::decode(buf)?))
+                ControlMessage::TrackStatus(TrackStatus::decode(&mut data)?)
             }
             val if val == ControlMessageType::Announce as u64 => {
-                Ok(ControlMessage::Announce(Announce::decode(buf)?))
+                ControlMessage::Announce(Announce::decode(&mut data)?)
             }
             val if val == ControlMessageType::AnnounceOk as u64 => {
-                Ok(ControlMessage::AnnounceOk(AnnounceOk::decode(buf)?))
+                ControlMessage::AnnounceOk(AnnounceOk::decode(&mut data)?)
             }
             val if val == ControlMessageType::AnnounceError as u64 => {
-                Ok(ControlMessage::AnnounceError(AnnounceError::decode(buf)?))
+                ControlMessage::AnnounceError(AnnounceError::decode(&mut data)?)
             }
             val if val == ControlMessageType::Unannounce as u64 => {
-                Ok(ControlMessage::Unannounce(Unannounce::decode(buf)?))
+                ControlMessage::Unannounce(Unannounce::decode(&mut data)?)
             }
             val if val == ControlMessageType::AnnounceCancel as u64 => {
-                Ok(ControlMessage::AnnounceCancel(AnnounceCancel::decode(buf)?))
+                ControlMessage::AnnounceCancel(AnnounceCancel::decode(&mut data)?)
             }
-            val if val == ControlMessageType::SubscribeAnnounces as u64 => Ok(
-                ControlMessage::SubscribeAnnounces(SubscribeAnnounces::decode(buf)?),
-            ),
-            val if val == ControlMessageType::SubscribeAnnouncesOk as u64 => Ok(
-                ControlMessage::SubscribeAnnouncesOk(SubscribeAnnouncesOk::decode(buf)?),
-            ),
-            val if val == ControlMessageType::SubscribeAnnouncesError as u64 => Ok(
-                ControlMessage::SubscribeAnnouncesError(SubscribeAnnouncesError::decode(buf)?),
-            ),
-            val if val == ControlMessageType::UnsubscribeAnnounces as u64 => Ok(
-                ControlMessage::UnsubscribeAnnounces(UnsubscribeAnnounces::decode(buf)?),
-            ),
-            _ => Err(crate::coding::Error::UnknownMessageType(msg_type)),
+            val if val == ControlMessageType::SubscribeAnnounces as u64 => {
+                ControlMessage::SubscribeAnnounces(SubscribeAnnounces::decode(&mut data)?)
+            }
+            val if val == ControlMessageType::SubscribeAnnouncesOk as u64 => {
+                ControlMessage::SubscribeAnnouncesOk(SubscribeAnnouncesOk::decode(&mut data)?)
+            }
+            val if val == ControlMessageType::SubscribeAnnouncesError as u64 => {
+                ControlMessage::SubscribeAnnouncesError(SubscribeAnnouncesError::decode(&mut data)?)
+            }
+            val if val == ControlMessageType::UnsubscribeAnnounces as u64 => {
+                ControlMessage::UnsubscribeAnnounces(UnsubscribeAnnounces::decode(&mut data)?)
+            }
+            _ => return Err(crate::coding::Error::UnknownMessageType(msg_type)),
+        };
+
+        if data.has_remaining() {
+            return Err(crate::coding::Error::MessageLengthMismatch);
         }
+
+        Ok(msg)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::coding::{Encode, VarInt};
+    use bytes::{Buf, BufMut};
+
+    #[test]
+    fn control_message_roundtrip() {
+        let msg = ControlMessage::GoAway(GoAway {
+            new_session_uri: "moq://example".to_string(),
+        });
+        let mut buf = bytes::BytesMut::new();
+        msg.encode(&mut buf);
+
+        let mut bytes = buf.freeze();
+        let decoded = ControlMessage::decode(&mut bytes).unwrap();
+
+        match decoded {
+            ControlMessage::GoAway(g) => assert_eq!(g.new_session_uri, "moq://example"),
+            _ => panic!("wrong variant"),
+        }
+    }
+
+    #[test]
+    fn message_length_mismatch() {
+        let inner = GoAway {
+            new_session_uri: "moq://example".to_string(),
+        };
+        let mut payload = bytes::BytesMut::new();
+        inner.encode(&mut payload);
+        let mut buf = bytes::BytesMut::new();
+        VarInt(ControlMessageType::GoAway as u64).encode(&mut buf);
+        // declare a length larger than actual and pad extra bytes
+        VarInt((payload.len() + 2) as u64).encode(&mut buf);
+        buf.put_slice(&payload);
+        buf.put_slice(&[0u8; 2]);
+
+        let mut bytes = buf.freeze();
+        let res = ControlMessage::decode(&mut bytes);
+        assert!(matches!(
+            res,
+            Err(crate::coding::Error::MessageLengthMismatch)
+        ));
     }
 }
