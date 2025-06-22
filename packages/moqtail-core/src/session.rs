@@ -1,7 +1,7 @@
 use crate::coding::{Decode, Encode, VarInt};
 use crate::message::{
-    ClientSetup, ControlMessage, Fetch, FetchCancel, FetchError, FetchOk, FetchType, GoAway,
-    Announce, AnnounceCancel, AnnounceOk, ServerSetup, Subscribe, SubscribeAnnounces,
+    Announce, AnnounceCancel, AnnounceOk, ClientSetup, ControlMessage, Fetch, FetchCancel,
+    FetchError, FetchOk, FetchType, GoAway, ServerSetup, Subscribe, SubscribeAnnounces,
     SubscribeDone, SubscribeError, SubscribeOk, Unsubscribe, UnsubscribeAnnounces,
 };
 use crate::model::*;
@@ -81,6 +81,13 @@ impl<T: MoqConnection> Session<T> {
         // large enough for typical handshake messages.
         let mut read_buf = [0u8; 1024];
         let n = control_stream.read(&mut read_buf).await?;
+        if n == 0 {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::UnexpectedEof,
+                "control stream closed",
+            )
+            .into());
+        }
         let mut read_bytes = bytes::Bytes::copy_from_slice(&read_buf[..n]);
 
         let version = match ControlMessage::decode(&mut read_bytes) {
@@ -154,27 +161,24 @@ impl<T: MoqConnection> Session<T> {
         // Wait for a response on the control stream. In a fully fledged
         // implementation we would handle interleaved messages, but for now we
         // simply expect the next message to correspond to this subscribe.
-        let mut read_buf = [0u8; 1024];
-        let n = self.control_stream.read(&mut read_buf).await?;
-        let mut bytes = bytes::Bytes::copy_from_slice(&read_buf[..n]);
+        let msg = self.read_control_message().await?;
 
-        match ControlMessage::decode(&mut bytes) {
-            Ok(ControlMessage::SubscribeOk(SubscribeOk { subscribe_id, .. }))
+        match msg {
+            ControlMessage::SubscribeOk(SubscribeOk { subscribe_id, .. })
                 if subscribe_id.0 == sub_id =>
             {
                 self.subscribes.insert(sub_id, SubscribeState::Active);
                 Ok(())
             }
-            Ok(ControlMessage::SubscribeError(SubscribeError { reason_phrase, .. })) => {
+            ControlMessage::SubscribeError(SubscribeError { reason_phrase, .. }) => {
                 log::error!("subscribe failed: {}", reason_phrase);
                 self.subscribes.remove(&sub_id);
                 Err(std::io::Error::new(std::io::ErrorKind::Other, reason_phrase).into())
             }
-            Ok(_other) => {
+            _other => {
                 log::error!("unexpected control message");
                 Err(std::io::Error::new(std::io::ErrorKind::Other, "protocol error").into())
             }
-            Err(_) => Err(std::io::Error::new(std::io::ErrorKind::Other, "decode error").into()),
         }
     }
 
@@ -198,20 +202,19 @@ impl<T: MoqConnection> Session<T> {
         ControlMessage::SubscribeAnnounces(msg).encode(&mut buf);
         self.control_stream.write_all(&buf).await?;
 
-        let mut read_buf = [0u8; 1024];
-        let n = self.control_stream.read(&mut read_buf).await?;
-        let mut bytes = bytes::Bytes::copy_from_slice(&read_buf[..n]);
-
-        match ControlMessage::decode(&mut bytes) {
-            Ok(ControlMessage::SubscribeAnnouncesOk(_)) => Ok(()),
-            Ok(ControlMessage::SubscribeAnnouncesError(e)) => {
+        match self.read_control_message().await? {
+            ControlMessage::SubscribeAnnouncesOk(_) => Ok(()),
+            ControlMessage::SubscribeAnnouncesError(e) => {
                 Err(std::io::Error::new(std::io::ErrorKind::Other, e.reason_phrase).into())
             }
             _ => Err(std::io::Error::new(std::io::ErrorKind::Other, "protocol error").into()),
         }
     }
 
-    pub async fn unsubscribe_announces(&mut self, namespace: TrackNamespace) -> Result<(), T::Error> {
+    pub async fn unsubscribe_announces(
+        &mut self,
+        namespace: TrackNamespace,
+    ) -> Result<(), T::Error> {
         let msg = UnsubscribeAnnounces {
             track_namespace_prefix: namespace,
         };
@@ -222,7 +225,11 @@ impl<T: MoqConnection> Session<T> {
     }
 
     pub async fn announce_cancel(&mut self, namespace: TrackNamespace) -> Result<(), T::Error> {
-        let msg = AnnounceCancel { track_namespace: namespace.clone(), error_code: VarInt(0), reason_phrase: String::new() };
+        let msg = AnnounceCancel {
+            track_namespace: namespace.clone(),
+            error_code: VarInt(0),
+            reason_phrase: String::new(),
+        };
         let mut buf = bytes::BytesMut::new();
         ControlMessage::AnnounceCancel(msg).encode(&mut buf);
         self.control_stream.write_all(&buf).await?;
@@ -266,16 +273,12 @@ impl<T: MoqConnection> Session<T> {
 
         self.fetches.insert(id, FetchState::Pending);
 
-        let mut read_buf = [0u8; 1024];
-        let n = self.control_stream.read(&mut read_buf).await?;
-        let mut bytes = bytes::Bytes::copy_from_slice(&read_buf[..n]);
-
-        match ControlMessage::decode(&mut bytes) {
-            Ok(ControlMessage::FetchOk(FetchOk { subscribe_id, .. })) if subscribe_id.0 == id => {
+        match self.read_control_message().await? {
+            ControlMessage::FetchOk(FetchOk { subscribe_id, .. }) if subscribe_id.0 == id => {
                 self.fetches.insert(id, FetchState::Active);
                 Ok(id)
             }
-            Ok(ControlMessage::FetchError(FetchError { reason_phrase, .. })) => {
+            ControlMessage::FetchError(FetchError { reason_phrase, .. }) => {
                 self.fetches.remove(&id);
                 Err(std::io::Error::new(std::io::ErrorKind::Other, reason_phrase).into())
             }
@@ -299,10 +302,15 @@ impl<T: MoqConnection> Session<T> {
             ControlMessage::SubscribeOk(SubscribeOk { subscribe_id, .. }) => {
                 match self.subscribes.get(&subscribe_id.0) {
                     Some(SubscribeState::Pending) => {
-                        self.subscribes.insert(subscribe_id.0, SubscribeState::Active);
+                        self.subscribes
+                            .insert(subscribe_id.0, SubscribeState::Active);
                     }
                     _ => {
-                        self.close(SessionCloseCode::ProtocolViolation, "duplicate SUBSCRIBE response").await?;
+                        self.close(
+                            SessionCloseCode::ProtocolViolation,
+                            "duplicate SUBSCRIBE response",
+                        )
+                        .await?;
                     }
                 }
             }
@@ -310,7 +318,11 @@ impl<T: MoqConnection> Session<T> {
                 match self.subscribes.remove(&subscribe_id.0) {
                     Some(SubscribeState::Pending) => {}
                     _ => {
-                        self.close(SessionCloseCode::ProtocolViolation, "duplicate SUBSCRIBE response").await?;
+                        self.close(
+                            SessionCloseCode::ProtocolViolation,
+                            "duplicate SUBSCRIBE response",
+                        )
+                        .await?;
                     }
                 }
             }
@@ -323,7 +335,11 @@ impl<T: MoqConnection> Session<T> {
                         self.fetches.insert(subscribe_id.0, FetchState::Active);
                     }
                     _ => {
-                        self.close(SessionCloseCode::ProtocolViolation, "duplicate FETCH response").await?;
+                        self.close(
+                            SessionCloseCode::ProtocolViolation,
+                            "duplicate FETCH response",
+                        )
+                        .await?;
                     }
                 }
             }
@@ -331,13 +347,20 @@ impl<T: MoqConnection> Session<T> {
                 match self.fetches.remove(&subscribe_id.0) {
                     Some(FetchState::Pending) | Some(FetchState::Active) => {}
                     _ => {
-                        self.close(SessionCloseCode::ProtocolViolation, "duplicate FETCH response").await?;
+                        self.close(
+                            SessionCloseCode::ProtocolViolation,
+                            "duplicate FETCH response",
+                        )
+                        .await?;
                     }
                 }
             }
-            ControlMessage::Announce(Announce { track_namespace, .. }) => {
+            ControlMessage::Announce(Announce {
+                track_namespace, ..
+            }) => {
                 if !self.announces.insert(track_namespace.clone()) {
-                    self.close(SessionCloseCode::ProtocolViolation, "duplicate ANNOUNCE").await?;
+                    self.close(SessionCloseCode::ProtocolViolation, "duplicate ANNOUNCE")
+                        .await?;
                 } else {
                     let resp = ControlMessage::AnnounceOk(AnnounceOk { track_namespace });
                     let mut buf = bytes::BytesMut::new();
@@ -345,8 +368,15 @@ impl<T: MoqConnection> Session<T> {
                     self.control_stream.write_all(&buf).await?;
                 }
             }
-            ControlMessage::AnnounceCancel(AnnounceCancel { track_namespace, .. }) => {
+            ControlMessage::AnnounceCancel(AnnounceCancel {
+                track_namespace, ..
+            }) => {
                 self.announces.remove(&track_namespace);
+            }
+            ControlMessage::GoAway(g) => {
+                log::info!("received GOAWAY: {}", g.new_session_uri);
+                self.close(SessionCloseCode::NoError, "goaway received")
+                    .await?;
             }
             _ => {}
         }
@@ -389,6 +419,25 @@ impl<T: MoqConnection> Session<T> {
         ControlMessage::GoAway(msg).encode(&mut buf);
         self.control_stream.write_all(&buf).await?;
         Ok(())
+    }
+
+    /// Read a control message from the control stream. If the stream is closed,
+    /// the session is closed with a `ProtocolViolation` error.
+    async fn read_control_message(&mut self) -> Result<ControlMessage, T::Error> {
+        let mut read_buf = [0u8; 1024];
+        let n = self.control_stream.read(&mut read_buf).await?;
+        if n == 0 {
+            self.close(SessionCloseCode::ProtocolViolation, "control stream closed")
+                .await?;
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::UnexpectedEof,
+                "control stream closed",
+            )
+            .into());
+        }
+        let mut bytes = bytes::Bytes::copy_from_slice(&read_buf[..n]);
+        ControlMessage::decode(&mut bytes)
+            .map_err(|_| std::io::Error::new(std::io::ErrorKind::Other, "decode error").into())
     }
 
     /// Close the underlying connection with the given error code and reason.
@@ -715,28 +764,26 @@ mod tests {
             };
 
             let mut sess = Session::new_client(conn, None).await.unwrap();
-            sess
-                .handle_control_message(ControlMessage::SubscribeOk(SubscribeOk {
-                    subscribe_id: VarInt(0),
-                    expires: VarInt(0),
-                    group_order: GroupOrder::Publisher,
-                    content_exists: false,
-                    largest_group_id: None,
-                    largest_object_id: None,
-                    parameters: Vec::new(),
-                }))
-                .await
-                .unwrap();
+            sess.handle_control_message(ControlMessage::SubscribeOk(SubscribeOk {
+                subscribe_id: VarInt(0),
+                expires: VarInt(0),
+                group_order: GroupOrder::Publisher,
+                content_exists: false,
+                largest_group_id: None,
+                largest_object_id: None,
+                parameters: Vec::new(),
+            }))
+            .await
+            .unwrap();
 
-            sess
-                .handle_control_message(ControlMessage::SubscribeDone(SubscribeDone {
-                    subscribe_id: VarInt(0),
-                    status_code: VarInt(0),
-                    stream_count: VarInt(0),
-                    reason_phrase: "done".into(),
-                }))
-                .await
-                .unwrap();
+            sess.handle_control_message(ControlMessage::SubscribeDone(SubscribeDone {
+                subscribe_id: VarInt(0),
+                status_code: VarInt(0),
+                stream_count: VarInt(0),
+                reason_phrase: "done".into(),
+            }))
+            .await
+            .unwrap();
 
             assert!(sess.subscribes.get(&0).is_none());
         });
@@ -766,25 +813,23 @@ mod tests {
             };
 
             let mut sess = Session::new_client(conn, None).await.unwrap();
-            sess
-                .handle_control_message(ControlMessage::FetchOk(FetchOk {
-                    subscribe_id: VarInt(0),
-                    group_order: GroupOrder::Publisher,
-                    end_of_track: false,
-                    largest_group_id: VarInt(0),
-                    largest_object_id: VarInt(0),
-                    parameters: Vec::new(),
-                }))
-                .await
-                .unwrap();
-            sess
-                .handle_control_message(ControlMessage::FetchError(FetchError {
-                    subscribe_id: VarInt(0),
-                    error_code: VarInt(1),
-                    reason_phrase: "err".into(),
-                }))
-                .await
-                .unwrap();
+            sess.handle_control_message(ControlMessage::FetchOk(FetchOk {
+                subscribe_id: VarInt(0),
+                group_order: GroupOrder::Publisher,
+                end_of_track: false,
+                largest_group_id: VarInt(0),
+                largest_object_id: VarInt(0),
+                parameters: Vec::new(),
+            }))
+            .await
+            .unwrap();
+            sess.handle_control_message(ControlMessage::FetchError(FetchError {
+                subscribe_id: VarInt(0),
+                error_code: VarInt(1),
+                reason_phrase: "err".into(),
+            }))
+            .await
+            .unwrap();
 
             assert!(sess.fetches.get(&0).is_none());
         });
@@ -793,7 +838,10 @@ mod tests {
     #[test]
     fn duplicate_subscribe_response_closes_session() {
         block_on(async {
-            let server_setup = ServerSetup { selected_version: VarInt(1), parameters: Vec::new() };
+            let server_setup = ServerSetup {
+                selected_version: VarInt(1),
+                parameters: Vec::new(),
+            };
             let mut server_bytes = bytes::BytesMut::new();
             ControlMessage::ServerSetup(server_setup).encode(&mut server_bytes);
 
@@ -868,7 +916,10 @@ mod tests {
     #[test]
     fn announce_ok_sent_and_tracked() {
         block_on(async {
-            let server_setup = ServerSetup { selected_version: VarInt(1), parameters: Vec::new() };
+            let server_setup = ServerSetup {
+                selected_version: VarInt(1),
+                parameters: Vec::new(),
+            };
             let mut resp = bytes::BytesMut::new();
             ControlMessage::ServerSetup(server_setup).encode(&mut resp);
 
@@ -880,15 +931,17 @@ mod tests {
             };
 
             let mut sess = Session::new_client(conn, None).await.unwrap();
-            sess
-                .handle_control_message(ControlMessage::Announce(Announce {
-                    track_namespace: vec![bytes::Bytes::from_static(b"ns")],
-                    parameters: Vec::new(),
-                }))
-                .await
-                .unwrap();
+            sess.handle_control_message(ControlMessage::Announce(Announce {
+                track_namespace: vec![bytes::Bytes::from_static(b"ns")],
+                parameters: Vec::new(),
+            }))
+            .await
+            .unwrap();
 
-            assert!(sess.announces.contains(&vec![bytes::Bytes::from_static(b"ns")]));
+            assert!(
+                sess.announces
+                    .contains(&vec![bytes::Bytes::from_static(b"ns")])
+            );
 
             let data = written.lock().unwrap();
             let mut bytes = bytes::Bytes::from(data.clone());
