@@ -114,8 +114,21 @@ impl<'a> crate::coding::Decode<'a> for SetupParameter {
                 Ok(SetupParameter::Path(path))
             }
             0x02 => {
-                let _len = VarInt::decode(buf)?;
-                let val = VarInt::decode(buf)?;
+                let len = VarInt::decode(buf)?.into_inner() as usize;
+                if buf.remaining() < len {
+                    return Err(crate::coding::Error::UnexpectedEnd);
+                }
+                let mut tmp = buf.copy_to_bytes(len);
+                let val = match VarInt::decode(&mut tmp) {
+                    Ok(v) => v,
+                    Err(crate::coding::Error::UnexpectedEnd) => {
+                        return Err(crate::coding::Error::ParameterLengthMismatch)
+                    }
+                    Err(e) => return Err(e),
+                };
+                if tmp.has_remaining() {
+                    return Err(crate::coding::Error::ParameterLengthMismatch);
+                }
                 Ok(SetupParameter::MaxSubscribeId(val))
             }
             _ => {
@@ -185,13 +198,39 @@ impl<'a> crate::coding::Decode<'a> for Parameter {
                 Ok(Parameter::AuthorizationInfo(info))
             }
             0x03 => {
-                let _len = VarInt::decode(buf)?;
-                let v = VarInt::decode(buf)?;
+                let len = VarInt::decode(buf)?.into_inner() as usize;
+                if buf.remaining() < len {
+                    return Err(crate::coding::Error::UnexpectedEnd);
+                }
+                let mut tmp = buf.copy_to_bytes(len);
+                let v = match VarInt::decode(&mut tmp) {
+                    Ok(v) => v,
+                    Err(crate::coding::Error::UnexpectedEnd) => {
+                        return Err(crate::coding::Error::ParameterLengthMismatch)
+                    }
+                    Err(e) => return Err(e),
+                };
+                if tmp.has_remaining() {
+                    return Err(crate::coding::Error::ParameterLengthMismatch);
+                }
                 Ok(Parameter::DeliveryTimeout(v))
             }
             0x04 => {
-                let _len = VarInt::decode(buf)?;
-                let v = VarInt::decode(buf)?;
+                let len = VarInt::decode(buf)?.into_inner() as usize;
+                if buf.remaining() < len {
+                    return Err(crate::coding::Error::UnexpectedEnd);
+                }
+                let mut tmp = buf.copy_to_bytes(len);
+                let v = match VarInt::decode(&mut tmp) {
+                    Ok(v) => v,
+                    Err(crate::coding::Error::UnexpectedEnd) => {
+                        return Err(crate::coding::Error::ParameterLengthMismatch)
+                    }
+                    Err(e) => return Err(e),
+                };
+                if tmp.has_remaining() {
+                    return Err(crate::coding::Error::ParameterLengthMismatch);
+                }
                 Ok(Parameter::MaxCacheDuration(v))
             }
             _ => {
@@ -290,5 +329,32 @@ mod tests {
         let decoded = decode_track_name(&mut bytes).unwrap();
         assert_eq!(decoded, name);
         assert!(!bytes.has_remaining());
+    }
+
+    #[test]
+    fn parameter_length_mismatch() {
+        // DeliveryTimeout with incorrect length
+        let mut buf = bytes::BytesMut::new();
+        // type 0x03
+        VarInt(0x03).encode(&mut buf);
+        // declare length 1 but encode a two-byte varint value
+        VarInt(1).encode(&mut buf);
+        VarInt(1000).encode(&mut buf);
+        let mut bytes = buf.freeze();
+        let res = Parameter::decode(&mut bytes);
+        assert!(matches!(res, Err(Error::ParameterLengthMismatch)));
+    }
+
+    #[test]
+    fn setup_parameter_length_mismatch() {
+        let mut buf = bytes::BytesMut::new();
+        // type 0x02
+        VarInt(0x02).encode(&mut buf);
+        // declare length 1 but encode varint using two bytes
+        VarInt(1).encode(&mut buf);
+        VarInt(300).encode(&mut buf);
+        let mut bytes = buf.freeze();
+        let res = SetupParameter::decode(&mut bytes);
+        assert!(matches!(res, Err(Error::ParameterLengthMismatch)));
     }
 }
