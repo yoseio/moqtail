@@ -1,4 +1,4 @@
-use crate::coding::{Decode, Encode};
+use crate::coding::{Decode, Encode, VarInt};
 use crate::message::{ClientSetup, ControlMessage, Subscribe};
 use crate::model::*;
 use async_trait::async_trait;
@@ -15,8 +15,8 @@ impl<T: MoqConnection> Session<T> {
         let mut control_stream = conn.open_bi().await?;
 
         let setup = ClientSetup {
-        //    supported_versions: vec![VarInt(1)],
-        //    ..Default::default()
+            versions: vec![VarInt(1)],
+            parameters: Vec::new(),
         };
         let mut buf = bytes::BytesMut::new();
         ControlMessage::ClientSetup(setup).encode(&mut buf);
