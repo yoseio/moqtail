@@ -1,8 +1,7 @@
 use crate::coding::{Decode, Encode, VarInt};
 use crate::message::{
-    ClientSetup, ControlMessage, Fetch, FetchCancel, FetchError, FetchOk, FetchType,
-    ServerSetup,
-    Subscribe, SubscribeAnnounces, SubscribeAnnouncesError, SubscribeAnnouncesOk,
+    ClientSetup, ControlMessage, Fetch, FetchCancel, FetchError, FetchOk, FetchType, GoAway,
+    ServerSetup, Subscribe, SubscribeAnnounces, SubscribeAnnouncesError, SubscribeAnnouncesOk,
     SubscribeError, SubscribeOk, Unsubscribe,
 };
 use crate::model::*;
@@ -123,7 +122,9 @@ impl<T: MoqConnection> Session<T> {
         self.next_subscribe_id += 1;
 
         if self.subscribes.contains_key(&sub_id) {
-            return Err(std::io::Error::new(std::io::ErrorKind::Other, "duplicate subscribe id").into());
+            return Err(
+                std::io::Error::new(std::io::ErrorKind::Other, "duplicate subscribe id").into(),
+            );
         }
 
         let msg = Subscribe {
@@ -186,10 +187,7 @@ impl<T: MoqConnection> Session<T> {
         Ok(())
     }
 
-    pub async fn subscribe_announces(
-        &mut self,
-        namespace: TrackNamespace,
-    ) -> Result<(), T::Error> {
+    pub async fn subscribe_announces(&mut self, namespace: TrackNamespace) -> Result<(), T::Error> {
         let msg = SubscribeAnnounces {
             track_namespace_prefix: namespace,
             parameters: Vec::new(),
@@ -204,11 +202,9 @@ impl<T: MoqConnection> Session<T> {
 
         match ControlMessage::decode(&mut bytes) {
             Ok(ControlMessage::SubscribeAnnouncesOk(_)) => Ok(()),
-            Ok(ControlMessage::SubscribeAnnouncesError(e)) => Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                e.reason_phrase,
-            )
-            .into()),
+            Ok(ControlMessage::SubscribeAnnouncesError(e)) => {
+                Err(std::io::Error::new(std::io::ErrorKind::Other, e.reason_phrase).into())
+            }
             _ => Err(std::io::Error::new(std::io::ErrorKind::Other, "protocol error").into()),
         }
     }
@@ -222,7 +218,9 @@ impl<T: MoqConnection> Session<T> {
         self.next_subscribe_id += 1;
 
         if self.fetches.contains_key(&id) {
-            return Err(std::io::Error::new(std::io::ErrorKind::Other, "duplicate fetch id").into());
+            return Err(
+                std::io::Error::new(std::io::ErrorKind::Other, "duplicate fetch id").into(),
+            );
         }
 
         let msg = Fetch {
@@ -284,6 +282,13 @@ impl<T: MoqConnection> Session<T> {
                     // Only one bidirectional stream (the control stream) is used
                     // in the current draft. Receiving another is a protocol violation.
                     log::warn!("unexpected bidirectional stream received");
+                    self.conn
+                        .close(
+                            SessionCloseCode::ProtocolViolation.into(),
+                            "unexpected bidirectional stream",
+                        )
+                        .await?;
+                    break;
                 }
                 TransportEvent::UniStream(mut _s) => {
                     // Handling of data streams is out of scope for this example.
@@ -295,6 +300,20 @@ impl<T: MoqConnection> Session<T> {
             }
         }
         Ok(())
+    }
+
+    /// Send a GOAWAY control message to initiate session migration.
+    pub async fn send_goaway(&mut self, new_session_uri: String) -> Result<(), T::Error> {
+        let msg = GoAway { new_session_uri };
+        let mut buf = bytes::BytesMut::new();
+        ControlMessage::GoAway(msg).encode(&mut buf);
+        self.control_stream.write_all(&buf).await?;
+        Ok(())
+    }
+
+    /// Close the underlying connection with the given error code and reason.
+    pub async fn close(&mut self, code: SessionCloseCode, reason: &str) -> Result<(), T::Error> {
+        self.conn.close(code.into(), reason).await
     }
 
     // TODO: イベントをポーリングし、状態を更新する `run` ループを実装
@@ -328,6 +347,8 @@ pub trait MoqConnection {
     async fn poll_event(
         &mut self,
     ) -> Result<TransportEvent<Self::BiStream, Self::UniStream, Self::Datagram>, Self::Error>;
+
+    async fn close(&mut self, code: VarInt, reason: &str) -> Result<(), Self::Error>;
 }
 
 #[cfg(test)]
@@ -461,6 +482,10 @@ mod tests {
         {
             Ok(TransportEvent::ConnectionClosed)
         }
+
+        async fn close(&mut self, _code: VarInt, _reason: &str) -> Result<(), Self::Error> {
+            Ok(())
+        }
     }
 
     #[test]
@@ -526,11 +551,17 @@ mod tests {
 
             let mut sess = Session::new_client(conn, None).await.unwrap();
 
-            sess.subscribe(vec![bytes::Bytes::from_static(b"ns")], bytes::Bytes::from_static(b"track"))
-                .await
-                .unwrap();
+            sess.subscribe(
+                vec![bytes::Bytes::from_static(b"ns")],
+                bytes::Bytes::from_static(b"track"),
+            )
+            .await
+            .unwrap();
 
-            assert!(matches!(sess.subscribes.get(&0), Some(SubscribeState::Active)));
+            assert!(matches!(
+                sess.subscribes.get(&0),
+                Some(SubscribeState::Active)
+            ));
         });
     }
 
@@ -562,11 +593,45 @@ mod tests {
 
             let mut sess = Session::new_client(conn, None).await.unwrap();
 
-            sess.fetch(vec![bytes::Bytes::from_static(b"ns")], bytes::Bytes::from_static(b"track"))
-                .await
-                .unwrap();
+            sess.fetch(
+                vec![bytes::Bytes::from_static(b"ns")],
+                bytes::Bytes::from_static(b"track"),
+            )
+            .await
+            .unwrap();
 
             assert!(matches!(sess.fetches.get(&0), Some(FetchState::Active)));
+        });
+    }
+
+    #[test]
+    fn goaway_message_sent() {
+        block_on(async {
+            let server_setup = ServerSetup {
+                selected_version: VarInt(1),
+                parameters: Vec::new(),
+            };
+            let mut server_bytes = bytes::BytesMut::new();
+            ControlMessage::ServerSetup(server_setup).encode(&mut server_bytes);
+
+            let written = Arc::new(Mutex::new(Vec::new()));
+            let conn = MockConnection {
+                read: VecDeque::from(vec![server_bytes.to_vec()]),
+                written: written.clone(),
+            };
+
+            let mut sess = Session::new_client(conn, None).await.unwrap();
+            sess.send_goaway("moq://new".to_string()).await.unwrap();
+
+            let data = written.lock().unwrap();
+            let mut bytes = bytes::Bytes::from(data.clone());
+            // first message is client setup, second is GOAWAY
+            let _setup = ControlMessage::decode(&mut bytes).unwrap();
+            let goaway = ControlMessage::decode(&mut bytes).unwrap();
+            match goaway {
+                ControlMessage::GoAway(g) => assert_eq!(g.new_session_uri, "moq://new"),
+                _ => panic!("expected GOAWAY"),
+            }
         });
     }
 }
