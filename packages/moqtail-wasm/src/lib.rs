@@ -124,13 +124,11 @@ impl MoqConnection for WasmConnection {
     async fn poll_event(
         &mut self,
     ) -> Result<TransportEvent<Self::BiStream, Self::UniStream, Self::Datagram>, Self::Error> {
-        // Wasmでのイベントポーリングは複雑。
-        // `select`のような機能がないため、通常は複数のFutureを`race`するか、
-        // `Stream`をマージして処理する。
-        // ここでは概念を示すための未実装のプレースホルダー。
-        unimplemented!(
-            "Polling events in Wasm requires a more complex setup, likely merging multiple streams."
-        );
+        // WebTransport JavaScript API does not currently expose a unified polling
+        // mechanism. For now we simply wait for the connection to be closed and
+        // report the event to the caller.
+        let _ = JsFuture::from(self.transport.closed()).await?;
+        Ok(TransportEvent::ConnectionClosed)
     }
 
     async fn close(
