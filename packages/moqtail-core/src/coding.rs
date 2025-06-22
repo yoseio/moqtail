@@ -9,6 +9,7 @@ pub enum Error {
     UnknownMessageType(VarInt),
 }
 
+/// [Variable-Length Integer Encoding](https://datatracker.ietf.org/doc/html/rfc9000#name-variable-length-integer-enc)
 #[derive(Default, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct VarInt(pub u64);
 

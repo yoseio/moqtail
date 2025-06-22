@@ -1,4 +1,5 @@
-use crate::coding::{Decode, Encode, VarInt};
+use crate::coding::{Decode, Encode};
+use crate::message::{ClientSetup, ControlMessage, Subscribe};
 use crate::model::*;
 use async_trait::async_trait;
 use futures::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
@@ -14,8 +15,8 @@ impl<T: MoqConnection> Session<T> {
         let mut control_stream = conn.open_bi().await?;
 
         let setup = ClientSetup {
-            supported_versions: vec![VarInt(1)],
-            ..Default::default()
+        //    supported_versions: vec![VarInt(1)],
+        //    ..Default::default()
         };
         let mut buf = bytes::BytesMut::new();
         ControlMessage::ClientSetup(setup).encode(&mut buf);
@@ -53,10 +54,10 @@ impl<T: MoqConnection> Session<T> {
         self.next_subscribe_id += 1;
 
         let msg = Subscribe {
-            subscribe_id: VarInt(sub_id),
-            track_alias: VarInt(sub_id),
-            track_namespace: namespace,
-            track_name: name,
+        //    subscribe_id: VarInt(sub_id),
+        //    track_alias: VarInt(sub_id),
+        //    track_namespace: namespace,
+        //    track_name: name,
         };
 
         let mut buf = bytes::BytesMut::new();
