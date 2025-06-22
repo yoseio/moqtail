@@ -20,6 +20,8 @@ pub struct Relay {
     subscriptions: HashMap<FullTrackName, Vec<usize>>, // track -> subscriber ids
     /// Upstream subscription state per track and publisher
     upstream_subscribed: HashMap<FullTrackName, HashSet<usize>>, // track -> publishers
+    /// Upstream subscriptions that are pending a response
+    upstream_pending: HashMap<FullTrackName, HashSet<usize>>, // track -> publishers
     /// Cached objects keyed by track and object id
     cache: HashMap<(FullTrackName, ObjectId), bytes::Bytes>,
     /// Delivered objects per subscriber (for testing)
@@ -47,6 +49,7 @@ impl Default for Relay {
             publisher_namespaces: HashMap::new(),
             subscriptions: HashMap::new(),
             upstream_subscribed: HashMap::new(),
+            upstream_pending: HashMap::new(),
             cache: HashMap::new(),
             subscribers: HashMap::new(),
             subscriber_queues: HashMap::new(),
@@ -65,6 +68,7 @@ impl Default for Relay {
 struct SubscriptionParams {
     subscriber_priority: u8,
     group_order: GroupOrder,
+    active: bool,
 }
 
 impl Relay {
@@ -179,9 +183,28 @@ impl Relay {
             SubscriptionParams {
                 subscriber_priority,
                 group_order,
+                active: false,
             },
         );
         true
+    }
+
+    /// Activate a previously registered subscription once the upstream
+    /// subscription succeeds.
+    pub fn activate_subscription(&mut self, subscriber: usize, track: &FullTrackName) {
+        if let Some(p) = self
+            .subscription_params
+            .get_mut(&(subscriber, track.clone()))
+        {
+            p.active = true;
+        }
+    }
+
+    /// Check whether a subscription is active.
+    pub fn is_subscription_active(&self, subscriber: usize, track: &FullTrackName) -> bool {
+        self.subscription_params
+            .get(&(subscriber, track.clone()))
+            .map_or(false, |p| p.active)
     }
 
     /// Whether this relay needs to perform an upstream subscription for the
@@ -192,11 +215,26 @@ impl Relay {
             .upstream_subscribed
             .get(track)
             .map_or(false, |set| set.contains(&publisher))
+            && !self
+                .upstream_pending
+                .get(track)
+                .map_or(false, |set| set.contains(&publisher))
     }
 
     /// Mark that an upstream subscription for the given publisher and track has been performed.
     pub fn mark_upstream_subscribed(&mut self, publisher: usize, track: &FullTrackName) {
         self.upstream_subscribed
+            .entry(track.clone())
+            .or_default()
+            .insert(publisher);
+        if let Some(set) = self.upstream_pending.get_mut(track) {
+            set.remove(&publisher);
+        }
+    }
+
+    /// Mark that an upstream subscription request has been sent but not yet acknowledged.
+    pub fn mark_upstream_pending(&mut self, publisher: usize, track: &FullTrackName) {
+        self.upstream_pending
             .entry(track.clone())
             .or_default()
             .insert(publisher);
@@ -228,7 +266,11 @@ impl Relay {
                         .unwrap_or(SubscriptionParams {
                             subscriber_priority: 128,
                             group_order: GroupOrder::Publisher,
+                            active: true,
                         });
+                    if !params.active {
+                        continue;
+                    }
                     let obj = Object {
                         track_alias: alias,
                         id,
@@ -326,7 +368,10 @@ mod tests {
             128,
             GroupOrder::Publisher
         ));
+        relay.mark_upstream_pending(publisher, &track);
         relay.mark_upstream_subscribed(publisher, &track);
+        relay.activate_subscription(sub, &track);
+        relay.activate_subscription(sub1, &track);
         assert!(!relay.should_subscribe_upstream(publisher, &track));
 
         let obj_id = ObjectId { group: VarInt(1), object: VarInt(1) };
@@ -345,6 +390,7 @@ mod tests {
             128,
             GroupOrder::Publisher
         ));
+        relay.activate_subscription(sub2, &track);
         relay.publish_object(
             publisher,
             VarInt(0),
@@ -395,8 +441,11 @@ mod tests {
         ));
 
         // mark upstream subscription only once per publisher
+        relay.mark_upstream_pending(pub1, &track);
+        relay.mark_upstream_pending(pub2, &track);
         relay.mark_upstream_subscribed(pub1, &track);
         relay.mark_upstream_subscribed(pub2, &track);
+        relay.activate_subscription(sub, &track);
 
         let obj_id = ObjectId { group: VarInt(1), object: VarInt(1) };
         relay.publish_object(pub1, VarInt(0), obj_id, bytes::Bytes::from_static(b"first"));
@@ -445,6 +494,7 @@ mod tests {
             0,
             GroupOrder::Ascending
         ));
+        relay.activate_subscription(sub, &track);
 
         relay.publish_object(
             pub_id,
