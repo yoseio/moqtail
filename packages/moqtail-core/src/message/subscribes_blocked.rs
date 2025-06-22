@@ -1,15 +1,21 @@
-use crate::coding::{Decode, Encode};
+use crate::coding::{Decode, Encode, VarInt};
 
-pub struct SubscribesBlocked {}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct SubscribesBlocked {
+    pub maximum_subscribe_id: VarInt,
+}
 
 impl Encode for SubscribesBlocked {
-    fn encode<B: bytes::BufMut>(&self, _buf: &mut B) {
-        todo!()
+    fn encode<B: bytes::BufMut>(&self, buf: &mut B) {
+        self.maximum_subscribe_id.encode(buf);
     }
 }
 
 impl<'a> Decode<'a> for SubscribesBlocked {
-    fn decode<B: bytes::Buf>(_buf: &mut B) -> Result<Self, crate::coding::Error> {
-        todo!()
+    fn decode<B: bytes::Buf>(buf: &mut B) -> Result<Self, crate::coding::Error> {
+        let maximum_subscribe_id = VarInt::decode(buf)?;
+        Ok(Self {
+            maximum_subscribe_id,
+        })
     }
 }
