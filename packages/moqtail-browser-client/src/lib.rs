@@ -1,13 +1,13 @@
 use wasm_bindgen::prelude::*;
-use moqtail_wasm::{WasmTransport, WasmConnection};
+use moqtail_wasm::{self, WasmTransport, WasmConnection};
 use moqtail_core::session::{Session, SessionCloseCode, MoqTransport};
 use moqtail_core::model::{TrackNamespace, TrackName};
 use bytes::Bytes;
 
-// Initialize panic hook for better error messages in the browser
+// Re-export the panic hook initializer from moqtail-wasm so JavaScript can call it.
 #[wasm_bindgen]
 pub fn init_panic_hook() {
-    console_error_panic_hook::set_once();
+    moqtail_wasm::init_panic_hook();
 }
 
 fn js_err<E: core::fmt::Debug>(e: E) -> JsValue {

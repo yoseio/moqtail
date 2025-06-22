@@ -163,7 +163,6 @@ name = "moqtail-browser-client"
 version = "0.1.0"
 dependencies = [
  "bytes",
- "console_error_panic_hook",
  "moqtail-core",
  "moqtail-wasm",
  "wasm-bindgen",
