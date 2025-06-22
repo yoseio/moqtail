@@ -1,8 +1,8 @@
 use crate::coding::{Decode, Encode, VarInt};
 use crate::message::{
     ClientSetup, ControlMessage, Fetch, FetchCancel, FetchError, FetchOk, FetchType, GoAway,
-    ServerSetup, Subscribe, SubscribeAnnounces, SubscribeAnnouncesError, SubscribeAnnouncesOk,
-    SubscribeError, SubscribeOk, Unsubscribe,
+    ServerSetup, Subscribe, SubscribeAnnounces, SubscribeDone, SubscribeError, SubscribeOk,
+    Unsubscribe, UnsubscribeAnnounces,
 };
 use crate::model::*;
 use async_trait::async_trait;
@@ -209,6 +209,16 @@ impl<T: MoqConnection> Session<T> {
         }
     }
 
+    pub async fn unsubscribe_announces(&mut self, namespace: TrackNamespace) -> Result<(), T::Error> {
+        let msg = UnsubscribeAnnounces {
+            track_namespace_prefix: namespace,
+        };
+        let mut buf = bytes::BytesMut::new();
+        ControlMessage::UnsubscribeAnnounces(msg).encode(&mut buf);
+        self.control_stream.write_all(&buf).await?;
+        Ok(())
+    }
+
     pub async fn fetch(
         &mut self,
         namespace: TrackNamespace,
@@ -271,6 +281,29 @@ impl<T: MoqConnection> Session<T> {
         self.control_stream.write_all(&buf).await?;
         self.fetches.remove(&id);
         Ok(())
+    }
+
+    pub fn handle_control_message(&mut self, msg: ControlMessage) {
+        match msg {
+            ControlMessage::SubscribeOk(SubscribeOk { subscribe_id, .. }) => {
+                self.subscribes.insert(subscribe_id.0, SubscribeState::Active);
+            }
+            ControlMessage::SubscribeError(SubscribeError { subscribe_id, .. }) => {
+                self.subscribes.remove(&subscribe_id.0);
+            }
+            ControlMessage::SubscribeDone(SubscribeDone { subscribe_id, .. }) => {
+                if let Some(state) = self.subscribes.get_mut(&subscribe_id.0) {
+                    *state = SubscribeState::Done;
+                }
+            }
+            ControlMessage::FetchOk(FetchOk { subscribe_id, .. }) => {
+                self.fetches.insert(subscribe_id.0, FetchState::Active);
+            }
+            ControlMessage::FetchError(FetchError { subscribe_id, .. }) => {
+                self.fetches.remove(&subscribe_id.0);
+            }
+            _ => {}
+        }
     }
 
     /// Simple event loop that polls the underlying transport for new events.
@@ -601,6 +634,126 @@ mod tests {
             .unwrap();
 
             assert!(matches!(sess.fetches.get(&0), Some(FetchState::Active)));
+        });
+    }
+
+    #[test]
+    fn subscribe_done_updates_state() {
+        block_on(async {
+            let server_setup = ServerSetup {
+                selected_version: VarInt(1),
+                parameters: Vec::new(),
+            };
+            let sub_done = SubscribeDone {
+                subscribe_id: VarInt(0),
+                status_code: VarInt(0),
+                stream_count: VarInt(0),
+                reason_phrase: "done".into(),
+            };
+            let mut server_bytes = bytes::BytesMut::new();
+            ControlMessage::ServerSetup(server_setup).encode(&mut server_bytes);
+            let mut done_bytes = bytes::BytesMut::new();
+            ControlMessage::SubscribeDone(sub_done).encode(&mut done_bytes);
+
+            let conn = MockConnection {
+                read: VecDeque::from(vec![server_bytes.to_vec(), done_bytes.to_vec()]),
+                written: Arc::new(Mutex::new(Vec::new())),
+            };
+
+            let mut sess = Session::new_client(conn, None).await.unwrap();
+            sess.handle_control_message(ControlMessage::SubscribeOk(SubscribeOk {
+                subscribe_id: VarInt(0),
+                expires: VarInt(0),
+                group_order: GroupOrder::Publisher,
+                content_exists: false,
+                largest_group_id: None,
+                largest_object_id: None,
+                parameters: Vec::new(),
+            }));
+
+            sess.handle_control_message(ControlMessage::SubscribeDone(SubscribeDone {
+                subscribe_id: VarInt(0),
+                status_code: VarInt(0),
+                stream_count: VarInt(0),
+                reason_phrase: "done".into(),
+            }));
+
+            assert!(matches!(sess.subscribes.get(&0), Some(SubscribeState::Done)));
+        });
+    }
+
+    #[test]
+    fn fetch_error_updates_state() {
+        block_on(async {
+            let server_setup = ServerSetup {
+                selected_version: VarInt(1),
+                parameters: Vec::new(),
+            };
+            let fetch_err = FetchError {
+                subscribe_id: VarInt(0),
+                error_code: VarInt(1),
+                reason_phrase: "err".into(),
+            };
+            let mut server_bytes = bytes::BytesMut::new();
+            ControlMessage::ServerSetup(server_setup).encode(&mut server_bytes);
+            let mut err_bytes = bytes::BytesMut::new();
+            ControlMessage::FetchError(fetch_err).encode(&mut err_bytes);
+
+            let conn = MockConnection {
+                read: VecDeque::from(vec![server_bytes.to_vec(), err_bytes.to_vec()]),
+                written: Arc::new(Mutex::new(Vec::new())),
+            };
+
+            let mut sess = Session::new_client(conn, None).await.unwrap();
+            sess.handle_control_message(ControlMessage::FetchOk(FetchOk {
+                subscribe_id: VarInt(0),
+                group_order: GroupOrder::Publisher,
+                end_of_track: false,
+                largest_group_id: VarInt(0),
+                largest_object_id: VarInt(0),
+                parameters: Vec::new(),
+            }));
+            sess.handle_control_message(ControlMessage::FetchError(FetchError {
+                subscribe_id: VarInt(0),
+                error_code: VarInt(1),
+                reason_phrase: "err".into(),
+            }));
+
+            assert!(sess.fetches.get(&0).is_none());
+        });
+    }
+
+    #[test]
+    fn unsubscribe_announces_message_sent() {
+        block_on(async {
+            let server_setup = ServerSetup {
+                selected_version: VarInt(1),
+                parameters: Vec::new(),
+            };
+            let mut resp = bytes::BytesMut::new();
+            ControlMessage::ServerSetup(server_setup).encode(&mut resp);
+
+            let written = Arc::new(Mutex::new(Vec::new()));
+            let conn = MockConnection {
+                read: VecDeque::from(vec![resp.to_vec()]),
+                written: written.clone(),
+            };
+
+            let mut sess = Session::new_client(conn, None).await.unwrap();
+            sess.unsubscribe_announces(vec![bytes::Bytes::from_static(b"ns")])
+                .await
+                .unwrap();
+
+            let data = written.lock().unwrap();
+            let mut bytes = bytes::Bytes::from(data.clone());
+            let _setup = ControlMessage::decode(&mut bytes).unwrap();
+            let msg = ControlMessage::decode(&mut bytes).unwrap();
+            match msg {
+                ControlMessage::UnsubscribeAnnounces(u) => {
+                    assert_eq!(u.track_namespace_prefix.len(), 1);
+                }
+                _ => panic!("wrong message"),
+            }
         });
     }
 
