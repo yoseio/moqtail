@@ -164,6 +164,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "moqtail-loc"
+version = "0.1.0"
+dependencies = [
+ "bytes",
+ "moqtail-core",
+ "thiserror",
+]
+
+[[package]]
 name = "moqtail-wasm"
 version = "0.1.0"
 dependencies = [

@@ -1,9 +1,9 @@
 use crate::coding::{Decode, Encode, VarInt};
 use crate::message::{
-    ClientSetup, ControlMessage, Fetch, FetchCancel, FetchError, FetchOk, FetchType, GoAway,
-    Announce, AnnounceCancel, AnnounceOk, ServerSetup, Subscribe, SubscribeAnnounces,
-    SubscribeAnnouncesOk, SubscribeAnnouncesError,
-    SubscribeDone, SubscribeError, SubscribeOk, Unsubscribe, UnsubscribeAnnounces,
+    Announce, AnnounceCancel, AnnounceOk, ClientSetup, ControlMessage, Fetch, FetchCancel,
+    FetchError, FetchOk, FetchType, GoAway, ServerSetup, Subscribe, SubscribeAnnounces,
+    SubscribeAnnouncesError, SubscribeAnnouncesOk, SubscribeDone, SubscribeError, SubscribeOk,
+    Unsubscribe, UnsubscribeAnnounces,
 };
 use crate::model::*;
 use async_trait::async_trait;
@@ -206,7 +206,8 @@ impl<T: MoqConnection> Session<T> {
         let mut buf = bytes::BytesMut::new();
         ControlMessage::SubscribeAnnounces(msg).encode(&mut buf);
         self.control_stream.write_all(&buf).await?;
-        self.subscribe_announces.insert(namespace.clone(), SubscribeAnnouncesState::Pending);
+        self.subscribe_announces
+            .insert(namespace.clone(), SubscribeAnnouncesState::Pending);
 
         let mut read_buf = [0u8; 1024];
         let n = self.control_stream.read(&mut read_buf).await?;
@@ -214,18 +215,23 @@ impl<T: MoqConnection> Session<T> {
 
         match ControlMessage::decode(&mut bytes) {
             Ok(ControlMessage::SubscribeAnnouncesOk(_)) => {
-                self.subscribe_announces.insert(namespace, SubscribeAnnouncesState::Done);
+                self.subscribe_announces
+                    .insert(namespace, SubscribeAnnouncesState::Done);
                 Ok(())
             }
             Ok(ControlMessage::SubscribeAnnouncesError(e)) => {
-                self.subscribe_announces.insert(namespace, SubscribeAnnouncesState::Done);
+                self.subscribe_announces
+                    .insert(namespace, SubscribeAnnouncesState::Done);
                 Err(std::io::Error::new(std::io::ErrorKind::Other, e.reason_phrase).into())
             }
             _ => Err(std::io::Error::new(std::io::ErrorKind::Other, "protocol error").into()),
         }
     }
 
-    pub async fn unsubscribe_announces(&mut self, namespace: TrackNamespace) -> Result<(), T::Error> {
+    pub async fn unsubscribe_announces(
+        &mut self,
+        namespace: TrackNamespace,
+    ) -> Result<(), T::Error> {
         let msg = UnsubscribeAnnounces {
             track_namespace_prefix: namespace.clone(),
         };
@@ -237,7 +243,11 @@ impl<T: MoqConnection> Session<T> {
     }
 
     pub async fn announce_cancel(&mut self, namespace: TrackNamespace) -> Result<(), T::Error> {
-        let msg = AnnounceCancel { track_namespace: namespace.clone(), error_code: VarInt(0), reason_phrase: String::new() };
+        let msg = AnnounceCancel {
+            track_namespace: namespace.clone(),
+            error_code: VarInt(0),
+            reason_phrase: String::new(),
+        };
         let mut buf = bytes::BytesMut::new();
         ControlMessage::AnnounceCancel(msg).encode(&mut buf);
         self.control_stream.write_all(&buf).await?;
@@ -314,10 +324,15 @@ impl<T: MoqConnection> Session<T> {
             ControlMessage::SubscribeOk(SubscribeOk { subscribe_id, .. }) => {
                 match self.subscribes.get(&subscribe_id.0) {
                     Some(SubscribeState::Pending) => {
-                        self.subscribes.insert(subscribe_id.0, SubscribeState::Active);
+                        self.subscribes
+                            .insert(subscribe_id.0, SubscribeState::Active);
                     }
                     _ => {
-                        self.close(SessionCloseCode::ProtocolViolation, "duplicate SUBSCRIBE response").await?;
+                        self.close(
+                            SessionCloseCode::ProtocolViolation,
+                            "duplicate SUBSCRIBE response",
+                        )
+                        .await?;
                     }
                 }
             }
@@ -325,7 +340,11 @@ impl<T: MoqConnection> Session<T> {
                 match self.subscribes.remove(&subscribe_id.0) {
                     Some(SubscribeState::Pending) => {}
                     _ => {
-                        self.close(SessionCloseCode::ProtocolViolation, "duplicate SUBSCRIBE response").await?;
+                        self.close(
+                            SessionCloseCode::ProtocolViolation,
+                            "duplicate SUBSCRIBE response",
+                        )
+                        .await?;
                     }
                 }
             }
@@ -338,7 +357,11 @@ impl<T: MoqConnection> Session<T> {
                         self.fetches.insert(subscribe_id.0, FetchState::Active);
                     }
                     _ => {
-                        self.close(SessionCloseCode::ProtocolViolation, "duplicate FETCH response").await?;
+                        self.close(
+                            SessionCloseCode::ProtocolViolation,
+                            "duplicate FETCH response",
+                        )
+                        .await?;
                     }
                 }
             }
@@ -346,13 +369,20 @@ impl<T: MoqConnection> Session<T> {
                 match self.fetches.remove(&subscribe_id.0) {
                     Some(FetchState::Pending) | Some(FetchState::Active) => {}
                     _ => {
-                        self.close(SessionCloseCode::ProtocolViolation, "duplicate FETCH response").await?;
+                        self.close(
+                            SessionCloseCode::ProtocolViolation,
+                            "duplicate FETCH response",
+                        )
+                        .await?;
                     }
                 }
             }
-            ControlMessage::Announce(Announce { track_namespace, .. }) => {
+            ControlMessage::Announce(Announce {
+                track_namespace, ..
+            }) => {
                 if !self.announces.insert(track_namespace.clone()) {
-                    self.close(SessionCloseCode::ProtocolViolation, "duplicate ANNOUNCE").await?;
+                    self.close(SessionCloseCode::ProtocolViolation, "duplicate ANNOUNCE")
+                        .await?;
                 } else {
                     let resp = ControlMessage::AnnounceOk(AnnounceOk { track_namespace });
                     let mut buf = bytes::BytesMut::new();
@@ -360,27 +390,40 @@ impl<T: MoqConnection> Session<T> {
                     self.control_stream.write_all(&buf).await?;
                 }
             }
-            ControlMessage::SubscribeAnnouncesOk(SubscribeAnnouncesOk { track_namespace_prefix }) => {
-                match self.subscribe_announces.get_mut(&track_namespace_prefix) {
-                    Some(SubscribeAnnouncesState::Pending) => {
-                        self.subscribe_announces.insert(track_namespace_prefix, SubscribeAnnouncesState::Done);
-                    }
-                    _ => {
-                        self.close(SessionCloseCode::ProtocolViolation, "duplicate SUBSCRIBE_ANNOUNCES response").await?;
-                    }
+            ControlMessage::SubscribeAnnouncesOk(SubscribeAnnouncesOk {
+                track_namespace_prefix,
+            }) => match self.subscribe_announces.get_mut(&track_namespace_prefix) {
+                Some(SubscribeAnnouncesState::Pending) => {
+                    self.subscribe_announces
+                        .insert(track_namespace_prefix, SubscribeAnnouncesState::Done);
                 }
-            }
-            ControlMessage::SubscribeAnnouncesError(SubscribeAnnouncesError { track_namespace_prefix, .. }) => {
-                match self.subscribe_announces.get_mut(&track_namespace_prefix) {
-                    Some(SubscribeAnnouncesState::Pending) => {
-                        self.subscribe_announces.insert(track_namespace_prefix, SubscribeAnnouncesState::Done);
-                    }
-                    _ => {
-                        self.close(SessionCloseCode::ProtocolViolation, "duplicate SUBSCRIBE_ANNOUNCES response").await?;
-                    }
+                _ => {
+                    self.close(
+                        SessionCloseCode::ProtocolViolation,
+                        "duplicate SUBSCRIBE_ANNOUNCES response",
+                    )
+                    .await?;
                 }
-            }
-            ControlMessage::AnnounceCancel(AnnounceCancel { track_namespace, .. }) => {
+            },
+            ControlMessage::SubscribeAnnouncesError(SubscribeAnnouncesError {
+                track_namespace_prefix,
+                ..
+            }) => match self.subscribe_announces.get_mut(&track_namespace_prefix) {
+                Some(SubscribeAnnouncesState::Pending) => {
+                    self.subscribe_announces
+                        .insert(track_namespace_prefix, SubscribeAnnouncesState::Done);
+                }
+                _ => {
+                    self.close(
+                        SessionCloseCode::ProtocolViolation,
+                        "duplicate SUBSCRIBE_ANNOUNCES response",
+                    )
+                    .await?;
+                }
+            },
+            ControlMessage::AnnounceCancel(AnnounceCancel {
+                track_namespace, ..
+            }) => {
                 self.announces.remove(&track_namespace);
             }
             _ => {}
@@ -750,28 +793,26 @@ mod tests {
             };
 
             let mut sess = Session::new_client(conn, None).await.unwrap();
-            sess
-                .handle_control_message(ControlMessage::SubscribeOk(SubscribeOk {
-                    subscribe_id: VarInt(0),
-                    expires: VarInt(0),
-                    group_order: GroupOrder::Publisher,
-                    content_exists: false,
-                    largest_group_id: None,
-                    largest_object_id: None,
-                    parameters: Vec::new(),
-                }))
-                .await
-                .unwrap();
+            sess.handle_control_message(ControlMessage::SubscribeOk(SubscribeOk {
+                subscribe_id: VarInt(0),
+                expires: VarInt(0),
+                group_order: GroupOrder::Publisher,
+                content_exists: false,
+                largest_group_id: None,
+                largest_object_id: None,
+                parameters: Vec::new(),
+            }))
+            .await
+            .unwrap();
 
-            sess
-                .handle_control_message(ControlMessage::SubscribeDone(SubscribeDone {
-                    subscribe_id: VarInt(0),
-                    status_code: VarInt(0),
-                    stream_count: VarInt(0),
-                    reason_phrase: "done".into(),
-                }))
-                .await
-                .unwrap();
+            sess.handle_control_message(ControlMessage::SubscribeDone(SubscribeDone {
+                subscribe_id: VarInt(0),
+                status_code: VarInt(0),
+                stream_count: VarInt(0),
+                reason_phrase: "done".into(),
+            }))
+            .await
+            .unwrap();
 
             assert!(sess.subscribes.get(&0).is_none());
         });
@@ -801,25 +842,23 @@ mod tests {
             };
 
             let mut sess = Session::new_client(conn, None).await.unwrap();
-            sess
-                .handle_control_message(ControlMessage::FetchOk(FetchOk {
-                    subscribe_id: VarInt(0),
-                    group_order: GroupOrder::Publisher,
-                    end_of_track: false,
-                    largest_group_id: VarInt(0),
-                    largest_object_id: VarInt(0),
-                    parameters: Vec::new(),
-                }))
-                .await
-                .unwrap();
-            sess
-                .handle_control_message(ControlMessage::FetchError(FetchError {
-                    subscribe_id: VarInt(0),
-                    error_code: VarInt(1),
-                    reason_phrase: "err".into(),
-                }))
-                .await
-                .unwrap();
+            sess.handle_control_message(ControlMessage::FetchOk(FetchOk {
+                subscribe_id: VarInt(0),
+                group_order: GroupOrder::Publisher,
+                end_of_track: false,
+                largest_group_id: VarInt(0),
+                largest_object_id: VarInt(0),
+                parameters: Vec::new(),
+            }))
+            .await
+            .unwrap();
+            sess.handle_control_message(ControlMessage::FetchError(FetchError {
+                subscribe_id: VarInt(0),
+                error_code: VarInt(1),
+                reason_phrase: "err".into(),
+            }))
+            .await
+            .unwrap();
 
             assert!(sess.fetches.get(&0).is_none());
         });
@@ -828,7 +867,10 @@ mod tests {
     #[test]
     fn duplicate_subscribe_response_closes_session() {
         block_on(async {
-            let server_setup = ServerSetup { selected_version: VarInt(1), parameters: Vec::new() };
+            let server_setup = ServerSetup {
+                selected_version: VarInt(1),
+                parameters: Vec::new(),
+            };
             let mut server_bytes = bytes::BytesMut::new();
             ControlMessage::ServerSetup(server_setup).encode(&mut server_bytes);
 
@@ -868,13 +910,19 @@ mod tests {
     #[test]
     fn duplicate_subscribe_announces_response_closes_session() {
         block_on(async {
-            let server_setup = ServerSetup { selected_version: VarInt(1), parameters: Vec::new() };
+            let server_setup = ServerSetup {
+                selected_version: VarInt(1),
+                parameters: Vec::new(),
+            };
             let mut server_bytes = bytes::BytesMut::new();
             ControlMessage::ServerSetup(server_setup).encode(&mut server_bytes);
 
             // first response will be consumed by subscribe_announces()
             let mut ok_bytes = bytes::BytesMut::new();
-            ControlMessage::SubscribeAnnouncesOk(SubscribeAnnouncesOk { track_namespace_prefix: vec![bytes::Bytes::from_static(b"ns")] }).encode(&mut ok_bytes);
+            ControlMessage::SubscribeAnnouncesOk(SubscribeAnnouncesOk {
+                track_namespace_prefix: vec![bytes::Bytes::from_static(b"ns")],
+            })
+            .encode(&mut ok_bytes);
 
             let conn = MockConnection {
                 read: VecDeque::from(vec![server_bytes.to_vec(), ok_bytes.to_vec()]),
@@ -888,12 +936,13 @@ mod tests {
                 .unwrap();
 
             // duplicate response should trigger protocol violation
-            sess
-                .handle_control_message(ControlMessage::SubscribeAnnouncesOk(SubscribeAnnouncesOk {
+            sess.handle_control_message(ControlMessage::SubscribeAnnouncesOk(
+                SubscribeAnnouncesOk {
                     track_namespace_prefix: vec![bytes::Bytes::from_static(b"ns")],
-                }))
-                .await
-                .unwrap();
+                },
+            ))
+            .await
+            .unwrap();
 
             let closed = sess.conn.closed.lock().unwrap().clone();
             assert!(closed.is_some());
@@ -938,7 +987,10 @@ mod tests {
     #[test]
     fn announce_ok_sent_and_tracked() {
         block_on(async {
-            let server_setup = ServerSetup { selected_version: VarInt(1), parameters: Vec::new() };
+            let server_setup = ServerSetup {
+                selected_version: VarInt(1),
+                parameters: Vec::new(),
+            };
             let mut resp = bytes::BytesMut::new();
             ControlMessage::ServerSetup(server_setup).encode(&mut resp);
 
@@ -950,15 +1002,17 @@ mod tests {
             };
 
             let mut sess = Session::new_client(conn, None).await.unwrap();
-            sess
-                .handle_control_message(ControlMessage::Announce(Announce {
-                    track_namespace: vec![bytes::Bytes::from_static(b"ns")],
-                    parameters: Vec::new(),
-                }))
-                .await
-                .unwrap();
+            sess.handle_control_message(ControlMessage::Announce(Announce {
+                track_namespace: vec![bytes::Bytes::from_static(b"ns")],
+                parameters: Vec::new(),
+            }))
+            .await
+            .unwrap();
 
-            assert!(sess.announces.contains(&vec![bytes::Bytes::from_static(b"ns")]));
+            assert!(
+                sess.announces
+                    .contains(&vec![bytes::Bytes::from_static(b"ns")])
+            );
 
             let data = written.lock().unwrap();
             let mut bytes = bytes::Bytes::from(data.clone());

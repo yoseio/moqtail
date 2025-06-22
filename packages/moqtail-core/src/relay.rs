@@ -1,9 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::coding::VarInt;
-use crate::model::{
-    FullTrackName, GroupOrder, Object, ObjectId, TrackAlias, TrackNamespace,
-};
+use crate::model::{FullTrackName, GroupOrder, Object, ObjectId, TrackAlias, TrackNamespace};
 use crate::scheduler::{DeliveryType, PriorityScheduler, QueueItem, SchedulableMeta};
 
 /// Simple in-memory relay implementation.
@@ -242,12 +240,7 @@ impl Relay {
 
     /// Publish an object directly to a track. This updates the cache and forwards
     /// the object to all subscribers of the track using each subscriber's alias.
-    pub fn publish_to_track(
-        &mut self,
-        track: &FullTrackName,
-        id: ObjectId,
-        payload: bytes::Bytes,
-    ) {
+    pub fn publish_to_track(&mut self, track: &FullTrackName, id: ObjectId, payload: bytes::Bytes) {
         let key = (track.clone(), id);
         self.cache.insert(key.clone(), payload.clone());
 
@@ -313,7 +306,11 @@ impl Relay {
         id: ObjectId,
         payload: bytes::Bytes,
     ) {
-        if let Some(track) = self.publisher_track_aliases.get(&(publisher, alias)).cloned() {
+        if let Some(track) = self
+            .publisher_track_aliases
+            .get(&(publisher, alias))
+            .cloned()
+        {
             self.publish_to_track(&track, id, payload);
         }
     }
@@ -326,7 +323,10 @@ impl Relay {
     /// Retrieve the list of objects delivered to a subscriber. This is used in
     /// tests to verify forwarding behaviour.
     pub fn delivered(&self, subscriber: usize) -> &[Object] {
-        self.subscribers.get(&subscriber).map(Vec::as_slice).unwrap_or(&[])
+        self.subscribers
+            .get(&subscriber)
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
     }
 }
 
@@ -350,52 +350,48 @@ mod tests {
         assert!(relay.announce_track(publisher, VarInt(0), track.clone()));
         let sub = relay.add_subscriber();
         relay.authorize_subscriber(sub, track.namespace.clone());
-        assert!(relay.subscribe(
-            sub,
-            track.clone(),
-            VarInt(0),
-            128,
-            GroupOrder::Publisher
-        ));
+        assert!(relay.subscribe(sub, track.clone(), VarInt(0), 128, GroupOrder::Publisher));
 
         let sub1 = relay.add_subscriber();
         relay.authorize_subscriber(sub1, track.namespace.clone());
         assert!(relay.should_subscribe_upstream(publisher, &track));
-        assert!(relay.subscribe(
-            sub1,
-            track.clone(),
-            VarInt(1),
-            128,
-            GroupOrder::Publisher
-        ));
+        assert!(relay.subscribe(sub1, track.clone(), VarInt(1), 128, GroupOrder::Publisher));
         relay.mark_upstream_pending(publisher, &track);
         relay.mark_upstream_subscribed(publisher, &track);
         relay.activate_subscription(sub, &track);
         relay.activate_subscription(sub1, &track);
         assert!(!relay.should_subscribe_upstream(publisher, &track));
 
-        let obj_id = ObjectId { group: VarInt(1), object: VarInt(1) };
-        relay.publish_object(publisher, VarInt(0), obj_id, bytes::Bytes::from_static(b"data"));
+        let obj_id = ObjectId {
+            group: VarInt(1),
+            object: VarInt(1),
+        };
+        relay.publish_object(
+            publisher,
+            VarInt(0),
+            obj_id,
+            bytes::Bytes::from_static(b"data"),
+        );
         relay.flush();
 
         assert_eq!(relay.delivered(sub1).len(), 1);
-        assert_eq!(relay.fetch(&track, &obj_id).unwrap(), bytes::Bytes::from_static(b"data"));
+        assert_eq!(
+            relay.fetch(&track, &obj_id).unwrap(),
+            bytes::Bytes::from_static(b"data")
+        );
 
         let sub2 = relay.add_subscriber();
         relay.authorize_subscriber(sub2, track.namespace.clone());
-        assert!(relay.subscribe(
-            sub2,
-            track.clone(),
-            VarInt(2),
-            128,
-            GroupOrder::Publisher
-        ));
+        assert!(relay.subscribe(sub2, track.clone(), VarInt(2), 128, GroupOrder::Publisher));
         relay.activate_subscription(sub2, &track);
         relay.publish_object(
             publisher,
             VarInt(0),
-            ObjectId { group: VarInt(1), object: VarInt(2) },
-            bytes::Bytes::from_static(b"data2")
+            ObjectId {
+                group: VarInt(1),
+                object: VarInt(2),
+            },
+            bytes::Bytes::from_static(b"data2"),
         );
         relay.flush();
 
@@ -411,12 +407,28 @@ mod tests {
         relay.authorize_publisher(publisher, track.namespace.clone());
         assert!(relay.announce_track(publisher, VarInt(0), track.clone()));
 
-        let obj_id = ObjectId { group: VarInt(1), object: VarInt(1) };
-        relay.publish_object(publisher, VarInt(0), obj_id, bytes::Bytes::from_static(b"a"));
+        let obj_id = ObjectId {
+            group: VarInt(1),
+            object: VarInt(1),
+        };
+        relay.publish_object(
+            publisher,
+            VarInt(0),
+            obj_id,
+            bytes::Bytes::from_static(b"a"),
+        );
         relay.flush();
-        relay.publish_object(publisher, VarInt(0), obj_id, bytes::Bytes::from_static(b"b"));
+        relay.publish_object(
+            publisher,
+            VarInt(0),
+            obj_id,
+            bytes::Bytes::from_static(b"b"),
+        );
         relay.flush();
-        assert_eq!(relay.fetch(&track, &obj_id).unwrap(), bytes::Bytes::from_static(b"b"));
+        assert_eq!(
+            relay.fetch(&track, &obj_id).unwrap(),
+            bytes::Bytes::from_static(b"b")
+        );
     }
 
     #[test]
@@ -432,13 +444,7 @@ mod tests {
 
         let sub = relay.add_subscriber();
         relay.authorize_subscriber(sub, track.namespace.clone());
-        assert!(relay.subscribe(
-            sub,
-            track.clone(),
-            VarInt(0),
-            128,
-            GroupOrder::Publisher
-        ));
+        assert!(relay.subscribe(sub, track.clone(), VarInt(0), 128, GroupOrder::Publisher));
 
         // mark upstream subscription only once per publisher
         relay.mark_upstream_pending(pub1, &track);
@@ -447,13 +453,24 @@ mod tests {
         relay.mark_upstream_subscribed(pub2, &track);
         relay.activate_subscription(sub, &track);
 
-        let obj_id = ObjectId { group: VarInt(1), object: VarInt(1) };
+        let obj_id = ObjectId {
+            group: VarInt(1),
+            object: VarInt(1),
+        };
         relay.publish_object(pub1, VarInt(0), obj_id, bytes::Bytes::from_static(b"first"));
         // duplicate object from another publisher should update cache
-        relay.publish_object(pub2, VarInt(0), obj_id, bytes::Bytes::from_static(b"second"));
+        relay.publish_object(
+            pub2,
+            VarInt(0),
+            obj_id,
+            bytes::Bytes::from_static(b"second"),
+        );
         relay.flush();
 
-        assert_eq!(relay.fetch(&track, &obj_id).unwrap(), bytes::Bytes::from_static(b"second"));
+        assert_eq!(
+            relay.fetch(&track, &obj_id).unwrap(),
+            bytes::Bytes::from_static(b"second")
+        );
         assert_eq!(relay.delivered(sub).len(), 2);
     }
 
@@ -487,25 +504,25 @@ mod tests {
 
         let sub = relay.add_subscriber();
         relay.authorize_subscriber(sub, track.namespace.clone());
-        assert!(relay.subscribe(
-            sub,
-            track.clone(),
-            VarInt(0),
-            0,
-            GroupOrder::Ascending
-        ));
+        assert!(relay.subscribe(sub, track.clone(), VarInt(0), 0, GroupOrder::Ascending));
         relay.activate_subscription(sub, &track);
 
         relay.publish_object(
             pub_id,
             VarInt(0),
-            ObjectId { group: VarInt(1), object: VarInt(0) },
+            ObjectId {
+                group: VarInt(1),
+                object: VarInt(0),
+            },
             bytes::Bytes::from_static(b"a"),
         );
         relay.publish_object(
             pub_id,
             VarInt(0),
-            ObjectId { group: VarInt(0), object: VarInt(0) },
+            ObjectId {
+                group: VarInt(0),
+                object: VarInt(0),
+            },
             bytes::Bytes::from_static(b"b"),
         );
         relay.flush();

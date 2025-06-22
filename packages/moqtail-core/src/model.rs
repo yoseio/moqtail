@@ -361,7 +361,8 @@ impl Group {
         if self.subgroups.contains_key(&subgroup_id) {
             return Err(ModelError::SubgroupExists);
         }
-        self.subgroups.insert(subgroup_id, Subgroup::new(subgroup_id));
+        self.subgroups
+            .insert(subgroup_id, Subgroup::new(subgroup_id));
         Ok(())
     }
 
@@ -449,9 +450,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn encode_track_namespace_too_long() {
-        let ns: TrackNamespace = (0..33)
-            .map(|_| bytes::Bytes::from_static(b"a"))
-            .collect();
+        let ns: TrackNamespace = (0..33).map(|_| bytes::Bytes::from_static(b"a")).collect();
         let mut buf = bytes::BytesMut::new();
         encode_track_namespace(&ns, &mut buf);
     }
@@ -499,7 +498,10 @@ mod tests {
         let mut sg = Subgroup::new(VarInt(0));
         let obj1 = Object {
             track_alias: VarInt(1),
-            id: ObjectId { group: VarInt(0), object: VarInt(1) },
+            id: ObjectId {
+                group: VarInt(0),
+                object: VarInt(1),
+            },
             publisher_priority: 0,
             payload: bytes::Bytes::from_static(b"a"),
         };
@@ -507,7 +509,10 @@ mod tests {
 
         let obj2 = Object {
             track_alias: obj1.track_alias,
-            id: ObjectId { group: VarInt(0), object: VarInt(0) },
+            id: ObjectId {
+                group: VarInt(0),
+                object: VarInt(0),
+            },
             publisher_priority: obj1.publisher_priority,
             payload: obj1.payload.clone(),
         };
@@ -518,14 +523,25 @@ mod tests {
 
     #[test]
     fn track_hierarchy() {
-        let full = FullTrackName { namespace: vec![bytes::Bytes::from_static(b"ns")], name: bytes::Bytes::from_static(b"name") };
+        let full = FullTrackName {
+            namespace: vec![bytes::Bytes::from_static(b"ns")],
+            name: bytes::Bytes::from_static(b"name"),
+        };
         let mut track = Track::new(full);
         assert!(track.add_group(VarInt(1)).is_ok());
         assert!(track.add_group(VarInt(1)).is_err());
         let group = track.group_mut(VarInt(1)).unwrap();
         assert!(group.add_subgroup(VarInt(0)).is_ok());
         let sg = group.subgroup_mut(VarInt(0)).unwrap();
-        let obj = Object { track_alias: VarInt(1), id: ObjectId { group: VarInt(1), object: VarInt(0) }, publisher_priority: 0, payload: bytes::Bytes::from_static(b"p") };
+        let obj = Object {
+            track_alias: VarInt(1),
+            id: ObjectId {
+                group: VarInt(1),
+                object: VarInt(0),
+            },
+            publisher_priority: 0,
+            payload: bytes::Bytes::from_static(b"p"),
+        };
         assert!(sg.add_object(obj).is_ok());
     }
 }
