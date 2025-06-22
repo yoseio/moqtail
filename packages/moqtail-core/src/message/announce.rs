@@ -1,15 +1,72 @@
-use crate::coding::{Decode, Encode};
+use crate::coding::{Decode, Encode, VarInt};
+use crate::model::{Parameter, TrackNamespace};
+use bytes::{Buf, BufMut};
 
-pub struct Announce {}
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Announce {
+    pub track_namespace: TrackNamespace,
+    pub parameters: Vec<Parameter>,
+}
 
 impl Encode for Announce {
-    fn encode<B: bytes::BufMut>(&self, _buf: &mut B) {
-        todo!()
+    fn encode<B: BufMut>(&self, buf: &mut B) {
+        VarInt(self.track_namespace.len() as u64).encode(buf);
+        for ns in &self.track_namespace {
+            VarInt(ns.as_bytes().len() as u64).encode(buf);
+            buf.put_slice(ns.as_bytes());
+        }
+        VarInt(self.parameters.len() as u64).encode(buf);
+        for p in &self.parameters {
+            p.encode(buf);
+        }
     }
 }
 
 impl<'a> Decode<'a> for Announce {
-    fn decode<B: bytes::Buf>(_buf: &mut B) -> Result<Self, crate::coding::Error> {
-        todo!()
+    fn decode<B: Buf>(buf: &mut B) -> Result<Self, crate::coding::Error> {
+        let namespace_len = VarInt::decode(buf)?.into_inner() as usize;
+        let mut track_namespace = Vec::with_capacity(namespace_len);
+        for _ in 0..namespace_len {
+            let len = VarInt::decode(buf)?.into_inner() as usize;
+            if buf.remaining() < len {
+                return Err(crate::coding::Error::UnexpectedEnd);
+            }
+            let bytes = buf.copy_to_bytes(len);
+            let s = std::str::from_utf8(&bytes)
+                .map_err(|_| crate::coding::Error::UnexpectedEnd)?
+                .to_string();
+            track_namespace.push(s);
+        }
+
+        let num_params = VarInt::decode(buf)?.into_inner() as usize;
+        let mut parameters = Vec::with_capacity(num_params);
+        for _ in 0..num_params {
+            parameters.push(Parameter::decode(buf)?);
+        }
+
+        Ok(Self {
+            track_namespace,
+            parameters,
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn encode_decode_roundtrip() {
+        let msg = Announce {
+            track_namespace: vec!["ns1".to_string(), "ns2".to_string()],
+            parameters: vec![Parameter::AuthorizationInfo("auth".into())],
+        };
+
+        let mut buf = bytes::BytesMut::new();
+        msg.encode(&mut buf);
+
+        let mut bytes = buf.freeze();
+        let decoded = Announce::decode(&mut bytes).unwrap();
+        assert_eq!(decoded, msg);
     }
 }
