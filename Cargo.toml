@@ -5,6 +5,7 @@ members = [
   "packages/moqtail-wasm",
   "packages/moqtail-loc",
   "packages/moqtail-warp",
+  "packages/moqtail-browser-client",
 ]
 
 [workspace.package]

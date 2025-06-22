@@ -474,7 +474,6 @@ impl<T: MoqConnection> Session<T> {
         self.conn.close(code.into(), reason).await
     }
 
-    // TODO: イベントをポーリングし、状態を更新する `run` ループを実装
 }
 
 pub enum TransportEvent<Bi, Uni, Dgram> {
