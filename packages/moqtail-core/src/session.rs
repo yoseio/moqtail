@@ -54,10 +54,17 @@ impl<T: MoqConnection> Session<T> {
         self.next_subscribe_id += 1;
 
         let msg = Subscribe {
-        //    subscribe_id: VarInt(sub_id),
-        //    track_alias: VarInt(sub_id),
-        //    track_namespace: namespace,
-        //    track_name: name,
+            subscribe_id: VarInt(sub_id),
+            track_alias: VarInt(sub_id),
+            track_namespace: namespace,
+            track_name: name,
+            subscriber_priority: 0,
+            group_order: GroupOrder::Publisher,
+            filter_type: SubscribeFilter::LatestObject,
+            start_group: None,
+            start_object: None,
+            end_group: None,
+            parameters: Vec::new(),
         };
 
         let mut buf = bytes::BytesMut::new();
