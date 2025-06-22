@@ -8,6 +8,11 @@ pub type TrackName = bytes::Bytes;
 pub type TrackAlias = VarInt;
 
 pub fn encode_track_namespace<B: BufMut>(ns: &TrackNamespace, buf: &mut B) {
+    assert!(
+        !ns.is_empty() && ns.len() <= 32,
+        "invalid track namespace length: {}",
+        ns.len()
+    );
     VarInt(ns.len() as u64).encode(buf);
     for part in ns {
         VarInt(part.len() as u64).encode(buf);
@@ -431,6 +436,24 @@ mod tests {
         let mut bytes = buf.freeze();
         let res = decode_track_namespace(&mut bytes);
         assert!(matches!(res, Err(Error::InvalidTrackNamespaceLength(33))));
+    }
+
+    #[test]
+    #[should_panic]
+    fn encode_track_namespace_empty() {
+        let ns: TrackNamespace = Vec::new();
+        let mut buf = bytes::BytesMut::new();
+        encode_track_namespace(&ns, &mut buf);
+    }
+
+    #[test]
+    #[should_panic]
+    fn encode_track_namespace_too_long() {
+        let ns: TrackNamespace = (0..33)
+            .map(|_| bytes::Bytes::from_static(b"a"))
+            .collect();
+        let mut buf = bytes::BytesMut::new();
+        encode_track_namespace(&ns, &mut buf);
     }
 
     #[test]
