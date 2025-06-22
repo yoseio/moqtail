@@ -1,12 +1,12 @@
-use moqtail_core::session::{MoqTransport, MoqConnection, TransportEvent};
 use async_trait::async_trait;
+use console_error_panic_hook;
+use js_sys::Uint8Array;
+use moqtail_core::session::{MoqConnection, MoqTransport, TransportEvent};
+use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::JsFuture;
 use wasm_streams::readable::{IntoAsyncRead, ReadableStream};
 use wasm_streams::writable::{IntoAsyncWrite, WritableStream};
-use console_error_panic_hook;
-use wasm_bindgen::JsCast;
-use js_sys::Uint8Array;
 
 #[derive(Debug, thiserror::Error)]
 pub enum WasmError {
@@ -25,7 +25,9 @@ impl From<JsValue> for WasmError {
 pub struct WasmTransport;
 
 impl WasmTransport {
-    pub fn new() -> Self { Self }
+    pub fn new() -> Self {
+        Self
+    }
 }
 
 pub struct WasmConnection {
@@ -98,7 +100,10 @@ impl MoqConnection for WasmConnection {
 
         let rs = ReadableStream::from_raw(bi_stream.readable().into()).into_async_read();
         let ws = WritableStream::from_raw(bi_stream.writable().into()).into_async_write();
-        Ok(WasmBiStream { reader: rs, writer: ws })
+        Ok(WasmBiStream {
+            reader: rs,
+            writer: ws,
+        })
     }
 
     async fn open_uni(&mut self) -> Result<Self::UniStream, Self::Error> {
@@ -116,12 +121,29 @@ impl MoqConnection for WasmConnection {
         Ok(())
     }
 
-    async fn poll_event(&mut self) -> Result<TransportEvent<Self::BiStream, Self::UniStream, Self::Datagram>, Self::Error> {
+    async fn poll_event(
+        &mut self,
+    ) -> Result<TransportEvent<Self::BiStream, Self::UniStream, Self::Datagram>, Self::Error> {
         // Wasmでのイベントポーリングは複雑。
         // `select`のような機能がないため、通常は複数のFutureを`race`するか、
         // `Stream`をマージして処理する。
         // ここでは概念を示すための未実装のプレースホルダー。
-        unimplemented!("Polling events in Wasm requires a more complex setup, likely merging multiple streams.");
+        unimplemented!(
+            "Polling events in Wasm requires a more complex setup, likely merging multiple streams."
+        );
+    }
+
+    async fn close(
+        &mut self,
+        code: moqtail_core::coding::VarInt,
+        reason: &str,
+    ) -> Result<(), Self::Error> {
+        let _ = code;
+        let _ = reason;
+        // `WebTransport::close()` currently doesn't allow specifying a close code
+        // without unstable APIs, so we call the basic variant.
+        self.transport.close();
+        Ok(())
     }
 }
 
