@@ -1,10 +1,51 @@
-use crate::coding::VarInt;
+use crate::coding::{Decode, Encode, Error, VarInt};
+use bytes::{Buf, BufMut};
 
-pub type TrackNamespace = Vec<String>;
+pub type TrackNamespace = Vec<bytes::Bytes>;
 
-pub type TrackName = String;
+pub type TrackName = bytes::Bytes;
 
 pub type TrackAlias = VarInt;
+
+pub fn encode_track_namespace<B: BufMut>(ns: &TrackNamespace, buf: &mut B) {
+    VarInt(ns.len() as u64).encode(buf);
+    for part in ns {
+        VarInt(part.len() as u64).encode(buf);
+        buf.put_slice(part);
+    }
+}
+
+pub fn decode_track_namespace<B: Buf>(
+    buf: &mut B,
+) -> Result<TrackNamespace, Error> {
+    let len = VarInt::decode(buf)?.into_inner() as usize;
+    if len == 0 || len > 32 {
+        return Err(Error::InvalidTrackNamespaceLength(len as u64));
+    }
+    let mut ns = Vec::with_capacity(len);
+    for _ in 0..len {
+        let l = VarInt::decode(buf)?.into_inner() as usize;
+        if buf.remaining() < l {
+            return Err(Error::UnexpectedEnd);
+        }
+        let bytes = buf.copy_to_bytes(l);
+        ns.push(bytes);
+    }
+    Ok(ns)
+}
+
+pub fn encode_track_name<B: BufMut>(name: &TrackName, buf: &mut B) {
+    VarInt(name.len() as u64).encode(buf);
+    buf.put_slice(name);
+}
+
+pub fn decode_track_name<B: Buf>(buf: &mut B) -> Result<TrackName, Error> {
+    let len = VarInt::decode(buf)?.into_inner() as usize;
+    if buf.remaining() < len {
+        return Err(Error::UnexpectedEnd);
+    }
+    Ok(buf.copy_to_bytes(len))
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct FullTrackName {

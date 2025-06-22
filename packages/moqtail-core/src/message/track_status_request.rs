@@ -1,5 +1,8 @@
 use crate::coding::{Decode, Encode, VarInt};
-use crate::model::{TrackName, TrackNamespace};
+use crate::model::{
+    decode_track_name, decode_track_namespace, encode_track_name, encode_track_namespace,
+    TrackName, TrackNamespace,
+};
 use bytes::{Buf, BufMut};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -10,40 +13,16 @@ pub struct TrackStatusRequest {
 
 impl Encode for TrackStatusRequest {
     fn encode<B: BufMut>(&self, buf: &mut B) {
-        VarInt(self.track_namespace.len() as u64).encode(buf);
-        for ns in &self.track_namespace {
-            VarInt(ns.as_bytes().len() as u64).encode(buf);
-            buf.put_slice(ns.as_bytes());
-        }
-        VarInt(self.track_name.as_bytes().len() as u64).encode(buf);
-        buf.put_slice(self.track_name.as_bytes());
+        encode_track_namespace(&self.track_namespace, buf);
+        encode_track_name(&self.track_name, buf);
     }
 }
 
 impl<'a> Decode<'a> for TrackStatusRequest {
     fn decode<B: Buf>(buf: &mut B) -> Result<Self, crate::coding::Error> {
-        let namespace_len = VarInt::decode(buf)?.into_inner() as usize;
-        let mut track_namespace = Vec::with_capacity(namespace_len);
-        for _ in 0..namespace_len {
-            let len = VarInt::decode(buf)?.into_inner() as usize;
-            if buf.remaining() < len {
-                return Err(crate::coding::Error::UnexpectedEnd);
-            }
-            let bytes = buf.copy_to_bytes(len);
-            let s = std::str::from_utf8(&bytes)
-                .map_err(|_| crate::coding::Error::UnexpectedEnd)?
-                .to_string();
-            track_namespace.push(s);
-        }
+        let track_namespace = decode_track_namespace(buf)?;
 
-        let name_len = VarInt::decode(buf)?.into_inner() as usize;
-        if buf.remaining() < name_len {
-            return Err(crate::coding::Error::UnexpectedEnd);
-        }
-        let bytes = buf.copy_to_bytes(name_len);
-        let track_name = std::str::from_utf8(&bytes)
-            .map_err(|_| crate::coding::Error::UnexpectedEnd)?
-            .to_string();
+        let track_name = decode_track_name(buf)?;
 
         Ok(TrackStatusRequest {
             track_namespace,
@@ -59,8 +38,8 @@ mod tests {
     #[test]
     fn encode_decode_roundtrip() {
         let msg = TrackStatusRequest {
-            track_namespace: vec!["ns1".to_string(), "ns2".to_string()],
-            track_name: "track".to_string(),
+            track_namespace: vec![bytes::Bytes::from_static(b"ns1"), bytes::Bytes::from_static(b"ns2")],
+            track_name: bytes::Bytes::from_static(b"track"),
         };
 
         let mut buf = bytes::BytesMut::new();

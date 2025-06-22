@@ -9,6 +9,8 @@ pub enum Error {
     UnknownMessageType(VarInt),
     #[error("message length mismatch")]
     MessageLengthMismatch,
+    #[error("invalid track namespace length: {0}")]
+    InvalidTrackNamespaceLength(u64),
 }
 
 /// [Variable-Length Integer Encoding](https://datatracker.ietf.org/doc/html/rfc9000#name-variable-length-integer-enc)
