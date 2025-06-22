@@ -2,6 +2,7 @@ use crate::coding::{Decode, Encode, VarInt};
 use crate::message::{
     ClientSetup, ControlMessage, Fetch, FetchCancel, FetchError, FetchOk, FetchType, GoAway,
     Announce, AnnounceCancel, AnnounceOk, ServerSetup, Subscribe, SubscribeAnnounces,
+    SubscribeAnnouncesOk, SubscribeAnnouncesError,
     SubscribeDone, SubscribeError, SubscribeOk, Unsubscribe, UnsubscribeAnnounces,
 };
 use crate::model::*;
@@ -45,6 +46,12 @@ pub enum FetchState {
     Error,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SubscribeAnnouncesState {
+    Pending,
+    Done,
+}
+
 pub struct Session<T: MoqConnection> {
     conn: T,
     control_stream: T::BiStream,
@@ -53,6 +60,7 @@ pub struct Session<T: MoqConnection> {
     subscribes: HashMap<u64, SubscribeState>,
     fetches: HashMap<u64, FetchState>,
     announces: HashSet<TrackNamespace>,
+    subscribe_announces: HashMap<TrackNamespace, SubscribeAnnouncesState>,
 }
 
 impl<T: MoqConnection> Session<T> {
@@ -112,6 +120,7 @@ impl<T: MoqConnection> Session<T> {
             subscribes: HashMap::new(),
             fetches: HashMap::new(),
             announces: HashSet::new(),
+            subscribe_announces: HashMap::new(),
         })
     }
 
@@ -191,20 +200,25 @@ impl<T: MoqConnection> Session<T> {
 
     pub async fn subscribe_announces(&mut self, namespace: TrackNamespace) -> Result<(), T::Error> {
         let msg = SubscribeAnnounces {
-            track_namespace_prefix: namespace,
+            track_namespace_prefix: namespace.clone(),
             parameters: Vec::new(),
         };
         let mut buf = bytes::BytesMut::new();
         ControlMessage::SubscribeAnnounces(msg).encode(&mut buf);
         self.control_stream.write_all(&buf).await?;
+        self.subscribe_announces.insert(namespace.clone(), SubscribeAnnouncesState::Pending);
 
         let mut read_buf = [0u8; 1024];
         let n = self.control_stream.read(&mut read_buf).await?;
         let mut bytes = bytes::Bytes::copy_from_slice(&read_buf[..n]);
 
         match ControlMessage::decode(&mut bytes) {
-            Ok(ControlMessage::SubscribeAnnouncesOk(_)) => Ok(()),
+            Ok(ControlMessage::SubscribeAnnouncesOk(_)) => {
+                self.subscribe_announces.insert(namespace, SubscribeAnnouncesState::Done);
+                Ok(())
+            }
             Ok(ControlMessage::SubscribeAnnouncesError(e)) => {
+                self.subscribe_announces.insert(namespace, SubscribeAnnouncesState::Done);
                 Err(std::io::Error::new(std::io::ErrorKind::Other, e.reason_phrase).into())
             }
             _ => Err(std::io::Error::new(std::io::ErrorKind::Other, "protocol error").into()),
@@ -213,11 +227,12 @@ impl<T: MoqConnection> Session<T> {
 
     pub async fn unsubscribe_announces(&mut self, namespace: TrackNamespace) -> Result<(), T::Error> {
         let msg = UnsubscribeAnnounces {
-            track_namespace_prefix: namespace,
+            track_namespace_prefix: namespace.clone(),
         };
         let mut buf = bytes::BytesMut::new();
         ControlMessage::UnsubscribeAnnounces(msg).encode(&mut buf);
         self.control_stream.write_all(&buf).await?;
+        self.subscribe_announces.remove(&namespace);
         Ok(())
     }
 
@@ -343,6 +358,26 @@ impl<T: MoqConnection> Session<T> {
                     let mut buf = bytes::BytesMut::new();
                     resp.encode(&mut buf);
                     self.control_stream.write_all(&buf).await?;
+                }
+            }
+            ControlMessage::SubscribeAnnouncesOk(SubscribeAnnouncesOk { track_namespace_prefix }) => {
+                match self.subscribe_announces.get_mut(&track_namespace_prefix) {
+                    Some(SubscribeAnnouncesState::Pending) => {
+                        self.subscribe_announces.insert(track_namespace_prefix, SubscribeAnnouncesState::Done);
+                    }
+                    _ => {
+                        self.close(SessionCloseCode::ProtocolViolation, "duplicate SUBSCRIBE_ANNOUNCES response").await?;
+                    }
+                }
+            }
+            ControlMessage::SubscribeAnnouncesError(SubscribeAnnouncesError { track_namespace_prefix, .. }) => {
+                match self.subscribe_announces.get_mut(&track_namespace_prefix) {
+                    Some(SubscribeAnnouncesState::Pending) => {
+                        self.subscribe_announces.insert(track_namespace_prefix, SubscribeAnnouncesState::Done);
+                    }
+                    _ => {
+                        self.close(SessionCloseCode::ProtocolViolation, "duplicate SUBSCRIBE_ANNOUNCES response").await?;
+                    }
                 }
             }
             ControlMessage::AnnounceCancel(AnnounceCancel { track_namespace, .. }) => {
@@ -824,6 +859,41 @@ mod tests {
             });
             sess.handle_control_message(resp1).await.unwrap();
             sess.handle_control_message(resp2).await.unwrap();
+
+            let closed = sess.conn.closed.lock().unwrap().clone();
+            assert!(closed.is_some());
+        });
+    }
+
+    #[test]
+    fn duplicate_subscribe_announces_response_closes_session() {
+        block_on(async {
+            let server_setup = ServerSetup { selected_version: VarInt(1), parameters: Vec::new() };
+            let mut server_bytes = bytes::BytesMut::new();
+            ControlMessage::ServerSetup(server_setup).encode(&mut server_bytes);
+
+            // first response will be consumed by subscribe_announces()
+            let mut ok_bytes = bytes::BytesMut::new();
+            ControlMessage::SubscribeAnnouncesOk(SubscribeAnnouncesOk { track_namespace_prefix: vec![bytes::Bytes::from_static(b"ns")] }).encode(&mut ok_bytes);
+
+            let conn = MockConnection {
+                read: VecDeque::from(vec![server_bytes.to_vec(), ok_bytes.to_vec()]),
+                written: Arc::new(Mutex::new(Vec::new())),
+                closed: Arc::new(Mutex::new(None)),
+            };
+
+            let mut sess = Session::new_client(conn, None).await.unwrap();
+            sess.subscribe_announces(vec![bytes::Bytes::from_static(b"ns")])
+                .await
+                .unwrap();
+
+            // duplicate response should trigger protocol violation
+            sess
+                .handle_control_message(ControlMessage::SubscribeAnnouncesOk(SubscribeAnnouncesOk {
+                    track_namespace_prefix: vec![bytes::Bytes::from_static(b"ns")],
+                }))
+                .await
+                .unwrap();
 
             let closed = sess.conn.closed.lock().unwrap().clone();
             assert!(closed.is_some());
