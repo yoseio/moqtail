@@ -251,3 +251,44 @@ impl From<SubscribeFilter> for VarInt {
         VarInt(f as u64)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bytes::{Buf, BufMut};
+
+    #[test]
+    fn track_namespace_roundtrip() {
+        let ns = vec![bytes::Bytes::from_static(b"foo"), bytes::Bytes::from_static(b"bar")];
+        let mut buf = bytes::BytesMut::new();
+        encode_track_namespace(&ns, &mut buf);
+        let mut bytes = buf.freeze();
+        let decoded = decode_track_namespace(&mut bytes).unwrap();
+        assert_eq!(decoded, ns);
+        assert!(!bytes.has_remaining());
+    }
+
+    #[test]
+    fn track_namespace_invalid_length() {
+        let mut buf = bytes::Bytes::from_static(&[0]);
+        let res = decode_track_namespace(&mut buf);
+        assert!(matches!(res, Err(Error::InvalidTrackNamespaceLength(0))));
+
+        let mut buf = bytes::BytesMut::new();
+        VarInt(33).encode(&mut buf);
+        let mut bytes = buf.freeze();
+        let res = decode_track_namespace(&mut bytes);
+        assert!(matches!(res, Err(Error::InvalidTrackNamespaceLength(33))));
+    }
+
+    #[test]
+    fn track_name_roundtrip() {
+        let name = bytes::Bytes::from_static(b"video");
+        let mut buf = bytes::BytesMut::new();
+        encode_track_name(&name, &mut buf);
+        let mut bytes = buf.freeze();
+        let decoded = decode_track_name(&mut bytes).unwrap();
+        assert_eq!(decoded, name);
+        assert!(!bytes.has_remaining());
+    }
+}

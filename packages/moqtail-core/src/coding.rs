@@ -76,10 +76,66 @@ impl<'a> Decode<'a> for VarInt {
 
         Ok(Self(match tag {
             0b00 => val,
-            0b01 => (val << 8 | buf.get_u8() as u64),
-            0b10 => (val << 24 | buf.get_u32() as u64) >> 8,
-            0b11 => (val << 56 | buf.get_u64() as u64) >> 8,
+            0b01 => {
+                if buf.remaining() < 1 {
+                    return Err(Error::UnexpectedEnd);
+                }
+                (val << 8) | buf.get_u8() as u64
+            }
+            0b10 => {
+                if buf.remaining() < 3 {
+                    return Err(Error::UnexpectedEnd);
+                }
+                (val << 24) | buf.get_uint(3)
+            }
+            0b11 => {
+                if buf.remaining() < 7 {
+                    return Err(Error::UnexpectedEnd);
+                }
+                (val << 56) | buf.get_uint(7)
+            }
             _ => unreachable!(),
         }))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bytes::{Buf, BufMut};
+
+    fn roundtrip(v: u64) {
+        let vi = VarInt(v);
+        let mut buf = bytes::BytesMut::new();
+        vi.encode(&mut buf);
+        let mut bytes = buf.freeze();
+        let decoded = VarInt::decode(&mut bytes).unwrap();
+        assert_eq!(decoded, vi);
+        assert!(!bytes.has_remaining());
+    }
+
+    #[test]
+    fn varint_encode_decode_roundtrip() {
+        let values = [
+            0,
+            63,
+            64,
+            16383,
+            16384,
+            1_000_000,
+            (1 << 30) - 1,
+            1 << 30,
+            (1 << 62) - 1,
+        ];
+        for &v in &values {
+            roundtrip(v);
+        }
+    }
+
+    #[test]
+    fn decode_unexpected_end() {
+        let mut buf = bytes::Bytes::from_static(&[0b01 << 6 | 0x3f]);
+        let res = VarInt::decode(&mut buf);
+        assert!(matches!(res, Err(Error::UnexpectedEnd)));
     }
 }
