@@ -131,7 +131,9 @@ impl<T: MoqConnection> Session<T> {
             track_alias: VarInt(sub_id),
             track_namespace: namespace,
             track_name: name,
-            subscriber_priority: 0,
+            // Use the middle of the range (128) as the default subscriber
+            // priority so users can increase or decrease it as needed.
+            subscriber_priority: 128,
             group_order: GroupOrder::Publisher,
             filter_type: SubscribeFilter::LatestObject,
             start_group: None,
