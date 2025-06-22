@@ -289,6 +289,118 @@ impl From<SubscribeFilter> for VarInt {
     }
 }
 
+// -----------------------------------------------------------------------------
+// Object data model
+// -----------------------------------------------------------------------------
+
+/// Error type for object model operations.
+#[derive(Debug, thiserror::Error, PartialEq, Eq)]
+pub enum ModelError {
+    #[error("object IDs must be added in increasing order")]
+    ObjectIdOutOfOrder,
+    #[error("subgroup already exists")]
+    SubgroupExists,
+    #[error("group already exists")]
+    GroupExists,
+}
+
+use std::collections::BTreeMap;
+
+/// A Subgroup is an ordered collection of objects from the same group.
+#[derive(Debug, Clone)]
+pub struct Subgroup {
+    pub id: VarInt,
+    objects: BTreeMap<VarInt, Object>,
+}
+
+impl Subgroup {
+    pub fn new(id: VarInt) -> Self {
+        Self {
+            id,
+            objects: BTreeMap::new(),
+        }
+    }
+
+    /// Insert an object in ascending order by object id.
+    pub fn add_object(&mut self, object: Object) -> Result<(), ModelError> {
+        if let Some((&last, _)) = self.objects.iter().next_back() {
+            if object.id.object <= last {
+                return Err(ModelError::ObjectIdOutOfOrder);
+            }
+        }
+        self.objects.insert(object.id.object, object);
+        Ok(())
+    }
+
+    pub fn get_object(&self, id: VarInt) -> Option<&Object> {
+        self.objects.get(&id)
+    }
+}
+
+/// A Group contains multiple subgroups.
+#[derive(Debug, Clone)]
+pub struct Group {
+    pub id: VarInt,
+    subgroups: BTreeMap<VarInt, Subgroup>,
+}
+
+impl Group {
+    pub fn new(id: VarInt) -> Self {
+        Self {
+            id,
+            subgroups: BTreeMap::new(),
+        }
+    }
+
+    pub fn add_subgroup(&mut self, subgroup_id: VarInt) -> Result<(), ModelError> {
+        if self.subgroups.contains_key(&subgroup_id) {
+            return Err(ModelError::SubgroupExists);
+        }
+        self.subgroups.insert(subgroup_id, Subgroup::new(subgroup_id));
+        Ok(())
+    }
+
+    pub fn subgroup_mut(&mut self, id: VarInt) -> Option<&mut Subgroup> {
+        self.subgroups.get_mut(&id)
+    }
+
+    pub fn subgroup(&self, id: VarInt) -> Option<&Subgroup> {
+        self.subgroups.get(&id)
+    }
+}
+
+/// A Track is identified by a namespace and name and contains groups.
+#[derive(Debug, Clone)]
+pub struct Track {
+    pub full_name: FullTrackName,
+    groups: BTreeMap<VarInt, Group>,
+}
+
+impl Track {
+    pub fn new(full_name: FullTrackName) -> Self {
+        Self {
+            full_name,
+            groups: BTreeMap::new(),
+        }
+    }
+
+    pub fn add_group(&mut self, group_id: VarInt) -> Result<(), ModelError> {
+        if self.groups.contains_key(&group_id) {
+            return Err(ModelError::GroupExists);
+        }
+        self.groups.insert(group_id, Group::new(group_id));
+        Ok(())
+    }
+
+    pub fn group_mut(&mut self, id: VarInt) -> Option<&mut Group> {
+        self.groups.get_mut(&id)
+    }
+
+    pub fn group(&self, id: VarInt) -> Option<&Group> {
+        self.groups.get(&id)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -357,5 +469,40 @@ mod tests {
         let mut bytes = buf.freeze();
         let res = SetupParameter::decode(&mut bytes);
         assert!(matches!(res, Err(Error::ParameterLengthMismatch)));
+    }
+
+    #[test]
+    fn subgroup_object_order() {
+        let mut sg = Subgroup::new(VarInt(0));
+        let obj1 = Object {
+            track_alias: VarInt(1),
+            id: ObjectId { group: VarInt(0), object: VarInt(1) },
+            publisher_priority: 0,
+            payload: bytes::Bytes::from_static(b"a"),
+        };
+        assert!(sg.add_object(obj1.clone()).is_ok());
+
+        let obj2 = Object {
+            track_alias: obj1.track_alias,
+            id: ObjectId { group: VarInt(0), object: VarInt(0) },
+            publisher_priority: obj1.publisher_priority,
+            payload: obj1.payload.clone(),
+        };
+        let res = sg.add_object(obj2);
+        assert!(matches!(res, Err(ModelError::ObjectIdOutOfOrder)));
+        assert_eq!(sg.get_object(VarInt(1)).unwrap().payload, obj1.payload);
+    }
+
+    #[test]
+    fn track_hierarchy() {
+        let full = FullTrackName { namespace: vec![bytes::Bytes::from_static(b"ns")], name: bytes::Bytes::from_static(b"name") };
+        let mut track = Track::new(full);
+        assert!(track.add_group(VarInt(1)).is_ok());
+        assert!(track.add_group(VarInt(1)).is_err());
+        let group = track.group_mut(VarInt(1)).unwrap();
+        assert!(group.add_subgroup(VarInt(0)).is_ok());
+        let sg = group.subgroup_mut(VarInt(0)).unwrap();
+        let obj = Object { track_alias: VarInt(1), id: ObjectId { group: VarInt(1), object: VarInt(0) }, publisher_priority: 0, payload: bytes::Bytes::from_static(b"p") };
+        assert!(sg.add_object(obj).is_ok());
     }
 }

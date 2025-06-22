@@ -4,3 +4,4 @@ pub mod model;
 pub mod session;
 pub mod datastream;
 pub mod relay;
+pub mod scheduler;
