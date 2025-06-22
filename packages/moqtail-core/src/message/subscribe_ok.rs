@@ -1,6 +1,6 @@
 use crate::coding::{Decode, Encode, VarInt};
 use bytes::{Buf, BufMut};
-use crate::model::Parameter;
+use crate::model::SubscribeParameter;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SubscribeOk {
@@ -10,7 +10,7 @@ pub struct SubscribeOk {
     pub content_exists: u8,
     pub largest_group_id: Option<VarInt>,
     pub largest_object_id: Option<VarInt>,
-    pub parameters: Vec<Parameter>,
+    pub parameters: Vec<SubscribeParameter>,
 }
 
 impl Encode for SubscribeOk {
@@ -58,7 +58,7 @@ impl<'a> Decode<'a> for SubscribeOk {
         let num_params = VarInt::decode(buf)?.into_inner() as usize;
         let mut parameters = Vec::new();
         for _ in 0..num_params {
-            parameters.push(Parameter::decode(buf)?);
+            parameters.push(SubscribeParameter::decode(buf)?);
         }
 
         Ok(SubscribeOk {
@@ -105,7 +105,7 @@ mod tests {
             content_exists: 1,
             largest_group_id: Some(VarInt(5)),
             largest_object_id: Some(VarInt(7)),
-            parameters: vec![Parameter::DeliveryTimeout(VarInt(3))],
+            parameters: vec![SubscribeParameter::DeliveryTimeout(VarInt(3))],
         };
         let mut buf = bytes::BytesMut::new();
         msg.encode(&mut buf);

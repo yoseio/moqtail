@@ -90,36 +90,36 @@ impl<'a> crate::coding::Decode<'a> for SetupParameter {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Parameter {
+pub enum SubscribeParameter {
     AuthorizationInfo(String),
     DeliveryTimeout(VarInt),
     MaxCacheDuration(VarInt),
     Unknown { ty: VarInt, value: bytes::Bytes },
 }
 
-impl crate::coding::Encode for Parameter {
+impl crate::coding::Encode for SubscribeParameter {
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) {
         match self {
-            Parameter::AuthorizationInfo(info) => {
+            SubscribeParameter::AuthorizationInfo(info) => {
                 VarInt(0x02).encode(buf);
                 VarInt(info.as_bytes().len() as u64).encode(buf);
                 buf.put_slice(info.as_bytes());
             }
-            Parameter::DeliveryTimeout(v) => {
+            SubscribeParameter::DeliveryTimeout(v) => {
                 VarInt(0x03).encode(buf);
                 let mut tmp = bytes::BytesMut::new();
                 v.encode(&mut tmp);
                 VarInt(tmp.len() as u64).encode(buf);
                 buf.put_slice(&tmp);
             }
-            Parameter::MaxCacheDuration(v) => {
+            SubscribeParameter::MaxCacheDuration(v) => {
                 VarInt(0x04).encode(buf);
                 let mut tmp = bytes::BytesMut::new();
                 v.encode(&mut tmp);
                 VarInt(tmp.len() as u64).encode(buf);
                 buf.put_slice(&tmp);
             }
-            Parameter::Unknown { ty, value } => {
+            SubscribeParameter::Unknown { ty, value } => {
                 ty.encode(buf);
                 VarInt(value.len() as u64).encode(buf);
                 buf.put_slice(value);
@@ -128,7 +128,7 @@ impl crate::coding::Encode for Parameter {
     }
 }
 
-impl<'a> crate::coding::Decode<'a> for Parameter {
+impl<'a> crate::coding::Decode<'a> for SubscribeParameter {
     fn decode<B: bytes::Buf>(buf: &mut B) -> Result<Self, crate::coding::Error> {
         let ty = VarInt::decode(buf)?;
         match ty.into_inner() {
@@ -141,17 +141,17 @@ impl<'a> crate::coding::Decode<'a> for Parameter {
                 let info = std::str::from_utf8(&bytes)
                     .map_err(|_| crate::coding::Error::UnexpectedEnd)?
                     .to_string();
-                Ok(Parameter::AuthorizationInfo(info))
+                Ok(SubscribeParameter::AuthorizationInfo(info))
             }
             0x03 => {
                 let _len = VarInt::decode(buf)?;
                 let val = VarInt::decode(buf)?;
-                Ok(Parameter::DeliveryTimeout(val))
+                Ok(SubscribeParameter::DeliveryTimeout(val))
             }
             0x04 => {
                 let _len = VarInt::decode(buf)?;
                 let val = VarInt::decode(buf)?;
-                Ok(Parameter::MaxCacheDuration(val))
+                Ok(SubscribeParameter::MaxCacheDuration(val))
             }
             _ => {
                 let len = VarInt::decode(buf)?.into_inner() as usize;
@@ -159,7 +159,7 @@ impl<'a> crate::coding::Decode<'a> for Parameter {
                     return Err(crate::coding::Error::UnexpectedEnd);
                 }
                 let bytes = buf.copy_to_bytes(len);
-                Ok(Parameter::Unknown { ty, value: bytes })
+                Ok(SubscribeParameter::Unknown { ty, value: bytes })
             }
         }
     }
