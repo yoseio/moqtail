@@ -89,7 +89,7 @@ impl<'a> crate::coding::Decode<'a> for SetupParameter {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Parameter {
     AuthorizationInfo(String),
     DeliveryTimeout(VarInt),
