@@ -1,5 +1,8 @@
 use crate::coding::{Decode, Encode, VarInt};
-use crate::model::{GroupOrder, Parameter, SubscribeFilter, TrackAlias, TrackName, TrackNamespace};
+use crate::model::{
+    decode_track_name, decode_track_namespace, encode_track_name, encode_track_namespace,
+    GroupOrder, Parameter, SubscribeFilter, TrackAlias, TrackName, TrackNamespace,
+};
 use bytes::{Buf, BufMut};
 
 #[derive(Debug, Clone)]
@@ -21,13 +24,8 @@ impl Encode for Subscribe {
     fn encode<B: BufMut>(&self, buf: &mut B) {
         self.subscribe_id.encode(buf);
         self.track_alias.encode(buf);
-        VarInt(self.track_namespace.len() as u64).encode(buf);
-        for ns in &self.track_namespace {
-            VarInt(ns.as_bytes().len() as u64).encode(buf);
-            buf.put_slice(ns.as_bytes());
-        }
-        VarInt(self.track_name.as_bytes().len() as u64).encode(buf);
-        buf.put_slice(self.track_name.as_bytes());
+        encode_track_namespace(&self.track_namespace, buf);
+        encode_track_name(&self.track_name, buf);
         buf.put_u8(self.subscriber_priority);
         buf.put_u8(self.group_order.into());
         VarInt::from(self.filter_type).encode(buf);
@@ -62,28 +60,9 @@ impl<'a> Decode<'a> for Subscribe {
         let subscribe_id = VarInt::decode(buf)?;
         let track_alias = VarInt::decode(buf)?;
 
-        let namespace_len = VarInt::decode(buf)?.into_inner() as usize;
-        let mut track_namespace = Vec::with_capacity(namespace_len);
-        for _ in 0..namespace_len {
-            let len = VarInt::decode(buf)?.into_inner() as usize;
-            if buf.remaining() < len {
-                return Err(crate::coding::Error::UnexpectedEnd);
-            }
-            let bytes = buf.copy_to_bytes(len);
-            let s = std::str::from_utf8(&bytes)
-                .map_err(|_| crate::coding::Error::UnexpectedEnd)?
-                .to_string();
-            track_namespace.push(s);
-        }
+        let track_namespace = decode_track_namespace(buf)?;
 
-        let name_len = VarInt::decode(buf)?.into_inner() as usize;
-        if buf.remaining() < name_len {
-            return Err(crate::coding::Error::UnexpectedEnd);
-        }
-        let bytes = buf.copy_to_bytes(name_len);
-        let track_name = std::str::from_utf8(&bytes)
-            .map_err(|_| crate::coding::Error::UnexpectedEnd)?
-            .to_string();
+        let track_name = decode_track_name(buf)?;
 
         if !buf.has_remaining() {
             return Err(crate::coding::Error::UnexpectedEnd);

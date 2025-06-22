@@ -1,5 +1,5 @@
 use crate::coding::{Decode, Encode, VarInt};
-use crate::model::{Parameter, TrackNamespace};
+use crate::model::{decode_track_namespace, encode_track_namespace, Parameter, TrackNamespace};
 use bytes::{Buf, BufMut};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -10,11 +10,7 @@ pub struct SubscribeAnnounces {
 
 impl Encode for SubscribeAnnounces {
     fn encode<B: BufMut>(&self, buf: &mut B) {
-        VarInt(self.track_namespace_prefix.len() as u64).encode(buf);
-        for ns in &self.track_namespace_prefix {
-            VarInt(ns.as_bytes().len() as u64).encode(buf);
-            buf.put_slice(ns.as_bytes());
-        }
+        encode_track_namespace(&self.track_namespace_prefix, buf);
         VarInt(self.parameters.len() as u64).encode(buf);
         for p in &self.parameters {
             p.encode(buf);
@@ -24,19 +20,7 @@ impl Encode for SubscribeAnnounces {
 
 impl<'a> Decode<'a> for SubscribeAnnounces {
     fn decode<B: Buf>(buf: &mut B) -> Result<Self, crate::coding::Error> {
-        let len = VarInt::decode(buf)?.into_inner() as usize;
-        let mut track_namespace_prefix = Vec::with_capacity(len);
-        for _ in 0..len {
-            let l = VarInt::decode(buf)?.into_inner() as usize;
-            if buf.remaining() < l {
-                return Err(crate::coding::Error::UnexpectedEnd);
-            }
-            let bytes = buf.copy_to_bytes(l);
-            let ns = std::str::from_utf8(&bytes)
-                .map_err(|_| crate::coding::Error::UnexpectedEnd)?
-                .to_string();
-            track_namespace_prefix.push(ns);
-        }
+        let track_namespace_prefix = decode_track_namespace(buf)?;
 
         let num_params = VarInt::decode(buf)?.into_inner() as usize;
         let mut parameters = Vec::with_capacity(num_params);
@@ -58,7 +42,7 @@ mod tests {
     #[test]
     fn encode_decode_roundtrip() {
         let msg = SubscribeAnnounces {
-            track_namespace_prefix: vec!["ns1".to_string(), "ns2".to_string()],
+            track_namespace_prefix: vec![bytes::Bytes::from_static(b"ns1"), bytes::Bytes::from_static(b"ns2")],
             parameters: vec![Parameter::AuthorizationInfo("auth".into())],
         };
 

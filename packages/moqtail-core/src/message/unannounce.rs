@@ -1,5 +1,5 @@
 use crate::coding::{Decode, Encode, VarInt};
-use crate::model::TrackNamespace;
+use crate::model::{decode_track_namespace, encode_track_namespace, TrackNamespace};
 use bytes::{Buf, BufMut};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -9,29 +9,13 @@ pub struct Unannounce {
 
 impl Encode for Unannounce {
     fn encode<B: bytes::BufMut>(&self, buf: &mut B) {
-        VarInt(self.track_namespace.len() as u64).encode(buf);
-        for ns in &self.track_namespace {
-            VarInt(ns.as_bytes().len() as u64).encode(buf);
-            buf.put_slice(ns.as_bytes());
-        }
+        encode_track_namespace(&self.track_namespace, buf);
     }
 }
 
 impl<'a> Decode<'a> for Unannounce {
     fn decode<B: bytes::Buf>(buf: &mut B) -> Result<Self, crate::coding::Error> {
-        let len = VarInt::decode(buf)?.into_inner() as usize;
-        let mut track_namespace = Vec::with_capacity(len);
-        for _ in 0..len {
-            let l = VarInt::decode(buf)?.into_inner() as usize;
-            if buf.remaining() < l {
-                return Err(crate::coding::Error::UnexpectedEnd);
-            }
-            let bytes = buf.copy_to_bytes(l);
-            let s = std::str::from_utf8(&bytes)
-                .map_err(|_| crate::coding::Error::UnexpectedEnd)?
-                .to_string();
-            track_namespace.push(s);
-        }
+        let track_namespace = decode_track_namespace(buf)?;
 
         Ok(Unannounce { track_namespace })
     }
@@ -44,7 +28,7 @@ mod tests {
     #[test]
     fn encode_decode_roundtrip() {
         let msg = Unannounce {
-            track_namespace: vec!["ns1".to_string(), "ns2".to_string()],
+            track_namespace: vec![bytes::Bytes::from_static(b"ns1"), bytes::Bytes::from_static(b"ns2")],
         };
 
         let mut buf = bytes::BytesMut::new();

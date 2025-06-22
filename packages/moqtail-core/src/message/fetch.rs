@@ -1,5 +1,8 @@
 use crate::coding::{Decode, Encode, VarInt};
-use crate::model::{GroupOrder, Parameter, TrackName, TrackNamespace};
+use crate::model::{
+    decode_track_name, decode_track_namespace, encode_track_name, encode_track_namespace,
+    GroupOrder, Parameter, TrackName, TrackNamespace,
+};
 use bytes::{Buf, BufMut};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -50,18 +53,13 @@ impl Encode for Fetch {
         match self.fetch_type {
             FetchType::Standalone => {
                 if let Some(ns) = &self.track_namespace {
-                    VarInt(ns.len() as u64).encode(buf);
-                    for part in ns {
-                        VarInt(part.as_bytes().len() as u64).encode(buf);
-                        buf.put_slice(part.as_bytes());
-                    }
+                    encode_track_namespace(ns, buf);
                 } else {
                     VarInt(0).encode(buf);
                 }
 
                 if let Some(name) = &self.track_name {
-                    VarInt(name.as_bytes().len() as u64).encode(buf);
-                    buf.put_slice(name.as_bytes());
+                    encode_track_name(name, buf);
                 } else {
                     VarInt(0).encode(buf);
                 }
@@ -110,28 +108,9 @@ impl<'a> Decode<'a> for Fetch {
             preceding_group_offset,
         ) = match fetch_type {
             FetchType::Standalone => {
-                let ns_len = VarInt::decode(buf)?.into_inner() as usize;
-                let mut ns = Vec::with_capacity(ns_len);
-                for _ in 0..ns_len {
-                    let len = VarInt::decode(buf)?.into_inner() as usize;
-                    if buf.remaining() < len {
-                        return Err(crate::coding::Error::UnexpectedEnd);
-                    }
-                    let bytes = buf.copy_to_bytes(len);
-                    let s = std::str::from_utf8(&bytes)
-                        .map_err(|_| crate::coding::Error::UnexpectedEnd)?
-                        .to_string();
-                    ns.push(s);
-                }
+                let ns = decode_track_namespace(buf)?;
 
-                let name_len = VarInt::decode(buf)?.into_inner() as usize;
-                if buf.remaining() < name_len {
-                    return Err(crate::coding::Error::UnexpectedEnd);
-                }
-                let bytes = buf.copy_to_bytes(name_len);
-                let name = std::str::from_utf8(&bytes)
-                    .map_err(|_| crate::coding::Error::UnexpectedEnd)?
-                    .to_string();
+                let name = decode_track_name(buf)?;
 
                 let start_group = VarInt::decode(buf)?;
                 let start_object = VarInt::decode(buf)?;
