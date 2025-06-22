@@ -150,6 +150,15 @@ mod tests {
     }
 
     #[test]
+    fn group_order_descending() {
+        let mut sched: PriorityScheduler<()> = PriorityScheduler::new();
+        sched.push(QueueItem { meta: SchedulableMeta { subscription_id: VarInt(1), track_alias: VarInt(0), group_id: VarInt(1), subscriber_priority: 0, publisher_priority: 0, group_order: GroupOrder::Descending, delivery: DeliveryType::Datagram { object_id: VarInt(1) } }, payload: () });
+        sched.push(QueueItem { meta: SchedulableMeta { subscription_id: VarInt(1), track_alias: VarInt(0), group_id: VarInt(2), subscriber_priority: 0, publisher_priority: 0, group_order: GroupOrder::Descending, delivery: DeliveryType::Datagram { object_id: VarInt(2) } }, payload: () });
+        let first = sched.pop().unwrap();
+        assert_eq!(first.meta.group_id, VarInt(2));
+    }
+
+    #[test]
     fn same_group_object_order() {
         let mut sched: PriorityScheduler<()> = PriorityScheduler::new();
         sched.push(QueueItem { meta: SchedulableMeta { subscription_id: VarInt(1), track_alias: VarInt(0), group_id: VarInt(1), subscriber_priority: 0, publisher_priority: 0, group_order: GroupOrder::Ascending, delivery: DeliveryType::Datagram { object_id: VarInt(2) } }, payload: () });
