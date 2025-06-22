@@ -9,6 +9,8 @@ pub enum Error {
     UnknownMessageType(VarInt),
     #[error("message length mismatch")]
     MessageLengthMismatch,
+    #[error("parameter length mismatch")]
+    ParameterLengthMismatch,
     #[error("invalid track namespace length: {0}")]
     InvalidTrackNamespaceLength(u64),
 }
