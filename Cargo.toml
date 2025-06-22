@@ -3,6 +3,7 @@ resolver = "2"
 members = [
   "packages/moqtail-core",
   "packages/moqtail-wasm",
+  "packages/moqtail-loc",
 ]
 
 [workspace.package]
