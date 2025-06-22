@@ -1,15 +1,80 @@
-use crate::coding::{Decode, Encode};
+use crate::coding::{Decode, Encode, VarInt};
+use crate::model::TrackNamespace;
+use bytes::{Buf, BufMut};
 
-pub struct AnnounceCancel {}
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AnnounceCancel {
+    pub track_namespace: TrackNamespace,
+    pub error_code: VarInt,
+    pub reason_phrase: String,
+}
 
 impl Encode for AnnounceCancel {
-    fn encode<B: bytes::BufMut>(&self, _buf: &mut B) {
-        todo!()
+    fn encode<B: BufMut>(&self, buf: &mut B) {
+        VarInt(self.track_namespace.len() as u64).encode(buf);
+        for ns in &self.track_namespace {
+            VarInt(ns.as_bytes().len() as u64).encode(buf);
+            buf.put_slice(ns.as_bytes());
+        }
+        self.error_code.encode(buf);
+        VarInt(self.reason_phrase.as_bytes().len() as u64).encode(buf);
+        buf.put_slice(self.reason_phrase.as_bytes());
     }
 }
 
 impl<'a> Decode<'a> for AnnounceCancel {
-    fn decode<B: bytes::Buf>(_buf: &mut B) -> Result<Self, crate::coding::Error> {
-        todo!()
+    fn decode<B: Buf>(buf: &mut B) -> Result<Self, crate::coding::Error> {
+        let namespace_len = VarInt::decode(buf)?.into_inner() as usize;
+        let mut track_namespace = Vec::with_capacity(namespace_len);
+        for _ in 0..namespace_len {
+            let len = VarInt::decode(buf)?.into_inner() as usize;
+            if buf.remaining() < len {
+                return Err(crate::coding::Error::UnexpectedEnd);
+            }
+            let bytes = buf.copy_to_bytes(len);
+            let ns = std::str::from_utf8(&bytes)
+                .map_err(|_| crate::coding::Error::UnexpectedEnd)?
+                .to_string();
+            track_namespace.push(ns);
+        }
+
+        let error_code = VarInt::decode(buf)?;
+
+        let reason_len = VarInt::decode(buf)?.into_inner() as usize;
+        if buf.remaining() < reason_len {
+            return Err(crate::coding::Error::UnexpectedEnd);
+        }
+        let bytes = buf.copy_to_bytes(reason_len);
+        let reason_phrase = std::str::from_utf8(&bytes)
+            .map_err(|_| crate::coding::Error::UnexpectedEnd)?
+            .to_string();
+
+        Ok(AnnounceCancel {
+            track_namespace,
+            error_code,
+            reason_phrase,
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn encode_decode_roundtrip() {
+        let msg = AnnounceCancel {
+            track_namespace: vec!["ns1".to_string(), "ns2".to_string()],
+            error_code: VarInt(1),
+            reason_phrase: "cancel".to_string(),
+        };
+
+        let mut buf = bytes::BytesMut::new();
+        msg.encode(&mut buf);
+
+        let mut bytes = buf.freeze();
+        let decoded = AnnounceCancel::decode(&mut bytes).unwrap();
+
+        assert_eq!(decoded, msg);
     }
 }
