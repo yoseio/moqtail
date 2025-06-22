@@ -174,7 +174,7 @@ pub enum TransportEvent<Bi, Uni, Dgram> {
     ConnectionClosed,
 }
 
-#[async_trait]
+#[async_trait(?Send)]
 pub trait MoqTransport {
     type Connection: MoqConnection;
     type Error: std::error::Error;
@@ -182,11 +182,11 @@ pub trait MoqTransport {
     async fn connect(&self, url: &str) -> Result<Self::Connection, Self::Error>;
 }
 
-#[async_trait]
+#[async_trait(?Send)]
 pub trait MoqConnection {
-    type BiStream: AsyncRead + AsyncWrite + Send + Unpin;
-    type UniStream: AsyncWrite + Send + Unpin;
-    type Datagram: AsRef<[u8]> + Send;
+    type BiStream: AsyncRead + AsyncWrite + Unpin;
+    type UniStream: AsyncWrite + Unpin;
+    type Datagram: AsRef<[u8]>;
     type Error: std::error::Error + From<std::io::Error>;
 
     async fn open_bi(&mut self) -> Result<Self::BiStream, Self::Error>;
@@ -280,7 +280,7 @@ mod tests {
         written: Arc<Mutex<Vec<u8>>>,
     }
 
-    #[async_trait]
+    #[async_trait(?Send)]
     impl MoqConnection for MockConnection {
         type BiStream = DummyBiStream;
         type UniStream = DummyUniStream;
